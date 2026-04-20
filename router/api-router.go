@@ -246,6 +246,15 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.POST("/upstream_updates/detect", controller.DetectChannelUpstreamModelUpdates)
 			channelRoute.POST("/upstream_updates/detect_all", controller.DetectAllChannelUpstreamModelUpdates)
 		}
+		channelMonitorRoute := apiRouter.Group("/channel_monitor")
+		channelMonitorRoute.Use(middleware.AdminAuth())
+		{
+			channelMonitorRoute.GET("/summary", controller.GetChannelMonitorSummary)
+			channelMonitorRoute.GET("/health", controller.GetChannelMonitorHealth)
+			channelMonitorRoute.GET("/timeline", controller.GetChannelMonitorTimeline)
+			channelMonitorRoute.GET("/channels", controller.GetChannelMonitorChannels)
+			channelMonitorRoute.GET("/rankings", controller.GetChannelMonitorRankings)
+		}
 		tokenRoute := apiRouter.Group("/token")
 		tokenRoute.Use(middleware.UserAuth())
 		{

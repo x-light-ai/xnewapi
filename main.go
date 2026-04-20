@@ -124,6 +124,10 @@ func main() {
 	// Channel upstream model update check task
 	controller.StartChannelUpstreamModelUpdateTask()
 
+	model.StartChannelMonitorPersistenceTask()
+	model.StartChannelMonitorCleanupTask()
+	service.StartChannelSuccessRateHealthManager()
+
 	if common.IsMasterNode && constant.UpdateTask {
 		gopool.Go(func() {
 			controller.UpdateMidjourneyTaskBulk()

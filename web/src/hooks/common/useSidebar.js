@@ -47,6 +47,8 @@ export const DEFAULT_ADMIN_CONFIG = {
   admin: {
     enabled: true,
     channel: true,
+    channel_monitor: true,
+    channel_settings: true,
     models: true,
     deployment: true,
     redemption: true,
@@ -54,26 +56,6 @@ export const DEFAULT_ADMIN_CONFIG = {
     subscription: true,
     setting: true,
   },
-};
-
-const deepClone = (value) => JSON.parse(JSON.stringify(value));
-
-export const mergeAdminConfig = (savedConfig) => {
-  const merged = deepClone(DEFAULT_ADMIN_CONFIG);
-  if (!savedConfig || typeof savedConfig !== 'object') return merged;
-
-  for (const [sectionKey, sectionConfig] of Object.entries(savedConfig)) {
-    if (!sectionConfig || typeof sectionConfig !== 'object') continue;
-
-    if (!merged[sectionKey]) {
-      merged[sectionKey] = { ...sectionConfig };
-      continue;
-    }
-
-    merged[sectionKey] = { ...merged[sectionKey], ...sectionConfig };
-  }
-
-  return merged;
 };
 
 export const useSidebar = () => {
@@ -93,12 +75,31 @@ export const useSidebar = () => {
     if (statusState?.status?.SidebarModulesAdmin) {
       try {
         const config = JSON.parse(statusState.status.SidebarModulesAdmin);
-        return mergeAdminConfig(config);
+        return {
+          ...DEFAULT_ADMIN_CONFIG,
+          ...config,
+          chat: {
+            ...DEFAULT_ADMIN_CONFIG.chat,
+            ...(config.chat || {}),
+          },
+          console: {
+            ...DEFAULT_ADMIN_CONFIG.console,
+            ...(config.console || {}),
+          },
+          personal: {
+            ...DEFAULT_ADMIN_CONFIG.personal,
+            ...(config.personal || {}),
+          },
+          admin: {
+            ...DEFAULT_ADMIN_CONFIG.admin,
+            ...(config.admin || {}),
+          },
+        };
       } catch (error) {
-        return mergeAdminConfig(null);
+        return DEFAULT_ADMIN_CONFIG;
       }
     }
-    return mergeAdminConfig(null);
+    return DEFAULT_ADMIN_CONFIG;
   }, [statusState?.status?.SidebarModulesAdmin]);
 
   // 加载用户配置的通用方法

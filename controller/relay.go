@@ -186,7 +186,10 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	relayInfo.RetryIndex = 0
 	relayInfo.LastError = nil
 
-	for ; retryParam.GetRetry() <= common.RetryTimes; retryParam.IncreaseRetry() {
+	for ; ; retryParam.IncreaseRetry() {
+		if !operation_setting.GetSuccessRateSelectorEnabled() && retryParam.GetRetry() > common.RetryTimes {
+			break
+		}
 		relayInfo.RetryIndex = retryParam.GetRetry()
 		channel, channelErr := getChannel(c, relayInfo, retryParam)
 		if channelErr != nil {
@@ -220,11 +223,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		if newAPIError == nil {
+			service.ObserveChannelRequestResult(c, true, nil)
 			relayInfo.LastError = nil
 			return
 		}
 
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
+		service.ObserveChannelRequestResult(c, false, newAPIError)
 		relayInfo.LastError = newAPIError
 
 		processChannelError(c, *types.NewChannelError(channel.Id, channel.Type, channel.Name, channel.ChannelInfo.IsMultiKey, common.GetContextKeyString(c, constant.ContextKeyChannelKey), channel.GetAutoBan()), newAPIError)
@@ -328,10 +333,12 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 	if types.IsSkipRetryError(openaiErr) {
 		return false
 	}
-	if retryTimes <= 0 {
+	if _, ok := c.Get("specific_channel_id"); ok {
 		return false
 	}
-	if _, ok := c.Get("specific_channel_id"); ok {
+	// When SuccessRateSelector is enabled, it handles same-group candidate exhaustion
+	// internally, so we don't gate on retryTimes for status-code-based retries.
+	if !operation_setting.GetSuccessRateSelectorEnabled() && retryTimes <= 0 {
 		return false
 	}
 	code := openaiErr.StatusCode

@@ -1,0 +1,861 @@
+[SYS] 2026/04/20 - 22:39:47 | initializing token encoders 
+[SYS] 2026/04/20 - 22:39:47 | token encoders initialized 
+[SYS] 2026/04/20 - 22:39:47 | SQL_DSN not set, using SQLite as database 
+[SYS] 2026/04/20 - 22:39:47 | database migration started 
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="channels"
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:3][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "channels" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `channels` LIMIT 1
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "channels" AND name = "idx_channels_name"
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "channels" AND name = "idx_channels_tag"
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="tokens"
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:5][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "tokens" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `tokens` LIMIT 1
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tokens" AND name = "idx_tokens_key"
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tokens" AND name = "idx_tokens_name"
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tokens" AND name = "idx_tokens_deleted_at"
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tokens" AND name = "idx_tokens_user_id"
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="users"
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:15][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "users" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `users` LIMIT 1
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "users" AND name = "users"
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[2.003ms] [34;1m[rows:0][0m CREATE TABLE `users__temp` (`id` integer,`username` text UNIQUE,`password` text NOT NULL,`display_name` text,`role` integer DEFAULT 1,`status` integer DEFAULT 1,`email` text,`github_id` text,`discord_id` text,`oidc_id` text,`wechat_id` text,`telegram_id` text,`access_token` char(32),`quota` integer DEFAULT 0,`used_quota` integer DEFAULT 0,`request_count` integer DEFAULT 0,`group` varchar(64) DEFAULT "default",`aff_code` varchar(32),`aff_count` integer DEFAULT 0,`aff_quota` integer DEFAULT 0,`aff_history` integer DEFAULT 0,`inviter_id` integer,`deleted_at` datetime,`linux_do_id` text,`setting` text,`remark` varchar(255),`stripe_customer` varchar(64),PRIMARY KEY (`id`))
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:1][0m INSERT INTO `users__temp`(`id`,`username`,`password`,`display_name`,`role`,`status`,`email`,`github_id`,`discord_id`,`oidc_id`,`wechat_id`,`telegram_id`,`access_token`,`quota`,`used_quota`,`request_count`,`group`,`aff_code`,`aff_count`,`aff_quota`,`aff_history`,`inviter_id`,`deleted_at`,`linux_do_id`,`setting`,`remark`,`stripe_customer`) SELECT `id`,`username`,`password`,`display_name`,`role`,`status`,`email`,`github_id`,`discord_id`,`oidc_id`,`wechat_id`,`telegram_id`,`access_token`,`quota`,`used_quota`,`request_count`,`group`,`aff_code`,`aff_count`,`aff_quota`,`aff_history`,`inviter_id`,`deleted_at`,`linux_do_id`,`setting`,`remark`,`stripe_customer` FROM `users`
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:1][0m DROP TABLE `users`
+
+2026/04/20 22:39:47 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[2.003ms] [34;1m[rows:1][0m ALTER TABLE `users__temp` RENAME TO `users`
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_display_name"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.475ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_display_name` ON `users`(`display_name`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_email"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.123ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_email` ON `users`(`email`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_git_hub_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.521ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_git_hub_id` ON `users`(`github_id`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_discord_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.518ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_discord_id` ON `users`(`discord_id`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_oidc_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.489ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_oidc_id` ON `users`(`oidc_id`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_we_chat_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.516ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_we_chat_id` ON `users`(`wechat_id`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_telegram_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.087ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_telegram_id` ON `users`(`telegram_id`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_deleted_at"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.322ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_deleted_at` ON `users`(`deleted_at`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_username"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.172ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_username` ON `users`(`username`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_access_token"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.473ms] [34;1m[rows:1][0m CREATE UNIQUE INDEX `idx_users_access_token` ON `users`(`access_token`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_aff_code"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.568ms] [34;1m[rows:1][0m CREATE UNIQUE INDEX `idx_users_aff_code` ON `users`(`aff_code`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_inviter_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.492ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_inviter_id` ON `users`(`inviter_id`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_linux_do_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.048ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_linux_do_id` ON `users`(`linux_do_id`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "users" AND name = "idx_users_stripe_customer"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.084ms] [34;1m[rows:1][0m CREATE INDEX `idx_users_stripe_customer` ON `users`(`stripe_customer`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="passkey_credentials"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:4][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "passkey_credentials" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `passkey_credentials` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "passkey_credentials" AND name = "idx_passkey_credentials_user_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "passkey_credentials" AND name = "idx_passkey_credentials_credential_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "passkey_credentials" AND name = "idx_passkey_credentials_deleted_at"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="options"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:1][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "options" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `options` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="redemptions"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:4][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "redemptions" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `redemptions` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "redemptions" AND name = "idx_redemptions_key"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "redemptions" AND name = "idx_redemptions_name"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.517ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "redemptions" AND name = "idx_redemptions_deleted_at"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="abilities"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:5][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "abilities" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `abilities` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "abilities" AND name = "idx_abilities_channel_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "abilities" AND name = "idx_abilities_priority"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "abilities" AND name = "idx_abilities_weight"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "abilities" AND name = "idx_abilities_tag"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="logs"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:14][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "logs" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.536ms] [34;1m[rows:-][0m SELECT * FROM `logs` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_logs_ip"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_logs_request_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_created_at_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_user_id_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_logs_user_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_created_at_type"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_logs_username"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_logs_token_name"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_logs_token_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_logs_group"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "index_username_model_name"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_logs_model_name"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "logs" AND name = "idx_logs_channel_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="midjourneys"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:9][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "midjourneys" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `midjourneys` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "midjourneys" AND name = "idx_midjourneys_progress"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "midjourneys" AND name = "idx_midjourneys_user_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "midjourneys" AND name = "idx_midjourneys_action"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "midjourneys" AND name = "idx_midjourneys_mj_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "midjourneys" AND name = "idx_midjourneys_submit_time"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "midjourneys" AND name = "idx_midjourneys_start_time"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "midjourneys" AND name = "idx_midjourneys_finish_time"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "midjourneys" AND name = "idx_midjourneys_status"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="top_ups"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:3][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "top_ups" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `top_ups` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "top_ups" AND name = "top_ups"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[1.560ms] [34;1m[rows:1][0m CREATE TABLE `top_ups__temp` (`id` integer,`user_id` integer,`amount` integer,`money` real,`trade_no` varchar(255) UNIQUE,`payment_method` varchar(50),`create_time` integer,`complete_time` integer,`status` text,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m INSERT INTO `top_ups__temp`(`id`,`user_id`,`amount`,`money`,`trade_no`,`payment_method`,`create_time`,`complete_time`,`status`) SELECT `id`,`user_id`,`amount`,`money`,`trade_no`,`payment_method`,`create_time`,`complete_time`,`status` FROM `top_ups`
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.511ms] [34;1m[rows:0][0m DROP TABLE `top_ups`
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[1.530ms] [34;1m[rows:0][0m ALTER TABLE `top_ups__temp` RENAME TO `top_ups`
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "top_ups" AND name = "idx_top_ups_user_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.522ms] [34;1m[rows:0][0m CREATE INDEX `idx_top_ups_user_id` ON `top_ups`(`user_id`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "top_ups" AND name = "idx_top_ups_trade_no"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.578ms] [34;1m[rows:0][0m CREATE INDEX `idx_top_ups_trade_no` ON `top_ups`(`trade_no`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="quota_data"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.514ms] [34;1m[rows:4][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "quota_data" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `quota_data` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "quota_data" AND name = "idx_quota_data_user_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.513ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "quota_data" AND name = "idx_qdt_model_user_name"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "quota_data" AND name = "idx_qdt_created_at"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="tasks"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:12][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "tasks" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `tasks` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_task_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_action"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_status"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_start_time"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_finish_time"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.508ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_progress"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_created_at"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_platform"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_user_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_channel_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "tasks" AND name = "idx_tasks_submit_time"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="models"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.509ms] [34;1m[rows:4][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "models" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `models` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "models" AND name = "models"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[1.018ms] [34;1m[rows:0][0m CREATE TABLE `models__temp` (`id` integer,`model_name` text NOT NULL,`description` text,`icon` varchar(128),`tags` varchar(255),`vendor_id` integer,`endpoints` text,`status` integer DEFAULT 1,`sync_official` integer DEFAULT 1,`created_time` integer,`updated_time` integer,`deleted_at` datetime,`name_rule` integer DEFAULT 0,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m INSERT INTO `models__temp`(`id`,`model_name`,`description`,`icon`,`tags`,`vendor_id`,`endpoints`,`status`,`sync_official`,`created_time`,`updated_time`,`deleted_at`,`name_rule`) SELECT `id`,`model_name`,`description`,`icon`,`tags`,`vendor_id`,`endpoints`,`status`,`sync_official`,`created_time`,`updated_time`,`deleted_at`,`name_rule` FROM `models`
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.513ms] [34;1m[rows:0][0m DROP TABLE `models`
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[2.042ms] [34;1m[rows:0][0m ALTER TABLE `models__temp` RENAME TO `models`
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "models" AND name = "idx_models_vendor_id"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.503ms] [34;1m[rows:0][0m CREATE INDEX `idx_models_vendor_id` ON `models`(`vendor_id`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "models" AND name = "idx_models_deleted_at"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.980ms] [34;1m[rows:0][0m CREATE INDEX `idx_models_deleted_at` ON `models`(`deleted_at`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "models" AND name = "uk_model_name_delete_at"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.064ms] [34;1m[rows:0][0m CREATE UNIQUE INDEX `uk_model_name_delete_at` ON `models`(`model_name`,`deleted_at`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="vendors"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.513ms] [34;1m[rows:3][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "vendors" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `vendors` LIMIT 1
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "vendors" AND name = "vendors"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[1.601ms] [34;1m[rows:0][0m CREATE TABLE `vendors__temp` (`id` integer,`name` text NOT NULL,`description` text,`icon` varchar(128),`status` integer DEFAULT 1,`created_time` integer,`updated_time` integer,`deleted_at` datetime,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:1][0m INSERT INTO `vendors__temp`(`id`,`name`,`description`,`icon`,`status`,`created_time`,`updated_time`,`deleted_at`) SELECT `id`,`name`,`description`,`icon`,`status`,`created_time`,`updated_time`,`deleted_at` FROM `vendors`
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:1][0m DROP TABLE `vendors`
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[2.141ms] [34;1m[rows:1][0m ALTER TABLE `vendors__temp` RENAME TO `vendors`
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "vendors" AND name = "uk_vendor_name_delete_at"
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[43.868ms] [34;1m[rows:1][0m CREATE UNIQUE INDEX `uk_vendor_name_delete_at` ON `vendors`(`name`,`deleted_at`)
+
+2026/04/20 22:39:48 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "vendors" AND name = "idx_vendors_deleted_at"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[177.620ms] [34;1m[rows:1][0m CREATE INDEX `idx_vendors_deleted_at` ON `vendors`(`deleted_at`)
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="prefill_groups"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.515ms] [34;1m[rows:4][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "prefill_groups" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `prefill_groups` LIMIT 1
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "prefill_groups" AND name = "uk_prefill_name"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "prefill_groups" AND name = "idx_prefill_groups_type"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "prefill_groups" AND name = "idx_prefill_groups_deleted_at"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="setups"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:1][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "setups" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `setups` LIMIT 1
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="two_fas"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:3][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "two_fas" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `two_fas` LIMIT 1
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "two_fas" AND name = "two_fas"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[13.535ms] [34;1m[rows:1][0m CREATE TABLE `two_fas__temp` (`id` integer,`user_id` integer NOT NULL UNIQUE,`secret` varchar(255) NOT NULL,`is_enabled` numeric,`failed_attempts` integer DEFAULT 0,`locked_until` datetime,`last_used_at` datetime,`created_at` datetime,`updated_at` datetime,`deleted_at` datetime,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m INSERT INTO `two_fas__temp`(`id`,`user_id`,`secret`,`is_enabled`,`failed_attempts`,`locked_until`,`last_used_at`,`created_at`,`updated_at`,`deleted_at`) SELECT `id`,`user_id`,`secret`,`is_enabled`,`failed_attempts`,`locked_until`,`last_used_at`,`created_at`,`updated_at`,`deleted_at` FROM `two_fas`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.502ms] [34;1m[rows:0][0m DROP TABLE `two_fas`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[1.527ms] [34;1m[rows:0][0m ALTER TABLE `two_fas__temp` RENAME TO `two_fas`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "two_fas" AND name = "idx_two_fas_user_id"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294 [33mSLOW SQL >= 200ms
+[0m[31;1m[227.665ms] [33m[rows:0][35m CREATE INDEX `idx_two_fas_user_id` ON `two_fas`(`user_id`)[0m
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "two_fas" AND name = "idx_two_fas_deleted_at"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[185.939ms] [34;1m[rows:0][0m CREATE INDEX `idx_two_fas_deleted_at` ON `two_fas`(`deleted_at`)
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="two_fa_backup_codes"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.515ms] [34;1m[rows:3][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "two_fa_backup_codes" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `two_fa_backup_codes` LIMIT 1
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "two_fa_backup_codes" AND name = "idx_two_fa_backup_codes_user_id"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "two_fa_backup_codes" AND name = "idx_two_fa_backup_codes_deleted_at"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="checkins"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:2][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "checkins" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `checkins` LIMIT 1
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "checkins" AND name = "checkins"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[2.048ms] [34;1m[rows:0][0m CREATE TABLE `checkins__temp` (`id` integer,`user_id` integer NOT NULL,`checkin_date` varchar(10) NOT NULL,`quota_awarded` integer NOT NULL,`created_at` integer,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m INSERT INTO `checkins__temp`(`id`,`user_id`,`checkin_date`,`quota_awarded`,`created_at`) SELECT `id`,`user_id`,`checkin_date`,`quota_awarded`,`created_at` FROM `checkins`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m DROP TABLE `checkins`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[2.150ms] [34;1m[rows:0][0m ALTER TABLE `checkins__temp` RENAME TO `checkins`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "checkins" AND name = "checkins"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[1.542ms] [34;1m[rows:0][0m CREATE TABLE `checkins__temp` (`id` integer,`user_id` integer NOT NULL,`checkin_date` varchar(10) NOT NULL,`quota_awarded` integer NOT NULL,`created_at` integer,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m INSERT INTO `checkins__temp`(`id`,`user_id`,`checkin_date`,`quota_awarded`,`created_at`) SELECT `id`,`user_id`,`checkin_date`,`quota_awarded`,`created_at` FROM `checkins`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m DROP TABLE `checkins`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[2.047ms] [34;1m[rows:0][0m ALTER TABLE `checkins__temp` RENAME TO `checkins`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "checkins" AND name = "idx_user_checkin_date"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[37.006ms] [34;1m[rows:0][0m CREATE UNIQUE INDEX `idx_user_checkin_date` ON `checkins`(`user_id`,`checkin_date`)
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="subscription_orders"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.512ms] [34;1m[rows:4][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "subscription_orders" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `subscription_orders` LIMIT 1
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "subscription_orders" AND name = "subscription_orders"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[1.020ms] [34;1m[rows:0][0m CREATE TABLE `subscription_orders__temp` (`id` integer,`user_id` integer,`plan_id` integer,`money` real,`trade_no` varchar(255) UNIQUE,`payment_method` varchar(50),`status` text,`create_time` integer,`complete_time` integer,`provider_payload` text,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m INSERT INTO `subscription_orders__temp`(`id`,`user_id`,`plan_id`,`money`,`trade_no`,`payment_method`,`status`,`create_time`,`complete_time`,`provider_payload`) SELECT `id`,`user_id`,`plan_id`,`money`,`trade_no`,`payment_method`,`status`,`create_time`,`complete_time`,`provider_payload` FROM `subscription_orders`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.513ms] [34;1m[rows:0][0m DROP TABLE `subscription_orders`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[1.567ms] [34;1m[rows:0][0m ALTER TABLE `subscription_orders__temp` RENAME TO `subscription_orders`
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "subscription_orders" AND name = "idx_subscription_orders_trade_no"
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.041ms] [34;1m[rows:0][0m CREATE INDEX `idx_subscription_orders_trade_no` ON `subscription_orders`(`trade_no`)
+
+2026/04/20 22:39:49 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "subscription_orders" AND name = "idx_subscription_orders_user_id"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.059ms] [34;1m[rows:0][0m CREATE INDEX `idx_subscription_orders_user_id` ON `subscription_orders`(`user_id`)
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "subscription_orders" AND name = "idx_subscription_orders_plan_id"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.019ms] [34;1m[rows:0][0m CREATE INDEX `idx_subscription_orders_plan_id` ON `subscription_orders`(`plan_id`)
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="user_subscriptions"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.517ms] [34;1m[rows:7][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "user_subscriptions" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `user_subscriptions` LIMIT 1
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "user_subscriptions" AND name = "idx_user_subscriptions_user_id"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "user_subscriptions" AND name = "idx_user_sub_active"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "user_subscriptions" AND name = "idx_user_subscriptions_plan_id"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "user_subscriptions" AND name = "idx_user_subscriptions_end_time"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "user_subscriptions" AND name = "idx_user_subscriptions_status"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "user_subscriptions" AND name = "idx_user_subscriptions_next_reset_time"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="subscription_pre_consume_records"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:6][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "subscription_pre_consume_records" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `subscription_pre_consume_records` LIMIT 1
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "subscription_pre_consume_records" AND name = "idx_subscription_pre_consume_records_status"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "subscription_pre_consume_records" AND name = "idx_subscription_pre_consume_records_updated_at"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.534ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "subscription_pre_consume_records" AND name = "idx_subscription_pre_consume_records_request_id"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "subscription_pre_consume_records" AND name = "idx_subscription_pre_consume_records_user_id"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "subscription_pre_consume_records" AND name = "idx_subscription_pre_consume_records_user_subscription_id"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="custom_oauth_providers"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:2][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "custom_oauth_providers" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `custom_oauth_providers` LIMIT 1
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "custom_oauth_providers" AND name = "idx_custom_oauth_providers_slug"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="user_oauth_bindings"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.000ms] [34;1m[rows:3][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "user_oauth_bindings" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `user_oauth_bindings` LIMIT 1
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "user_oauth_bindings" AND name = "user_oauth_bindings"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[1.537ms] [34;1m[rows:0][0m CREATE TABLE `user_oauth_bindings__temp` (`id` integer,`user_id` integer NOT NULL,`provider_id` integer NOT NULL,`provider_user_id` varchar(256) NOT NULL,`created_at` datetime,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m INSERT INTO `user_oauth_bindings__temp`(`id`,`user_id`,`provider_id`,`provider_user_id`,`created_at`) SELECT `id`,`user_id`,`provider_id`,`provider_user_id`,`created_at` FROM `user_oauth_bindings`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.512ms] [34;1m[rows:0][0m DROP TABLE `user_oauth_bindings`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[1.542ms] [34;1m[rows:0][0m ALTER TABLE `user_oauth_bindings__temp` RENAME TO `user_oauth_bindings`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "user_oauth_bindings" AND name = "user_oauth_bindings"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[1.536ms] [34;1m[rows:0][0m CREATE TABLE `user_oauth_bindings__temp` (`id` integer,`user_id` integer NOT NULL,`provider_id` integer NOT NULL,`provider_user_id` varchar(256) NOT NULL,`created_at` datetime,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m INSERT INTO `user_oauth_bindings__temp`(`id`,`user_id`,`provider_id`,`provider_user_id`,`created_at`) SELECT `id`,`user_id`,`provider_id`,`provider_user_id`,`created_at` FROM `user_oauth_bindings`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m DROP TABLE `user_oauth_bindings`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[1.529ms] [34;1m[rows:0][0m ALTER TABLE `user_oauth_bindings__temp` RENAME TO `user_oauth_bindings`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "user_oauth_bindings" AND name = "user_oauth_bindings"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[1.023ms] [34;1m[rows:0][0m CREATE TABLE `user_oauth_bindings__temp` (`id` integer,`user_id` integer NOT NULL,`provider_id` integer NOT NULL,`provider_user_id` varchar(256) NOT NULL,`created_at` datetime,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.565ms] [34;1m[rows:0][0m INSERT INTO `user_oauth_bindings__temp`(`id`,`user_id`,`provider_id`,`provider_user_id`,`created_at`) SELECT `id`,`user_id`,`provider_id`,`provider_user_id`,`created_at` FROM `user_oauth_bindings`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:0][0m DROP TABLE `user_oauth_bindings`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[2.245ms] [34;1m[rows:0][0m ALTER TABLE `user_oauth_bindings__temp` RENAME TO `user_oauth_bindings`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "user_oauth_bindings" AND name = "ux_provider_userid"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.489ms] [34;1m[rows:0][0m CREATE UNIQUE INDEX `ux_provider_userid` ON `user_oauth_bindings`(`provider_id`,`provider_user_id`)
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "user_oauth_bindings" AND name = "ux_user_provider"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[36.472ms] [34;1m[rows:0][0m CREATE UNIQUE INDEX `ux_user_provider` ON `user_oauth_bindings`(`user_id`,`provider_id`)
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="channel_monitor_stats"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.514ms] [34;1m[rows:3][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "channel_monitor_stats" AND sql IS NOT NULL order by type = "table" desc
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:119
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT * FROM `channel_monitor_stats` LIMIT 1
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "channel_monitor_stats" AND name = "channel_monitor_stats"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[1.533ms] [34;1m[rows:0][0m CREATE TABLE `channel_monitor_stats__temp` (`id` integer,`channel_id` integer,`group_name` text,`model_name` text,`time_bucket` datetime,`granularity` integer,`request_count` integer DEFAULT 0,`success_count` integer DEFAULT 0,`failure_count` integer DEFAULT 0,`avg_latency_ms` real DEFAULT 0.000000,`p95_latency_ms` real DEFAULT 0.000000,`last_active_at` datetime,`created_at` integer,`updated_at` integer,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.529ms] [34;1m[rows:45][0m INSERT INTO `channel_monitor_stats__temp`(`id`,`channel_id`,`group_name`,`model_name`,`time_bucket`,`granularity`,`request_count`,`success_count`,`failure_count`,`avg_latency_ms`,`p95_latency_ms`,`last_active_at`,`created_at`,`updated_at`) SELECT `id`,`channel_id`,`group_name`,`model_name`,`time_bucket`,`granularity`,`request_count`,`success_count`,`failure_count`,`avg_latency_ms`,`p95_latency_ms`,`last_active_at`,`created_at`,`updated_at` FROM `channel_monitor_stats`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:45][0m DROP TABLE `channel_monitor_stats`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[1.537ms] [34;1m[rows:45][0m ALTER TABLE `channel_monitor_stats__temp` RENAME TO `channel_monitor_stats`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:21
+[0m[33m[0.000ms] [34;1m[rows:1][0m PRAGMA foreign_keys
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:370
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT sql FROM sqlite_master WHERE type = "table" AND tbl_name = "channel_monitor_stats" AND name = "channel_monitor_stats"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:414
+[0m[33m[1.540ms] [34;1m[rows:45][0m CREATE TABLE `channel_monitor_stats__temp` (`id` integer,`channel_id` integer,`group_name` text,`model_name` text,`time_bucket` datetime,`granularity` integer,`request_count` integer DEFAULT 0,`success_count` integer DEFAULT 0,`failure_count` integer DEFAULT 0,`avg_latency_ms` real DEFAULT 0.000000,`p95_latency_ms` real DEFAULT 0.000000,`last_active_at` datetime,`created_at` integer,`updated_at` integer,PRIMARY KEY (`id`))
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.512ms] [34;1m[rows:45][0m INSERT INTO `channel_monitor_stats__temp`(`id`,`channel_id`,`group_name`,`model_name`,`time_bucket`,`granularity`,`request_count`,`success_count`,`failure_count`,`avg_latency_ms`,`p95_latency_ms`,`last_active_at`,`created_at`,`updated_at`) SELECT `id`,`channel_id`,`group_name`,`model_name`,`time_bucket`,`granularity`,`request_count`,`success_count`,`failure_count`,`avg_latency_ms`,`p95_latency_ms`,`last_active_at`,`created_at`,`updated_at` FROM `channel_monitor_stats`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[0.000ms] [34;1m[rows:45][0m DROP TABLE `channel_monitor_stats`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:424
+[0m[33m[1.531ms] [34;1m[rows:45][0m ALTER TABLE `channel_monitor_stats__temp` RENAME TO `channel_monitor_stats`
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "channel_monitor_stats" AND name = "idx_channel_monitor_bucket"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.550ms] [34;1m[rows:45][0m CREATE INDEX `idx_channel_monitor_bucket` ON `channel_monitor_stats`(`channel_id`,`group_name`,`model_name`,`time_bucket`,`granularity`)
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:313
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type = "index" AND tbl_name = "channel_monitor_stats" AND name = "idx_channel_monitor_range"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:294
+[0m[33m[35.508ms] [34;1m[rows:45][0m CREATE INDEX `idx_channel_monitor_range` ON `channel_monitor_stats`(`time_bucket`,`channel_id`,`granularity`,`last_active_at`)
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:33
+[0m[33m[0.000ms] [34;1m[rows:-][0m SELECT count(*) FROM sqlite_master WHERE type='table' AND name="channel_circuit_events"
+
+2026/04/20 22:39:50 [32mC:/Users/Administrator/go/pkg/mod/github.com/glebarez/sqlite@v1.9.0/migrator.go:111
+[0m[33m[0.516ms] [34;1m[rows:3][0m SELECT sql FROM sqlite_master WHERE type IN ("table","index") AND tbl_name = "channel_circuit_events" AND sql IS NOT NULL order by type = "table" desc
+[FATAL] 2026/04/20 - 22:39:50 | [failed to initialize database: invalid DDL] 
+exit status 1

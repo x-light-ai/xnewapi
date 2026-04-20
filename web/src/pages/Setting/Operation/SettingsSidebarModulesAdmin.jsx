@@ -61,6 +61,8 @@ export default function SettingsSidebarModulesAdmin(props) {
     admin: {
       enabled: true,
       channel: true,
+      channel_monitor: true,
+      channel_settings: true,
       models: true,
       deployment: true,
       redemption: true,
@@ -122,6 +124,7 @@ export default function SettingsSidebarModulesAdmin(props) {
       admin: {
         enabled: true,
         channel: true,
+        channel_monitor: true,
         models: true,
         deployment: true,
         redemption: true,
@@ -174,7 +177,14 @@ export default function SettingsSidebarModulesAdmin(props) {
     if (props.options && props.options.SidebarModulesAdmin) {
       try {
         const modules = JSON.parse(props.options.SidebarModulesAdmin);
-        setSidebarModulesAdmin(modules);
+        setSidebarModulesAdmin({
+          ...modules,
+          admin: {
+            ...(modules.admin || {}),
+            channel_monitor: modules.admin?.channel_monitor ?? true,
+            channel_settings: modules.admin?.channel_settings ?? true,
+          },
+        });
       } catch (error) {
         // 使用默认配置
         const defaultModules = {
@@ -191,6 +201,7 @@ export default function SettingsSidebarModulesAdmin(props) {
           admin: {
             enabled: true,
             channel: true,
+            channel_monitor: true,
             models: true,
             deployment: true,
             redemption: true,
@@ -264,6 +275,16 @@ export default function SettingsSidebarModulesAdmin(props) {
           key: 'subscription',
           title: t('订阅管理'),
           description: t('订阅套餐管理'),
+        },
+        {
+          key: 'channel_monitor',
+          title: t('渠道监控'),
+          description: t('渠道健康与成功率监控'),
+        },
+        {
+          key: 'channel_settings',
+          title: t('渠道设置'),
+          description: t('渠道择优与恢复策略配置'),
         },
         {
           key: 'redemption',

@@ -49,6 +49,8 @@ const routerMap = {
   deployment: '/console/deployment',
   playground: '/console/playground',
   personal: '/console/personal',
+  channel_monitor: '/console/channel-monitor',
+  channel_settings: '/console/channel-settings',
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -157,6 +159,18 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         text: t('订阅管理'),
         itemKey: 'subscription',
         to: '/subscription',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('渠道监控'),
+        itemKey: 'channel_monitor',
+        to: '/console/channel-monitor',
+        className: isAdmin() ? '' : 'tableHiddle',
+      },
+      {
+        text: t('渠道设置'),
+        itemKey: 'channel_settings',
+        to: '/console/channel-settings',
         className: isAdmin() ? '' : 'tableHiddle',
       },
       {

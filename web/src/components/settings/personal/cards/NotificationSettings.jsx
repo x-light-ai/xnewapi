@@ -45,7 +45,7 @@ import { StatusContext } from '../../../../context/Status';
 import { UserContext } from '../../../../context/User';
 import { useUserPermissions } from '../../../../hooks/common/useUserPermissions';
 import {
-  mergeAdminConfig,
+  DEFAULT_ADMIN_CONFIG,
   useSidebar,
 } from '../../../../hooks/common/useSidebar';
 
@@ -63,6 +63,29 @@ const NotificationSettings = ({
   // 左侧边栏设置相关状态
   const [sidebarLoading, setSidebarLoading] = useState(false);
   const [activeTabKey, setActiveTabKey] = useState('notification');
+
+  const mergeSidebarAdminConfig = (config) => {
+    return {
+      ...DEFAULT_ADMIN_CONFIG,
+      ...(config || {}),
+      chat: {
+        ...DEFAULT_ADMIN_CONFIG.chat,
+        ...((config && config.chat) || {}),
+      },
+      console: {
+        ...DEFAULT_ADMIN_CONFIG.console,
+        ...((config && config.console) || {}),
+      },
+      personal: {
+        ...DEFAULT_ADMIN_CONFIG.personal,
+        ...((config && config.personal) || {}),
+      },
+      admin: {
+        ...DEFAULT_ADMIN_CONFIG.admin,
+        ...((config && config.admin) || {}),
+      },
+    };
+  };
   const [sidebarModulesUser, setSidebarModulesUser] = useState({
     chat: {
       enabled: true,
@@ -190,12 +213,12 @@ const NotificationSettings = ({
             const adminConf = JSON.parse(
               statusState.status.SidebarModulesAdmin,
             );
-            setAdminConfig(mergeAdminConfig(adminConf));
+            setAdminConfig(mergeSidebarAdminConfig(adminConf));
           } catch (error) {
-            setAdminConfig(mergeAdminConfig(null));
+            setAdminConfig(mergeSidebarAdminConfig(null));
           }
         } else {
-          setAdminConfig(mergeAdminConfig(null));
+          setAdminConfig(mergeSidebarAdminConfig(null));
         }
 
         // 获取用户个人配置
