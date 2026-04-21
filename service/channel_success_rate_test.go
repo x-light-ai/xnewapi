@@ -392,7 +392,7 @@ func TestDisableChannelAutoBanRemovesChannelFromSelection(t *testing.T) {
 	suffix := time.Now().UnixNano()
 	rootUser := seedSuccessRateIntegrationRootUser(t, suffix)
 	t.Cleanup(func() {
-		_ = model.DB.Delete(&model.User{}, "id = ?", rootUser.Id).Error
+		_ = model.DB.Unscoped().Delete(&model.User{}, "id = ?", rootUser.Id).Error
 	})
 
 	group := fmt.Sprintf("sr-autoban-group-%d", suffix)

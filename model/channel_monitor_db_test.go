@@ -16,6 +16,13 @@ import (
 func setupChannelMonitorTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 
+	originalDB := DB
+	originalLogDB := LOG_DB
+	originalUsingSQLite := common.UsingSQLite
+	originalUsingMySQL := common.UsingMySQL
+	originalUsingPostgreSQL := common.UsingPostgreSQL
+	originalRedisEnabled := common.RedisEnabled
+
 	common.UsingSQLite = true
 	common.UsingMySQL = false
 	common.UsingPostgreSQL = false
@@ -37,6 +44,12 @@ func setupChannelMonitorTestDB(t *testing.T) *gorm.DB {
 
 	t.Cleanup(func() {
 		resetChannelMonitorTestState()
+		DB = originalDB
+		LOG_DB = originalLogDB
+		common.UsingSQLite = originalUsingSQLite
+		common.UsingMySQL = originalUsingMySQL
+		common.UsingPostgreSQL = originalUsingPostgreSQL
+		common.RedisEnabled = originalRedisEnabled
 		sqlDB, err := db.DB()
 		if err == nil {
 			_ = sqlDB.Close()

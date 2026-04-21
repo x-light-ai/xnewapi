@@ -42,6 +42,9 @@ func setupChannelSuccessRateLifecycleTestDB(t *testing.T) *gorm.DB {
 		common.UsingMySQL = originalUsingMySQL
 		common.UsingPostgreSQL = originalUsingPostgreSQL
 		common.RedisEnabled = originalRedisEnabled
+		if originalDB != nil {
+			model.InitChannelCache()
+		}
 		sqlDB, err := db.DB()
 		if err == nil {
 			_ = sqlDB.Close()
