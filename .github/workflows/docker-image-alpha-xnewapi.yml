@@ -1,4 +1,4 @@
-name: Publish Docker image (alpha)
+name: Publish Docker image (alpha) - xnewapi
 
 on:
   push:
