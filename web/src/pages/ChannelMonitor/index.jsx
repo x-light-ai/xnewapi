@@ -62,6 +62,13 @@ const GROUP_MODE_OPTIONS = [
   { label: '按渠道分组', value: 'group' },
 ];
 
+const STATUS_FILTER_OPTIONS = [
+  { label: '全部状态', value: 'all' },
+  { label: '已启用', value: '1' },
+  { label: '已禁用', value: '2' },
+  { label: '自动禁用', value: '3' },
+];
+
 const GROUP_FILTER_ALL = '__all__';
 
 const TIMELINE_HOURS = 24;
@@ -257,8 +264,8 @@ const AvailabilityTrend = ({ item, loading = false }) => {
   }
 
   return (
-    <div className='flex min-w-[180px] flex-col gap-2'>
-      <div className='relative h-9 rounded-xl border border-[var(--semi-color-border)] bg-[var(--semi-color-fill-0)] px-3'>
+    <div className='flex w-full min-w-[220px] flex-col gap-2'>
+      <div className='relative h-9 w-full rounded-xl border border-[var(--semi-color-border)] bg-[var(--semi-color-fill-0)] px-3'>
         <div className='absolute inset-x-3 top-1/2 border-t border-[var(--semi-color-border)]' />
         {points.map((point, index) => {
           const size = getTimelineSize(Number(point.request_count || 0), maxRequestCount);
@@ -511,6 +518,7 @@ const ChannelMonitorPage = () => {
   const [sortBy, setSortBy] = useState('success_rate');
   const [order, setOrder] = useState('desc');
   const [groupMode, setGroupMode] = useState('none');
+  const [statusFilter, setStatusFilter] = useState('1');
   const [groupFilter, setGroupFilter] = useState(GROUP_FILTER_ALL);
   const [keyword, setKeyword] = useState('');
   const [groupOptions, setGroupOptions] = useState([]);
@@ -606,7 +614,8 @@ const ChannelMonitorPage = () => {
         groupFilter === GROUP_FILTER_ALL || normalizeGroupName(item.group_name) === groupFilter;
       const matchesKeyword =
         normalizedKeyword === '' || String(item.name || '').toLowerCase().includes(normalizedKeyword);
-      return matchesGroup && matchesKeyword;
+      const matchesStatus = statusFilter === 'all' || String(item.status || '') === statusFilter;
+      return matchesGroup && matchesKeyword && matchesStatus;
     });
     const sortedChannels = sortChannelMonitorItems(filteredChannels, sortBy, order);
     if (groupMode === 'group') {
@@ -616,7 +625,7 @@ const ChannelMonitorPage = () => {
       ...item,
       __rowKey: `channel-${item.id}`,
     }));
-  }, [channels, groupFilter, groupMode, keyword, order, sortBy]);
+  }, [channels, groupFilter, groupMode, keyword, order, sortBy, statusFilter]);
 
   const columns = useMemo(() => {
     return [
@@ -827,6 +836,14 @@ const ChannelMonitorPage = () => {
                 }}
                 showClear
                 style={{ width: 200 }}
+              />
+              <Select
+                value={statusFilter}
+                optionList={STATUS_FILTER_OPTIONS}
+                onChange={(value) => {
+                  setStatusFilter(value || '1');
+                }}
+                style={{ width: 140 }}
               />
               <Select
                 value={groupMode}

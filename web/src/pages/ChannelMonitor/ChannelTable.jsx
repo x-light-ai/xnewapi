@@ -57,7 +57,7 @@ const ChannelTable = ({
           className='rounded-xl overflow-hidden'
           size='middle'
           pagination={false}
-          scroll={{ x: 'max-content' }}
+          scroll={{ x: '100%' }}
         />
       )}
     </Card>
