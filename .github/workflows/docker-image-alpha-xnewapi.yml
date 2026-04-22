@@ -1,4 +1,4 @@
-name: Publish Docker image (alpha)
+name: Publish Docker image (alpha) - xnewapi
 
 on:
   push:
@@ -12,18 +12,8 @@ on:
 
 jobs:
   build_single_arch:
-    name: Build & push (${{ matrix.arch }}) [native]
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: amd64
-            platform: linux/amd64
-            runner: ubuntu-latest
-          - arch: arm64
-            platform: linux/arm64
-            runner: ubuntu-24.04-arm
-    runs-on: ${{ matrix.runner }}
+    name: Build & push (amd64) [native]
+    runs-on: ubuntu-latest
     permissions:
       packages: write
       contents: read
@@ -41,7 +31,7 @@ jobs:
           echo "$VERSION" > VERSION
           echo "value=$VERSION" >> $GITHUB_OUTPUT
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          echo "Publishing version: $VERSION for ${{ matrix.arch }}"
+          echo "Publishing version: $VERSION for amd64"
 
       - name: Normalize GHCR repository
         run: echo "GHCR_REPOSITORY=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
@@ -63,16 +53,16 @@ jobs:
           images: |
             ghcr.io/${{ env.GHCR_REPOSITORY }}
 
-      - name: Build & push single-arch image
+      - name: Build & push amd64 image
         id: build
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
-          platforms: ${{ matrix.platform }}
+          platforms: linux/amd64
           push: true
           tags: |
-            ghcr.io/${{ env.GHCR_REPOSITORY }}:alpha-${{ matrix.arch }}
-            ghcr.io/${{ env.GHCR_REPOSITORY }}:${{ steps.version.outputs.value }}-${{ matrix.arch }}
+            ghcr.io/${{ env.GHCR_REPOSITORY }}:alpha
+            ghcr.io/${{ env.GHCR_REPOSITORY }}:${{ steps.version.outputs.value }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -88,59 +78,8 @@ jobs:
 
       - name: Output digest
         run: |
-          echo "### Docker Image Digest (${{ matrix.arch }})" >> $GITHUB_STEP_SUMMARY
+          echo "### Docker Image Digest (amd64)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "ghcr.io/${{ env.GHCR_REPOSITORY }}:alpha-${{ matrix.arch }}" >> $GITHUB_STEP_SUMMARY
+          echo "ghcr.io/${{ env.GHCR_REPOSITORY }}:alpha" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-
-  create_manifests:
-    name: Create multi-arch manifests (GHCR)
-    needs: [build_single_arch]
-    runs-on: ubuntu-latest
-    permissions:
-      packages: write
-      contents: read
-    steps:
-      - name: Check out (shallow)
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 1
-
-      - name: Normalize GHCR repository
-        run: echo "GHCR_REPOSITORY=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
-
-      - name: Determine alpha version
-        id: version
-        run: |
-          VERSION="alpha-$(date +'%Y%m%d')-$(git rev-parse --short HEAD)"
-          echo "value=$VERSION" >> $GITHUB_OUTPUT
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
-
-      - name: Log in to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Create & push manifest (GHCR - alpha)
-        run: |
-          docker buildx imagetools create \
-            -t ghcr.io/${GHCR_REPOSITORY}:alpha \
-            ghcr.io/${GHCR_REPOSITORY}:alpha-amd64 \
-            ghcr.io/${GHCR_REPOSITORY}:alpha-arm64
-
-      - name: Create & push manifest (GHCR - versioned alpha)
-        run: |
-          docker buildx imagetools create \
-            -t ghcr.io/${GHCR_REPOSITORY}:${VERSION} \
-            ghcr.io/${GHCR_REPOSITORY}:${VERSION}-amd64 \
-            ghcr.io/${GHCR_REPOSITORY}:${VERSION}-arm64
-
-      - name: Output manifest digest
-        run: |
-          echo "### Multi-arch Manifest Digests" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          docker buildx imagetools inspect ghcr.io/${GHCR_REPOSITORY}:alpha >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
