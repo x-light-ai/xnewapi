@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/QuantumNous/new-api/common"
 	"gorm.io/gorm"
 )
 
@@ -89,6 +90,7 @@ type ChannelMonitorHealthPoint struct {
 type ChannelMonitorChannelItem struct {
 	Id                    int       `json:"id"`
 	Name                  string    `json:"name"`
+	GroupName             string    `json:"group_name"`
 	Type                  int       `json:"type"`
 	Status                int       `json:"status"`
 	SuccessRate           float64   `json:"success_rate"`
@@ -725,20 +727,69 @@ func normalizeChannelMonitorTimelineLimit(limit int) int {
 	return limit
 }
 
+func normalizeChannelMonitorGroupFilter(group string) string {
+	return strings.TrimSpace(group)
+}
+
+func buildChannelMonitorGroupCondition(columnExpr string) string {
+	if common.UsingMySQL {
+		return `CONCAT(',', ` + columnExpr + `, ',') LIKE ?`
+	}
+	return `(',' || ` + columnExpr + ` || ',') LIKE ?`
+}
+
+func GetChannelMonitorGroups() ([]string, error) {
+	if DB == nil {
+		return []string{}, nil
+	}
+	channels, err := GetAllChannels(0, 0, true, false)
+	if err != nil {
+		return nil, err
+	}
+	groupSet := make(map[string]struct{})
+	for _, channel := range channels {
+		if channel == nil {
+			continue
+		}
+		for _, group := range channel.GetGroups() {
+			group = strings.TrimSpace(group)
+			if group == "" {
+				continue
+			}
+			groupSet[group] = struct{}{}
+		}
+	}
+	groups := make([]string, 0, len(groupSet))
+	for group := range groupSet {
+		groups = append(groups, group)
+	}
+	sort.Strings(groups)
+	return groups, nil
+}
+
 func GetChannelMonitorTimeline(hours int, bucketMinutes int, limit int) ([]ChannelTimelineChannel, error) {
+	return GetChannelMonitorTimelineByGroup(hours, bucketMinutes, limit, "")
+}
+
+func GetChannelMonitorTimelineByGroup(hours int, bucketMinutes int, limit int, groupFilter string) ([]ChannelTimelineChannel, error) {
 	if DB == nil {
 		return []ChannelTimelineChannel{}, nil
 	}
 	hours = normalizeChannelMonitorTimelineHours(hours)
 	bucketMinutes = normalizeChannelMonitorTimelineBucketMinutes(bucketMinutes)
 	limit = normalizeChannelMonitorTimelineLimit(limit)
+	groupFilter = normalizeChannelMonitorGroupFilter(groupFilter)
 	bucketDuration := time.Duration(bucketMinutes) * time.Minute
 	start := time.Now().Add(-time.Duration(hours) * time.Hour).Truncate(bucketDuration)
 	rows := make([]channelTimelineRow, 0)
-	err := DB.Table((ChannelMonitorStat{}).TableName()+" AS cms").
+	query := DB.Table((ChannelMonitorStat{}).TableName()+" AS cms").
 		Select("cms.channel_id, channels.name AS channel_name, channels.type AS channel_type, channels.status AS channel_status, cms.time_bucket, SUM(cms.request_count) AS request_count, SUM(cms.success_count) AS success_count, SUM(cms.failure_count) AS failure_count").
 		Joins("LEFT JOIN channels ON channels.id = cms.channel_id").
-		Where("cms.granularity = ? AND cms.time_bucket >= ? AND cms.request_count > 0", ChannelMonitorGranularityMinute, start).
+		Where("cms.granularity = ? AND cms.time_bucket >= ? AND cms.request_count > 0", ChannelMonitorGranularityMinute, start)
+	if groupFilter != "" {
+		query = query.Where(buildChannelMonitorGroupCondition("channels."+commonGroupCol), "%,"+groupFilter+",%")
+	}
+	err := query.
 		Group("cms.channel_id, channels.name, channels.type, channels.status, cms.time_bucket").
 		Order("cms.channel_id ASC").
 		Order("cms.time_bucket ASC").
@@ -811,20 +862,33 @@ func GetChannelMonitorTimeline(hours int, bucketMinutes int, limit int) ([]Chann
 }
 
 func buildChannelMonitorChannelItems(days int) ([]ChannelMonitorChannelItem, error) {
+	return buildChannelMonitorChannelItemsByGroup(days, "")
+}
+
+func buildChannelMonitorChannelItemsByGroup(days int, groupFilter string) ([]ChannelMonitorChannelItem, error) {
 	days = normalizeChannelMonitorDays(days)
+	groupFilter = normalizeChannelMonitorGroupFilter(groupFilter)
 	start := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
 	stats, pending, err := loadChannelMonitorDataSince(start)
 	if err != nil {
 		return nil, err
 	}
 	channels := make([]*Channel, 0)
-	if err = DB.Omit("key").Find(&channels).Error; err != nil {
+	query := DB.Omit("key")
+	if groupFilter != "" {
+		query = query.Where(buildChannelMonitorGroupCondition(commonGroupCol), "%,"+groupFilter+",%")
+	}
+	if err = query.Find(&channels).Error; err != nil {
 		return nil, err
 	}
+	allowedChannelIDs := make(map[int]struct{}, len(channels))
 	metrics := make(map[int]*channelMonitorAggregate, len(channels))
 	dailyMetrics := make(map[int]map[string]*channelMonitorAggregate, len(channels))
 	applyMetric := func(date string, channelID int, requestCount int64, successCount int64, failureCount int64, avgLatencyMs float64, p95LatencyMs float64, lastActiveAt time.Time) {
 		if requestCount <= 0 {
+			return
+		}
+		if _, ok := allowedChannelIDs[channelID]; !ok {
 			return
 		}
 		agg := metrics[channelID]
@@ -845,6 +909,12 @@ func buildChannelMonitorChannelItems(days int) ([]ChannelMonitorChannelItem, err
 		}
 		applyChannelMonitorAggregate(dayAgg, requestCount, successCount, failureCount, avgLatencyMs, p95LatencyMs, lastActiveAt)
 	}
+	for _, channel := range channels {
+		if channel == nil {
+			continue
+		}
+		allowedChannelIDs[channel.Id] = struct{}{}
+	}
 	for _, stat := range stats {
 		applyMetric(stat.TimeBucket.Format("2006-01-02"), stat.ChannelID, stat.RequestCount, stat.SuccessCount, stat.FailureCount, stat.AvgLatencyMs, stat.P95LatencyMs, stat.LastActiveAt)
 	}
@@ -858,6 +928,7 @@ func buildChannelMonitorChannelItems(days int) ([]ChannelMonitorChannelItem, err
 		item := ChannelMonitorChannelItem{
 			Id:          channel.Id,
 			Name:        channel.Name,
+			GroupName:   channel.Group,
 			Type:        channel.Type,
 			Status:      channel.Status,
 			HealthTrend: make([]float64, 0, days),
@@ -923,6 +994,29 @@ func isChannelMonitorItemLess(left ChannelMonitorChannelItem, right ChannelMonit
 			return left.LastActiveAt.Before(right.LastActiveAt)
 		}
 		return strings.ToLower(left.Name) < strings.ToLower(right.Name)
+	case "group_name":
+		leftGroup := strings.ToLower(strings.TrimSpace(left.GroupName))
+		rightGroup := strings.ToLower(strings.TrimSpace(right.GroupName))
+		if leftGroup != rightGroup {
+			return leftGroup < rightGroup
+		}
+		return strings.ToLower(left.Name) < strings.ToLower(right.Name)
+	case "group_success_rate":
+		leftGroup := strings.ToLower(strings.TrimSpace(left.GroupName))
+		rightGroup := strings.ToLower(strings.TrimSpace(right.GroupName))
+		if leftGroup != rightGroup {
+			return leftGroup < rightGroup
+		}
+		if left.SuccessRate != right.SuccessRate {
+			return left.SuccessRate > right.SuccessRate
+		}
+		if left.FailureCount != right.FailureCount {
+			return left.FailureCount < right.FailureCount
+		}
+		if left.RequestCount != right.RequestCount {
+			return left.RequestCount > right.RequestCount
+		}
+		return strings.ToLower(left.Name) < strings.ToLower(right.Name)
 	case "name":
 		return strings.ToLower(left.Name) < strings.ToLower(right.Name)
 	default:
@@ -939,6 +1033,38 @@ func sortChannelMonitorChannelItems(items []ChannelMonitorChannelItem, sortBy st
 	sortBy = strings.ToLower(strings.TrimSpace(sortBy))
 	if sortBy == "" {
 		sortBy = "request_count"
+	}
+	if sortBy == "group_name" || sortBy == "group_success_rate" {
+		sort.SliceStable(items, func(i, j int) bool {
+			left := items[i]
+			right := items[j]
+			leftGroup := strings.ToLower(strings.TrimSpace(left.GroupName))
+			rightGroup := strings.ToLower(strings.TrimSpace(right.GroupName))
+			if leftGroup != rightGroup {
+				return leftGroup < rightGroup
+			}
+			if sortBy == "group_success_rate" {
+				if left.SuccessRate != right.SuccessRate {
+					if ascending {
+						return left.SuccessRate < right.SuccessRate
+					}
+					return left.SuccessRate > right.SuccessRate
+				}
+				if left.FailureCount != right.FailureCount {
+					return left.FailureCount < right.FailureCount
+				}
+				if left.RequestCount != right.RequestCount {
+					return left.RequestCount > right.RequestCount
+				}
+			}
+			leftName := strings.ToLower(left.Name)
+			rightName := strings.ToLower(right.Name)
+			if ascending {
+				return leftName < rightName
+			}
+			return leftName > rightName
+		})
+		return
 	}
 	sort.SliceStable(items, func(i, j int) bool {
 		if ascending {
@@ -983,22 +1109,26 @@ func GetChannelMonitorChannelRankings(days int, top int) ([]ChannelMonitorChanne
 }
 
 func GetChannelMonitorChannelPage(days int, page int, pageSize int, sortBy string, order string) ([]ChannelMonitorChannelItem, int64, error) {
+	return GetChannelMonitorChannelPageByGroup(days, page, pageSize, sortBy, order, "")
+}
+
+func GetChannelMonitorChannelPageByGroup(days int, page int, pageSize int, sortBy string, order string, groupFilter string) ([]ChannelMonitorChannelItem, int64, error) {
 	days = normalizeChannelMonitorDays(days)
 	if page < 1 {
 		page = 1
 	}
-	if pageSize <= 0 {
-		pageSize = 10
-	}
-	if pageSize > 100 {
-		pageSize = 100
-	}
-	items, err := buildChannelMonitorChannelItems(days)
+	items, err := buildChannelMonitorChannelItemsByGroup(days, groupFilter)
 	if err != nil {
 		return nil, 0, err
 	}
 	sortChannelMonitorChannelItems(items, sortBy, order)
 	total := int64(len(items))
+	if pageSize <= 0 {
+		return items, total, nil
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
 	startIdx := (page - 1) * pageSize
 	if startIdx >= len(items) {
 		return []ChannelMonitorChannelItem{}, total, nil

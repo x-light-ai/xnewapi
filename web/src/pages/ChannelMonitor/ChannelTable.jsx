@@ -31,11 +31,6 @@ const ChannelTable = ({
   loading,
   channels,
   columns,
-  page,
-  pageSize,
-  total,
-  onPageChange,
-  onPageSizeChange,
 }) => {
   return (
     <Card
@@ -61,15 +56,7 @@ const ChannelTable = ({
           loading={loading}
           className='rounded-xl overflow-hidden'
           size='middle'
-          pagination={{
-            currentPage: page,
-            pageSize,
-            total,
-            pageSizeOpts: [10, 20, 50, 100],
-            showSizeChanger: true,
-            onPageChange,
-            onPageSizeChange,
-          }}
+          pagination={false}
           scroll={{ x: 'max-content' }}
         />
       )}

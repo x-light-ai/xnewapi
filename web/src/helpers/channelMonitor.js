@@ -43,18 +43,14 @@ export async function fetchChannelMonitorHealth(days = 7) {
 
 export async function fetchChannelMonitorChannels({
   days = 7,
-  page = 1,
-  pageSize = 20,
-  sort = 'request_count',
-  order = 'desc',
+  all = false,
+  group = '',
 } = {}) {
   const response = await API.get('/api/channel_monitor/channels', {
     params: {
       days,
-      page,
-      page_size: pageSize,
-      sort,
-      order,
+      all,
+      group,
     },
   });
   const { success, data, message } = response.data || {};
@@ -64,8 +60,7 @@ export async function fetchChannelMonitorChannels({
   return {
     items: Array.isArray(data?.items) ? data.items : [],
     total: Number(data?.total || 0),
-    page: Number(data?.page || page),
-    pageSize: Number(data?.page_size || pageSize),
+    groups: Array.isArray(data?.groups) ? data.groups : [],
   };
 }
 
@@ -73,12 +68,14 @@ export async function fetchChannelMonitorTimeline({
   hours = 24,
   bucketMinutes = 10,
   limit = 20,
+  group = '',
 } = {}) {
   const response = await API.get('/api/channel_monitor/timeline', {
     params: {
       hours,
       bucket_minutes: bucketMinutes,
       limit,
+      group,
     },
   });
   const { success, data, message } = response.data || {};

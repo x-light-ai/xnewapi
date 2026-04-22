@@ -345,6 +345,42 @@ func TestGetChannelMonitorChannelPageReturnsEmptyMetricsWhenNoData(t *testing.T)
 	}
 }
 
+func TestGetChannelMonitorChannelPageByGroupFiltersMultiGroupChannels(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	now := time.Now()
+	yesterday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -1).Add(9 * time.Hour)
+
+	alpha := seedChannelMonitorTestChannel(t, db, "Alpha", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	beta := seedChannelMonitorTestChannel(t, db, "Beta", constant.ChannelTypeAnthropic, common.ChannelStatusEnabled)
+	alpha.Group = "default,alpha"
+	if err := db.Save(alpha).Error; err != nil {
+		t.Fatalf("failed to update alpha group: %v", err)
+	}
+	beta.Group = "default,beta"
+	if err := db.Save(beta).Error; err != nil {
+		t.Fatalf("failed to update beta group: %v", err)
+	}
+
+	seedChannelMonitorStat(t, db, alpha.Id, yesterday, 10, 9, 1, 100, 120, yesterday)
+	seedChannelMonitorStat(t, db, beta.Id, yesterday, 8, 7, 1, 150, 180, yesterday)
+	ObserveChannelRuntime("alpha", "gpt-4", alpha.Id, true, 90*time.Millisecond)
+	ObserveChannelRuntime("beta", "gpt-4", beta.Id, false, 200*time.Millisecond)
+
+	items, total, err := GetChannelMonitorChannelPageByGroup(2, 1, 20, "request_count", "desc", "alpha")
+	if err != nil {
+		t.Fatalf("expected grouped page without error, got %v", err)
+	}
+	if total != 1 || len(items) != 1 {
+		t.Fatalf("expected only alpha channel, got total=%d items=%+v", total, items)
+	}
+	if items[0].Id != alpha.Id {
+		t.Fatalf("expected alpha item, got %+v", items[0])
+	}
+	if items[0].RequestCount != 11 {
+		t.Fatalf("expected filtered request count 11, got %+v", items[0])
+	}
+}
+
 func TestGetChannelMonitorSummaryAndPageMatchObservedRuntimeRequests(t *testing.T) {
 	db := setupChannelMonitorTestDB(t)
 	channel := seedChannelMonitorTestChannel(t, db, "runtime-only", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)

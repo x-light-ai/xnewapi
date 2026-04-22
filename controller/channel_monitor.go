@@ -34,7 +34,8 @@ func GetChannelMonitorTimeline(c *gin.Context) {
 	hours, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("hours", "24")))
 	bucketMinutes, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("bucket_minutes", "10")))
 	limit, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("limit", "20")))
-	items, err := model.GetChannelMonitorTimeline(hours, bucketMinutes, limit)
+	group := strings.TrimSpace(c.Query("group"))
+	items, err := model.GetChannelMonitorTimelineByGroup(hours, bucketMinutes, limit, group)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -78,16 +79,27 @@ func GetChannelMonitorChannels(c *gin.Context) {
 	if pageInfo.Page < 1 {
 		pageInfo.Page = 1
 	}
-	if pageInfo.PageSize <= 0 {
-		pageInfo.PageSize = common.ItemsPerPage
-	}
-	if pageInfo.PageSize > 100 {
-		pageInfo.PageSize = 100
+	all, _ := strconv.ParseBool(strings.TrimSpace(c.DefaultQuery("all", "false")))
+	if all {
+		pageInfo.PageSize = 0
+	} else {
+		if pageInfo.PageSize <= 0 {
+			pageInfo.PageSize = common.ItemsPerPage
+		}
+		if pageInfo.PageSize > 100 {
+			pageInfo.PageSize = 100
+		}
 	}
 	days, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("days", "7")))
 	sortBy := strings.TrimSpace(c.DefaultQuery("sort", "request_count"))
 	order := strings.TrimSpace(c.DefaultQuery("order", "desc"))
-	items, total, err := model.GetChannelMonitorChannelPage(days, pageInfo.Page, pageInfo.PageSize, sortBy, order)
+	group := strings.TrimSpace(c.Query("group"))
+	items, total, err := model.GetChannelMonitorChannelPageByGroup(days, pageInfo.Page, pageInfo.PageSize, sortBy, order, group)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	groups, err := model.GetChannelMonitorGroups()
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -104,5 +116,6 @@ func GetChannelMonitorChannels(c *gin.Context) {
 		"total":     total,
 		"page":      pageInfo.Page,
 		"page_size": pageInfo.PageSize,
+		"groups":    groups,
 	})
 }

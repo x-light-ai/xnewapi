@@ -42,6 +42,7 @@ type channelMonitorPageResponse struct {
 	Total    int64                             `json:"total"`
 	Page     int                               `json:"page"`
 	PageSize int                               `json:"page_size"`
+	Groups   []string                          `json:"groups"`
 }
 
 func setupChannelMonitorControllerTestDB(t *testing.T) *gorm.DB {
@@ -734,6 +735,48 @@ func TestRelaySelectionFlowHalfOpenRecoveryReentersSelection(t *testing.T) {
 	}
 	if statsB.RequestCount != 0 {
 		t.Fatalf("expected channel B stats unchanged by selection-only fallback, got %+v", statsB)
+	}
+}
+
+func TestGetChannelMonitorChannelsHandlerFiltersByGroup(t *testing.T) {
+	db := setupChannelMonitorControllerTestDB(t)
+	now := time.Now()
+	yesterday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -1).Add(9 * time.Hour)
+
+	alpha := seedChannelMonitorControllerChannel(t, db, "Alpha", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	beta := seedChannelMonitorControllerChannel(t, db, "Beta", constant.ChannelTypeAnthropic, common.ChannelStatusEnabled)
+	alpha.Group = "default,alpha"
+	if err := db.Save(alpha).Error; err != nil {
+		t.Fatalf("failed to update alpha group: %v", err)
+	}
+	beta.Group = "default,beta"
+	if err := db.Save(beta).Error; err != nil {
+		t.Fatalf("failed to update beta group: %v", err)
+	}
+
+	seedChannelMonitorControllerStat(t, db, alpha.Id, yesterday, 10, 9, 1, 120, 180, yesterday)
+	seedChannelMonitorControllerStat(t, db, beta.Id, yesterday, 8, 7, 1, 140, 220, yesterday)
+
+	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/channel_monitor/channels?page=1&page_size=20&days=2&sort=request_count&order=desc&group=alpha")
+	GetChannelMonitorChannels(ctx)
+
+	response := decodeChannelMonitorResponse(t, recorder)
+	if !response.Success {
+		t.Fatalf("expected success response, got message: %s", response.Message)
+	}
+
+	var page channelMonitorPageResponse
+	if err := common.Unmarshal(response.Data, &page); err != nil {
+		t.Fatalf("failed to decode channel page response: %v", err)
+	}
+	if page.Total != 1 || len(page.Items) != 1 {
+		t.Fatalf("expected single filtered item, got %+v", page)
+	}
+	if page.Items[0].Id != alpha.Id {
+		t.Fatalf("expected alpha item, got %+v", page.Items[0])
+	}
+	if len(page.Groups) != 3 {
+		t.Fatalf("expected 3 group options, got %+v", page.Groups)
 	}
 }
 
