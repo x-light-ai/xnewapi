@@ -658,7 +658,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 				MaxTokens: lo.ToPtr(maxTokens),
 			}
 			if isStream {
-				req.StreamOptions = &dto.StreamOptions{IncludeUsage: true}
+				req.StreamOptions = &dto.StreamOptions{IncludeUsage: lo.ToPtr(true)}
 			}
 			return req
 		}
@@ -714,7 +714,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 		},
 	}
 	if isStream {
-		testRequest.StreamOptions = &dto.StreamOptions{IncludeUsage: true}
+		testRequest.StreamOptions = &dto.StreamOptions{IncludeUsage: lo.ToPtr(true)}
 	}
 
 	if strings.HasPrefix(model, "o") {

@@ -279,7 +279,10 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 			break
 		}
 	case types.RelayFormatClaude:
-		claudeResp := service.ResponseOpenAI2Claude(&simpleResponse, info)
+		claudeResp, err := ResponseOpenAI2ClaudeWithTranslator(&simpleResponse, info)
+		if err != nil {
+			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
+		}
 		claudeRespStr, err := common.Marshal(claudeResp)
 		if err != nil {
 			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)

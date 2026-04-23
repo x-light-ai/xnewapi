@@ -41,6 +41,9 @@ type ClaudeConvertInfo struct {
 
 	ToolCallBaseIndex      int
 	ToolCallMaxIndexOffset int
+	ToolNameMap            map[string]string
+	OriginalRequestRawJSON []byte
+	StreamTranslatorState  any
 }
 
 type RerankerInfo struct {
