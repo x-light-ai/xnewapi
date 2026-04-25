@@ -18,12 +18,13 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banner, Button, Card, Input, Select, Space, Tag, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Card, Input, Select, Space, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
 import { RefreshCw } from 'lucide-react';
 import {
   getChannelIcon,
   renderGroup,
   renderNumber,
+  showError,
   timestamp2string,
 } from '../../helpers';
 import {
@@ -104,40 +105,18 @@ const renderChannelStatus = (status) => {
   }
 };
 
-const renderRateTag = (rate) => {
-  const percent = Number(rate || 0) * 100;
-  let color = 'red';
-  if (percent >= 90) {
-    color = 'green';
-  } else if (percent >= 70) {
-    color = 'lime';
-  } else if (percent >= 50) {
-    color = 'yellow';
+const formatPercentage = (value, digits = 1) => `${(Number(value || 0) * 100).toFixed(digits)}%`;
+
+const formatLatencyValue = (value) => {
+  const latency = Number(value || 0);
+  if (latency <= 0) {
+    return '--';
   }
-  return (
-    <Tag color={color} shape='circle'>
-      {percent.toFixed(2)}%
-    </Tag>
-  );
+  return `${latency.toFixed(0)}ms`;
 };
 
-const renderLatencyTag = (latency) => {
-  const value = Number(latency || 0);
-  let color = 'grey';
-  if (value > 0 && value <= 1000) {
-    color = 'green';
-  } else if (value <= 3000) {
-    color = 'lime';
-  } else if (value <= 5000) {
-    color = 'yellow';
-  } else if (value > 5000) {
-    color = 'red';
-  }
-  return (
-    <Tag color={color} shape='circle'>
-      {value.toFixed(0)} ms
-    </Tag>
-  );
+const formatRequestSummary = (requestCount, failureCount) => {
+  return `请求 ${renderNumber(requestCount || 0)} / 失败 ${renderNumber(failureCount || 0)}`;
 };
 
 const renderScoreTag = (score) => {
@@ -164,7 +143,7 @@ const getTimelineColor = (point) => {
   const successCount = Number(point?.success_count || 0);
   const failureCount = Number(point?.failure_count || 0);
   if (requestCount <= 0) {
-    return 'transparent';
+    return null;
   }
   if (failureCount <= 0) {
     return '#10b981';
@@ -172,15 +151,35 @@ const getTimelineColor = (point) => {
   if (successCount <= 0) {
     return '#f43f5e';
   }
-  return '#f59e0b';
+  return '#f43f5e';
 };
 
-const getTimelineSize = (requestCount, maxRequestCount) => {
-  if (requestCount <= 0 || maxRequestCount <= 0) {
-    return 0;
-  }
-  const ratio = requestCount / maxRequestCount;
-  return Math.max(6, Math.min(14, 6 + ratio * 8));
+const getSparklinePoints = (points = []) => {
+  const activePoints = points.filter((point) => Number(point?.request_count || 0) > 0);
+  const maxRequestCount = activePoints.reduce(
+    (max, point) => Math.max(max, Number(point?.request_count || 0)),
+    0,
+  );
+
+  return points.map((point) => {
+    const requestCount = Number(point?.request_count || 0);
+    const color = getTimelineColor(point);
+    if (requestCount <= 0 || !color) {
+      return {
+        ...point,
+        active: false,
+        color: 'var(--semi-color-text-3)',
+        size: 4,
+      };
+    }
+    const ratio = maxRequestCount > 0 ? requestCount / maxRequestCount : 0;
+    return {
+      ...point,
+      active: true,
+      color,
+      size: ratio >= 0.66 ? 8 : ratio >= 0.33 ? 6 : 5,
+    };
+  });
 };
 
 const hasWeightScore = (score) => score !== null && score !== undefined && score !== '';
@@ -250,52 +249,64 @@ const getSuggestion = (record) => {
 
 const AvailabilityTrend = ({ item, loading = false }) => {
   const points = item?.points || [];
-  const maxRequestCount = points.reduce(
-    (max, point) => Math.max(max, Number(point?.request_count || 0)),
-    0,
-  );
+  const sparklinePoints = getSparklinePoints(points);
+  const hasData = sparklinePoints.some((point) => point.active);
 
   if (loading && points.length === 0) {
     return <Text type='secondary'>{'加载中...'}</Text>;
   }
 
-  if (points.length === 0) {
-    return <Text type='secondary'>{'暂无 24h 数据'}</Text>;
-  }
+  const summaryText = hasData
+    ? `${formatPercentage(item?.success_rate)} · P95 ${formatLatencyValue(item?.p95_latency)} · ${formatRequestSummary(
+        item?.request_count,
+        item?.failure_count,
+      )}`
+    : `${formatPercentage(item?.success_rate)} · P95 -- · ${formatRequestSummary(
+        item?.request_count,
+        item?.failure_count,
+      )}`;
 
   return (
-    <div className='flex w-full min-w-[220px] flex-col gap-2'>
-      <div className='relative h-9 w-full rounded-xl border border-[var(--semi-color-border)] bg-[var(--semi-color-fill-0)] px-3'>
-        <div className='absolute inset-x-3 top-1/2 border-t border-[var(--semi-color-border)]' />
-        {points.map((point, index) => {
-          const size = getTimelineSize(Number(point.request_count || 0), maxRequestCount);
-          if (size <= 0) {
-            return null;
-          }
-          const left = points.length === 1 ? 50 : (index / (points.length - 1)) * 100;
-          return (
-            <div
+    <div className='flex min-w-[360px] items-center gap-3'>
+      <Text className='shrink-0 whitespace-nowrap text-xs text-[var(--semi-color-text-2)]'>
+        {summaryText}
+      </Text>
+      <div className='flex min-w-[120px] flex-1 items-center justify-end gap-1'>
+        {hasData ? (
+          sparklinePoints.map((point) => (
+            <Tooltip
               key={`${item?.channel_id || 'channel'}-${point.time_bucket}`}
-              className='absolute top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full'
-              style={{
-                left: `calc(${left}% + 12px)`,
-                width: size,
-                height: size,
-                background: getTimelineColor(point),
-              }}
-              title={`${point.time_bucket} | 请求 ${point.request_count} | 成功 ${point.success_count} | 失败 ${point.failure_count}`}
-            />
-          );
-        })}
+              content={
+                <div className='text-xs leading-5'>
+                  <div>{point.time_bucket || '--'}</div>
+                  <div>{`成功率 ${formatPercentage(
+                    Number(point.request_count || 0) > 0
+                      ? Number(point.success_count || 0) / Number(point.request_count || 0)
+                      : 0,
+                  )}`}</div>
+                  <div>{`请求 ${renderNumber(point.request_count || 0)}`}</div>
+                  <div>{`失败 ${renderNumber(point.failure_count || 0)}`}</div>
+                </div>
+              }
+              position='top'
+            >
+              <span
+                className={`inline-block rounded-full ${point.active ? '' : 'opacity-70'}`}
+                style={{
+                  width: point.size,
+                  height: point.size,
+                  backgroundColor: point.color,
+                }}
+              />
+            </Tooltip>
+          ))
+        ) : (
+          <Text type='tertiary' className='text-xs'>
+            {'--'}
+          </Text>
+        )}
       </div>
-      <div className='flex items-center justify-between text-xs text-[var(--semi-color-text-2)]'>
-        <span>{'24h'}</span>
-        <span>
-          {item?.request_count > 0
-            ? `${(Number(item.success_rate || 0) * 100).toFixed(1)}% · ${renderNumber(item.request_count || 0)} 请求`
-            : '无请求'}
-        </span>
-      </div>
+      <Text className='shrink-0 whitespace-nowrap text-xs text-[var(--semi-color-text-2)]'>{'24h'}</Text>
     </div>
   );
 };
@@ -529,6 +540,19 @@ const ChannelMonitorPage = () => {
   const [timeline, setTimeline] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
 
+  const updateChannelItem = useCallback((channelId, updateFn) => {
+    setChannels((prevChannels) =>
+      prevChannels.map((item) => {
+        if (Number(item.id) !== Number(channelId)) {
+          return item;
+        }
+        const nextItem = { ...item };
+        updateFn(nextItem);
+        return nextItem;
+      }),
+    );
+  }, []);
+
   const loadChannels = useCallback(async () => {
     setLoadingChannels(true);
     try {
@@ -635,8 +659,6 @@ const ChannelMonitorPage = () => {
         key: 'name',
         width: 260,
         render: (text, record) => {
-          const suggestion = getSuggestion(record);
-          const showSuggestionTag = suggestion.text !== '保持当前';
           if (record.__groupRow) {
             return (
               <div className='flex flex-col gap-1 rounded-xl bg-[var(--semi-color-fill-0)] px-3 py-2'>
@@ -655,11 +677,6 @@ const ChannelMonitorPage = () => {
               <div className='flex items-center gap-2 flex-wrap'>
                 {getChannelIcon(record.type)}
                 <span className='font-medium'>{text || '-'}</span>
-                {showSuggestionTag ? (
-                  <Tag color={suggestion.color} shape='circle' title={suggestion.detail}>
-                    {suggestion.text}
-                  </Tag>
-                ) : null}
               </div>
               <div className='flex items-center gap-2 flex-wrap'>
                 {renderGroup(record.group_name)}
@@ -677,46 +694,6 @@ const ChannelMonitorPage = () => {
             </div>
           );
         },
-      },
-      {
-        title: '健康概览',
-        key: 'health_overview',
-        width: 260,
-        render: (_, record) => (
-          record.__groupRow ? (
-            <div className='flex min-w-[220px] flex-col gap-1.5'>
-              <div className='flex items-center gap-1.5 flex-wrap'>
-                <Text type='secondary'>{'成功率'}</Text>
-                {renderRateTag(record.success_rate)}
-                <Text type='secondary'>{'平均延迟'}</Text>
-                {renderLatencyTag(record.avg_latency)}
-              </div>
-              <div className='flex items-center gap-1.5 flex-wrap'>
-                <Text type='secondary'>{'P95'}</Text>
-                {renderLatencyTag(record.p95_latency)}
-                <Text type='secondary'>{'失败'}</Text>
-                <Text>{renderNumber(record.failure_count || 0)}</Text>
-              </div>
-            </div>
-          ) : (
-            <div className='flex min-w-[220px] flex-col gap-1.5'>
-              <div className='flex items-center gap-1.5 flex-wrap'>
-                <Text type='secondary'>{'成功率'}</Text>
-                {renderRateTag(record.success_rate)}
-                <Text type='secondary'>{'平均延迟'}</Text>
-                {renderLatencyTag(record.avg_latency)}
-              </div>
-              <div className='flex items-center gap-1.5 flex-wrap'>
-                <Text type='secondary'>{'P95'}</Text>
-                {renderLatencyTag(record.p95_latency)}
-                <Text type='secondary'>{'请求'}</Text>
-                <Text>{renderNumber(record.request_count || 0)}</Text>
-                <Text type='secondary'>{'失败'}</Text>
-                <Text>{renderNumber(record.failure_count || 0)}</Text>
-              </div>
-            </div>
-          )
-        ),
       },
       {
         title: '权重分数',
