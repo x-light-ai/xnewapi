@@ -74,7 +74,12 @@ func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayIn
 	//		println(fmt.Sprintf("failed to save request body to file: %v", err))
 	//	}
 	//}
-	aiRequest, err := service.ClaudeToOpenAIRequest(*request, info)
+	requestRawJSON, err := common.Marshal(request)
+	if err != nil {
+		return nil, err
+	}
+	info.ClaudeConvertInfo.OriginalRequestRawJSON = requestRawJSON
+	aiRequest, err := ConvertClaudeRequestToOpenAIRequest(request, info.UpstreamModelName, info.IsStream)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +94,7 @@ func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayIn
 	//}
 	if info.SupportStreamOptions && info.IsStream {
 		aiRequest.StreamOptions = &dto.StreamOptions{
-			IncludeUsage: true,
+			IncludeUsage: common.GetPointer(true),
 		}
 	}
 	return a.ConvertOpenAIRequest(c, info, aiRequest)
