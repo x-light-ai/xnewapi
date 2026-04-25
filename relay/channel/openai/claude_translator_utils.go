@@ -168,6 +168,81 @@ func mapToolName(toolNameMap map[string]string, name string) string {
 	return name
 }
 
+func sanitizeFunctionName(name string) string {
+	if name == "" {
+		return ""
+	}
+	var b strings.Builder
+	for i, r := range name {
+		allowed := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || r == '_' || r == '.' || r == ':' || r == '-'
+		if i > 0 {
+			allowed = allowed || (r >= '0' && r <= '9')
+		}
+		if allowed {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+		if b.Len() >= 64 {
+			break
+		}
+	}
+	out := b.String()
+	if out == "" {
+		return ""
+	}
+	first := out[0]
+	if !((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z') || first == '_') {
+		out = "_" + out
+		if len(out) > 64 {
+			out = out[:64]
+		}
+	}
+	return out
+}
+
+func sanitizedToolNameMap(rawJSON []byte) map[string]string {
+	if len(rawJSON) == 0 || !gjson.ValidBytes(rawJSON) {
+		return nil
+	}
+
+	tools := gjson.GetBytes(rawJSON, "tools")
+	if !tools.Exists() || !tools.IsArray() {
+		return nil
+	}
+
+	out := make(map[string]string)
+	tools.ForEach(func(_, tool gjson.Result) bool {
+		name := strings.TrimSpace(tool.Get("name").String())
+		if name == "" {
+			return true
+		}
+		sanitized := sanitizeFunctionName(name)
+		if sanitized == "" || sanitized == name {
+			return true
+		}
+		if _, exists := out[sanitized]; !exists {
+			out[sanitized] = name
+		}
+		return true
+	})
+
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func restoreSanitizedToolName(toolNameMap map[string]string, sanitizedName string) string {
+	if sanitizedName == "" || toolNameMap == nil {
+		return sanitizedName
+	}
+	if original, ok := toolNameMap[sanitizedName]; ok {
+		return original
+	}
+	return sanitizedName
+}
+
 func sanitizeClaudeToolID(id string) string {
 	var b strings.Builder
 	for _, r := range id {

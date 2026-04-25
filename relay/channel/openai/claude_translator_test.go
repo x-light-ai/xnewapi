@@ -164,6 +164,34 @@ func TestResponseOpenAI2ClaudeWithTranslator_RestoresToolNameAndUsage(t *testing
 	require.Equal(t, 7, claudeResp.Usage.InputTokens)
 }
 
+func TestResponseOpenAI2ClaudeWithTranslator_RestoresSanitizedToolName(t *testing.T) {
+	info := &relaycommon.RelayInfo{
+		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
+			OriginalRequestRawJSON: []byte(`{"tools":[{"name":"mcp/server/read","description":"Read tool","input_schema":{"type":"object"}}]}`),
+		},
+	}
+	response := &dto.OpenAITextResponse{
+		Id:     "chatcmpl_sanitized",
+		Model:  "gpt-4.1",
+		Object: "chat.completion",
+		Choices: []dto.OpenAITextResponseChoice{{
+			Index: 0,
+			Message: dto.Message{
+				Role:      "assistant",
+				ToolCalls: json.RawMessage(`[{"id":"call_1","type":"function","function":{"name":"mcp_server_read","arguments":"{}"}}]`),
+			},
+			FinishReason: "tool_calls",
+		}},
+	}
+
+	claudeResp, err := ResponseOpenAI2ClaudeWithTranslator(response, info)
+	require.NoError(t, err)
+	require.NotNil(t, claudeResp)
+	require.Len(t, claudeResp.Content, 1)
+	require.Equal(t, "tool_use", claudeResp.Content[0].Type)
+	require.Equal(t, "mcp/server/read", claudeResp.Content[0].Name)
+}
+
 func TestStreamResponseOpenAI2ClaudeWithTranslator_EmitsThinkingToolAndStop(t *testing.T) {
 	info := &relaycommon.RelayInfo{
 		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
@@ -277,4 +305,15 @@ func TestStreamResponseOpenAI2ClaudeWithTranslator_EmitsThinkingToolAndStop(t *t
 	require.Equal(t, "message_stop", responses[3].Type)
 	require.True(t, info.ClaudeConvertInfo.Done)
 	require.Equal(t, "tool_calls", info.FinishReason)
+}
+
+func TestRestoreSanitizedToolNameAndSanitizedToolNameMap(t *testing.T) {
+	raw := []byte(`{"tools":[{"name":"mcp/server/read","input_schema":{}},{"name":"tool@v2","input_schema":{}},{"name":"read/file","input_schema":{}},{"name":"read@file","input_schema":{}}]}`)
+	m := sanitizedToolNameMap(raw)
+	require.NotNil(t, m)
+	require.Equal(t, "mcp/server/read", m["mcp_server_read"])
+	require.Equal(t, "tool@v2", m["tool_v2"])
+	require.Equal(t, "read/file", m["read_file"])
+	require.Equal(t, "mcp/server/read", restoreSanitizedToolName(m, "mcp_server_read"))
+	require.Equal(t, "unknown", restoreSanitizedToolName(m, "unknown"))
 }

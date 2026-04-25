@@ -24,6 +24,24 @@
 
 后续如果需要继续同步 `CLIProxyAPI` 的 OpenAI <-> Claude 转换能力，优先从本基线开始做 `git diff`，避免遗漏中间协议修复。
 
+### 基线后的已核查增量
+
+以下提交已在本地做过针对性核查：
+
+- `755ca758` — `fix: address review feedback - init ToolNameMap eagerly, log collisions, add collision test`
+- `e8bb3504` — `fix: extend tool name sanitization to all remaining Gemini-bound translators`
+
+本次在 `new-api` 中吸收的增量范围：
+
+- 补齐 sanitized tool name -> original tool name 的恢复辅助逻辑
+- 为 OpenAI -> Claude 非流式响应补充 sanitized tool name 恢复测试
+- 为本地工具函数补充 sanitize/collision 测试
+
+本次**未**引入的部分：
+
+- `CLIProxyAPI` 中与 Gemini/Vertex 专用 translator 直接耦合的其他链路改造
+- 上游日志告警（collision warn log）等非关键运行时附加行为
+
 ---
 
 ## CLIProxyAPI 来源文件清单
@@ -74,6 +92,8 @@
 - `ToolNameMapFromClaudeRequest(...)`
 - `CanonicalToolName(...)`
 - `MapToolName(...)`
+- `SanitizedToolNameMap(...)`
+- `RestoreSanitizedToolName(...)`
 - `FixJSON(...)`
 - 其他与 schema / tool name sanitize 相关的辅助逻辑
 
@@ -190,6 +210,7 @@
   - 来源：`internal/util/translator.go` + `internal/util/claude_tool_id.go`
   - 承接方式：合并复制工具名规范化、tool id 清洗、partial JSON 修复与 reasoning effort 映射辅助逻辑
   - 本地适配点：提供 `BoolPtr`、`appendSSEEventBytes`、`sanitizeClaudeToolID`、`toolNameMapFromClaudeRequest` 等供 request/response translator 复用
+  - 后续补齐：已追加 `sanitizeFunctionName(...)`、`sanitizedToolNameMap(...)`、`restoreSanitizedToolName(...)`，用于承接基线之后的 sanitized tool name 恢复能力
 
 - `relay/channel/openai/claude_sse_bytes.go`
   - 来源：`internal/translator/common/bytes.go`
@@ -250,6 +271,16 @@
   - 修改点：本次未删除旧实现，保留 `ClaudeToOpenAIRequest(...)`、`ResponseOpenAI2Claude(...)`、`StreamResponseOpenAI2Claude(...)`
   - 目的：保留旧实现，避免破坏性替换；新链路优先改接新增 translator 文件
 
+#### 本次补齐的测试
+
+- `relay/channel/openai/claude_translator_test.go`
+  - 补充内容：非流式 OpenAI -> Claude 响应对 sanitized tool name 的恢复测试
+  - 目的：覆盖 `mcp/server/read -> mcp_server_read -> mcp/server/read` 这类恢复场景
+
+- `relay/channel/openai/claude_translator_test.go`
+  - 补充内容：`sanitizedToolNameMap(...)` 与 `restoreSanitizedToolName(...)` 的 collision / passthrough 测试
+  - 目的：覆盖基线后上游新增的 sanitize/collision 行为
+
 ---
 
 ## 升级迁移操作建议
@@ -303,6 +334,11 @@
 - 尽量新文件承接逻辑，减少对现有文件的大改
 - 不修改受保护项目标识
 - 不新增第二套平行主链，只接到现有 `ClaudeHelper + openai.Adaptor` 主链上
+
+### 当前仍保留的本地差异
+
+- `claude_translator_utils.go` 中仅承接当前 OpenAI <-> Claude translator 直接需要的 sanitize 恢复逻辑，未把 `CLIProxyAPI` 的 Gemini/Vertex 相关配套链路整体搬入
+- collision 场景当前仅保留“首个映射优先”的行为与测试，未额外引入上游 `log.Warnf(...)` 这类运行时告警
 
 ---
 

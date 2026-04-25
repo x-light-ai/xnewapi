@@ -41,6 +41,7 @@ type ToolCallAccumulator struct {
 
 func ConvertOpenAIResponseToClaudeNonStreamBytes(originalRequestRawJSON, rawJSON []byte) []byte {
 	toolNameMap := toolNameMapFromClaudeRequest(originalRequestRawJSON)
+	sanitizedToolNameMap := sanitizedToolNameMap(originalRequestRawJSON)
 	root := gjson.ParseBytes(rawJSON)
 	out := []byte(`{"id":"","type":"message","role":"assistant","model":"","content":[],"stop_reason":null,"stop_sequence":null,"usage":{"input_tokens":0,"output_tokens":0}}`)
 	out, _ = sjson.SetBytes(out, "id", root.Get("id").String())
@@ -76,7 +77,10 @@ func ConvertOpenAIResponseToClaudeNonStreamBytes(originalRequestRawJSON, rawJSON
 					hasToolCall = true
 					toolUseBlock := []byte(`{"type":"tool_use","id":"","name":"","input":{}}`)
 					toolUseBlock, _ = sjson.SetBytes(toolUseBlock, "id", sanitizeClaudeToolID(toolCall.Get("id").String()))
-					toolUseBlock, _ = sjson.SetBytes(toolUseBlock, "name", mapToolName(toolNameMap, toolCall.Get("function.name").String()))
+					toolName := toolCall.Get("function.name").String()
+					toolName = restoreSanitizedToolName(sanitizedToolNameMap, toolName)
+					toolName = mapToolName(toolNameMap, toolName)
+					toolUseBlock, _ = sjson.SetBytes(toolUseBlock, "name", toolName)
 					argsStr := fixJSON(toolCall.Get("function.arguments").String())
 					if argsStr != "" && gjson.Valid(argsStr) {
 						argsJSON := gjson.Parse(argsStr)
