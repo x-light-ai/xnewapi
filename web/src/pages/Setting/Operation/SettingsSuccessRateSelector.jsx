@@ -269,7 +269,7 @@ export default function SettingsSuccessRateSelector(props) {
                   max={1}
                   step={0.01}
                   disabled={readOnly}
-                  extraText={t('小概率随机探索其它候选通道')}
+                  extraText={t('小概率随机探索其它候选通道，例如 0.02 表示 2% 的请求会随机选渠道，给低分渠道重新积累样本的机会')}
                   onChange={handleFieldChange(KEY_EXPLORE_RATE)}
                 />
               </Col>

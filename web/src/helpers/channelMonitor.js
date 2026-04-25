@@ -98,3 +98,9 @@ export async function fetchChannelMonitorRankings({ days = 1, top = 10 } = {}) {
     latency: Array.isArray(data?.latency) ? data.latency : [],
   };
 }
+
+export async function setChannelScoreOverride(channelId, score) {
+  const response = await API.post(`/api/channel_monitor/channels/${channelId}/score_override`, { score });
+  const { success, message } = response.data || {};
+  if (!success) throw new Error(message || 'Failed to set score override');
+}

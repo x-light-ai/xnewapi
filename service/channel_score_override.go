@@ -17,11 +17,17 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
-export {
-  fetchChannelMonitorChannels,
-  fetchChannelMonitorHealth,
-  fetchChannelMonitorRankings,
-  fetchChannelMonitorSummary,
-  fetchChannelMonitorTimeline,
-  setChannelScoreOverride,
-} from '../channelMonitor';
+package service
+
+// SetChannelScoreOverride sets or clears a manual score override for a channel.
+// Pass nil to clear the override and restore automatic calculation.
+func SetChannelScoreOverride(channelID int, score *float64) {
+	s := defaultChannelSuccessRateSelector
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if score == nil {
+		delete(s.scoreOverrides, channelID)
+	} else {
+		s.scoreOverrides[channelID] = *score
+	}
+}

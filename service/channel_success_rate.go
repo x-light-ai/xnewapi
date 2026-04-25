@@ -85,6 +85,7 @@ type channelSuccessRateSelector struct {
 	circuitState     map[string]channelSuccessRateState
 	rrCursors        map[string]int
 	failureCallbacks []channelFailureCallback
+	scoreOverrides   map[int]float64
 }
 
 var defaultChannelSuccessRateSelector = newChannelSuccessRateSelector()
@@ -119,6 +120,7 @@ func newChannelSuccessRateSelector() *channelSuccessRateSelector {
 		circuitState:     make(map[string]channelSuccessRateState),
 		rrCursors:        make(map[string]int),
 		failureCallbacks: make([]channelFailureCallback, 0),
+		scoreOverrides:   make(map[int]float64),
 	}
 }
 
@@ -1169,11 +1171,15 @@ func (s *channelSuccessRateSelector) GetRuntimeStateForChannel(channelID int, cf
 		if err == nil && channel != nil {
 			priority = channel.GetPriority()
 		}
+		weightedScore := scoreForStateLocked(scoreState, priority, cfg)
+		if override, ok := s.scoreOverrides[channelID]; ok {
+			weightedScore = override
+		}
 		candidate := ChannelSuccessRateRuntimeState{
 			TemporaryCircuitOpen:   isTemporaryCircuitOpenAt(circuitState, now),
 			TemporaryCircuitUntil:  circuitState.temporaryOpenUntil,
 			TemporaryCircuitReason: temporaryCircuitReasonAt(circuitState, now),
-			CurrentWeightedScore:   scoreForStateLocked(scoreState, priority, cfg),
+			CurrentWeightedScore:   weightedScore,
 			Observed:               scoreState.observed,
 			Group:                  group,
 			ModelName:              modelName,

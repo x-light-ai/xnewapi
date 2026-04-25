@@ -72,7 +72,7 @@ const renderScoreTag = (score) => {
   } else if (value > 0) {
     color = 'red';
   }
-  return <Tag color={color} shape='circle'>{value.toFixed(4)}</Tag>;
+  return <Tag color={color} shape='circle'>{value.toFixed(2)}</Tag>;
 };
 
 const StabilityRankTable = ({ channels = [], loading = false }) => {

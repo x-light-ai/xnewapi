@@ -119,3 +119,20 @@ func GetChannelMonitorChannels(c *gin.Context) {
 		"groups":    groups,
 	})
 }
+
+func SetChannelScoreOverride(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	var body struct {
+		Score *float64 `json:"score"`
+	}
+	if err := common.DecodeJson(c.Request.Body, &body); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	service.SetChannelScoreOverride(id, body.Score)
+	common.ApiSuccess(c, nil)
+}

@@ -254,6 +254,7 @@ func SetApiRouter(router *gin.Engine) {
 			channelMonitorRoute.GET("/timeline", controller.GetChannelMonitorTimeline)
 			channelMonitorRoute.GET("/channels", controller.GetChannelMonitorChannels)
 			channelMonitorRoute.GET("/rankings", controller.GetChannelMonitorRankings)
+			channelMonitorRoute.POST("/channels/:id/score_override", controller.SetChannelScoreOverride)
 		}
 		tokenRoute := apiRouter.Group("/token")
 		tokenRoute.Use(middleware.UserAuth())

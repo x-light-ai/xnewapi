@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banner, Button, Card, Input, Select, Space, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Card, Input, InputNumber, Modal, Select, Space, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
 import { RefreshCw } from 'lucide-react';
 import {
   getChannelIcon,
@@ -30,6 +30,7 @@ import {
 import {
   fetchChannelMonitorChannels,
   fetchChannelMonitorTimeline,
+  setChannelScoreOverride,
 } from '../../helpers/api/channel-monitor';
 import ChannelTable from './ChannelTable';
 
@@ -133,7 +134,7 @@ const renderScoreTag = (score) => {
   }
   return (
     <Tag color={color} shape='circle'>
-      {value.toFixed(4)}
+      {value.toFixed(2)}
     </Tag>
   );
 };
@@ -539,6 +540,7 @@ const ChannelMonitorPage = () => {
   const [channels, setChannels] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
+  const [overrideModal, setOverrideModal] = useState({ visible: false, record: null, value: 0 });
 
   const updateChannelItem = useCallback((channelId, updateFn) => {
     setChannels((prevChannels) =>
@@ -552,6 +554,28 @@ const ChannelMonitorPage = () => {
       }),
     );
   }, []);
+
+  const handleScoreOverride = useCallback(async () => {
+    const { record, value } = overrideModal;
+    try {
+      await setChannelScoreOverride(record.id, value);
+      updateChannelItem(record.id, (item) => { item.current_weighted_score = value; });
+      setOverrideModal((v) => ({ ...v, visible: false }));
+    } catch (e) {
+      showError(e.message);
+    }
+  }, [overrideModal, updateChannelItem]);
+
+  const handleClearOverride = useCallback(async () => {
+    const { record } = overrideModal;
+    try {
+      await setChannelScoreOverride(record.id, null);
+      updateChannelItem(record.id, (item) => { item.current_weighted_score = null; });
+      setOverrideModal((v) => ({ ...v, visible: false }));
+    } catch (e) {
+      showError(e.message);
+    }
+  }, [overrideModal, updateChannelItem]);
 
   const loadChannels = useCallback(async () => {
     setLoadingChannels(true);
@@ -710,13 +734,19 @@ const ChannelMonitorPage = () => {
             <div className='flex flex-col gap-1.5'>
               <div className='flex items-center gap-1.5 flex-wrap'>
                 <Text type='secondary'>{'当前'}</Text>
-                {hasWeightScore(currentValue) ? (
-                  <div title={record.temporary_circuit_reason || ''}>{renderScoreTag(currentValue)}</div>
-                ) : (
-                  <Text type='secondary'>
-                    {record.temporary_circuit_open ? '熔断中' : '-'}
-                  </Text>
-                )}
+                <div
+                  className='cursor-pointer'
+                  onClick={() => setOverrideModal({ visible: true, record, value: suggestion.score })}
+                  title='点击设置权重分数'
+                >
+                  {hasWeightScore(currentValue) ? (
+                    <div title={record.temporary_circuit_reason || ''}>{renderScoreTag(currentValue)}</div>
+                  ) : (
+                    <Text type='secondary'>
+                      {record.temporary_circuit_open ? '熔断中' : '-'}
+                    </Text>
+                  )}
+                </div>
               </div>
               <div className='flex items-center gap-1.5 flex-wrap'>
                 <Text type='secondary'>{'建议'}</Text>
@@ -764,6 +794,7 @@ const ChannelMonitorPage = () => {
   }, [loadingTimeline, timelineByChannelId]);
 
   return (
+    <>
     <div className='mt-[60px] px-2 pb-6'>
       <div className='space-y-4'>
         <Card
@@ -892,6 +923,29 @@ const ChannelMonitorPage = () => {
         />
       </div>
     </div>
+    <Modal
+      title='手动设置权重分数'
+      visible={overrideModal.visible}
+      onOk={handleScoreOverride}
+      onCancel={() => setOverrideModal((v) => ({ ...v, visible: false }))}
+    >
+      <div className='flex flex-col gap-3'>
+        <InputNumber
+          min={0}
+          max={1}
+          step={0.01}
+          precision={2}
+          value={overrideModal.value}
+          onChange={(v) => setOverrideModal((prev) => ({ ...prev, value: v }))}
+          style={{ width: '100%' }}
+        />
+        <Text type='tertiary' size='small'>{'注意：此设置仅在内存中生效，服务重启后将恢复自动计算。'}</Text>
+        <Button type='danger' theme='borderless' size='small' onClick={handleClearOverride}>
+          {'清除覆盖，恢复自动计算'}
+        </Button>
+      </div>
+    </Modal>
+    </>
   );
 };
 
