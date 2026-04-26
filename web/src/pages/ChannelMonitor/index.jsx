@@ -18,7 +18,22 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banner, Button, Card, Input, InputNumber, Modal, Select, Space, Switch, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
+import {
+  Banner,
+  Button,
+  Card,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Space,
+  Switch,
+  TabPane,
+  Tabs,
+  Tag,
+  Tooltip,
+  Typography,
+} from '@douyinfe/semi-ui';
 import { RefreshCw } from 'lucide-react';
 import {
   getChannelIcon,
@@ -32,6 +47,7 @@ import {
   fetchChannelMonitorTimeline,
   setChannelScoreOverride,
 } from '../../helpers/channelMonitor';
+import EditChannelModal from '../../components/table/channels/modals/EditChannelModal';
 import ChannelTable from './ChannelTable';
 
 const { Text } = Typography;
@@ -97,7 +113,8 @@ const renderChannelStatus = (status) => {
   }
 };
 
-const formatPercentage = (value, digits = 1) => `${(Number(value || 0) * 100).toFixed(digits)}%`;
+const formatPercentage = (value, digits = 1) =>
+  `${(Number(value || 0) * 100).toFixed(digits)}%`;
 
 const formatLatencyValue = (value) => {
   const latency = Number(value || 0);
@@ -147,7 +164,9 @@ const getTimelineColor = (point) => {
 };
 
 const getSparklinePoints = (points = []) => {
-  const activePoints = points.filter((point) => Number(point?.request_count || 0) > 0);
+  const activePoints = points.filter(
+    (point) => Number(point?.request_count || 0) > 0,
+  );
   const maxRequestCount = activePoints.reduce(
     (max, point) => Math.max(max, Number(point?.request_count || 0)),
     0,
@@ -174,13 +193,17 @@ const getSparklinePoints = (points = []) => {
   });
 };
 
-const hasWeightScore = (score) => score !== null && score !== undefined && score !== '';
+const hasWeightScore = (score) =>
+  score !== null && score !== undefined && score !== '';
 
 const getSuggestedWeightScore = (record) => {
   if (record.temporary_circuit_open) {
     return 0.05;
   }
-  const successRate = Math.max(0, Math.min(1, Number(record.success_rate || 0)));
+  const successRate = Math.max(
+    0,
+    Math.min(1, Number(record.success_rate || 0)),
+  );
   const avgLatency = Number(record.avg_latency || 0);
   const p95Latency = Number(record.p95_latency || 0);
   let latencyScore = 0.5;
@@ -208,10 +231,15 @@ const getSuggestion = (record) => {
       text: '建议停用',
       color: 'red',
       score: suggestedWeightScore,
-      detail: record.temporary_circuit_reason || '渠道处于临时熔断中，建议停用或大幅降权。',
+      detail:
+        record.temporary_circuit_reason ||
+        '渠道处于临时熔断中，建议停用或大幅降权。',
     };
   }
-  if (Number(record.success_rate || 0) < 0.7 || Number(record.p95_latency || 0) > 5000) {
+  if (
+    Number(record.success_rate || 0) < 0.7 ||
+    Number(record.p95_latency || 0) > 5000
+  ) {
     return {
       text: '建议降权',
       color: 'orange',
@@ -277,7 +305,8 @@ const AvailabilityTrend = ({ item, loading = false, lastActive }) => {
                   <div>{point.time_bucket || '--'}</div>
                   <div>{`成功率 ${formatPercentage(
                     Number(point.request_count || 0) > 0
-                      ? Number(point.success_count || 0) / Number(point.request_count || 0)
+                      ? Number(point.success_count || 0) /
+                          Number(point.request_count || 0)
                       : 0,
                   )}`}</div>
                   <div>{`请求 ${renderNumber(point.request_count || 0)}`}</div>
@@ -315,7 +344,11 @@ const normalizeGroupName = (groupName) => {
   return value || 'default';
 };
 
-const buildGroupedChannels = (items = [], sortBy = 'request_count', order = 'desc') => {
+const buildGroupedChannels = (
+  items = [],
+  sortBy = 'request_count',
+  order = 'desc',
+) => {
   const groups = new Map();
   items.forEach((item) => {
     const groupName = normalizeGroupName(item.group_name);
@@ -328,59 +361,74 @@ const buildGroupedChannels = (items = [], sortBy = 'request_count', order = 'des
     });
   });
 
-  const groupedItems = Array.from(groups.entries()).map(([groupName, groupItems]) => {
-    const totalRequests = groupItems.reduce(
-      (sum, item) => sum + Number(item.request_count || 0),
-      0,
-    );
-    const totalFailures = groupItems.reduce(
-      (sum, item) => sum + Number(item.failure_count || 0),
-      0,
-    );
-    const weightedLatency = groupItems.reduce(
-      (sum, item) => sum + Number(item.avg_latency || 0) * Number(item.request_count || 0),
-      0,
-    );
-    const latestActive = groupItems.reduce((latest, item) => {
-      if (!item.last_active) {
-        return latest;
-      }
-      if (!latest) {
-        return item.last_active;
-      }
-      return new Date(item.last_active).getTime() > new Date(latest).getTime()
-        ? item.last_active
-        : latest;
-    }, '');
-    const summary = {
-      id: `group-${groupName}`,
-      __rowKey: `group-${groupName}`,
-      __groupRow: true,
-      name: groupName,
-      group_name: groupName,
-      request_count: totalRequests,
-      failure_count: totalFailures,
-      success_rate: totalRequests > 0 ? (totalRequests - totalFailures) / totalRequests : 0,
-      avg_latency: totalRequests > 0 ? weightedLatency / totalRequests : 0,
-      p95_latency: Math.max(...groupItems.map((item) => Number(item.p95_latency || 0)), 0),
-      last_active: latestActive,
-      channel_count: groupItems.length,
-    };
-    return {
-      summary,
-      items: sortChannelMonitorItems(groupItems, sortBy, order).map((item) => ({
-        ...item,
-        __rowKey: `channel-${item.id}`,
-      })),
-    };
-  });
+  const groupedItems = Array.from(groups.entries()).map(
+    ([groupName, groupItems]) => {
+      const totalRequests = groupItems.reduce(
+        (sum, item) => sum + Number(item.request_count || 0),
+        0,
+      );
+      const totalFailures = groupItems.reduce(
+        (sum, item) => sum + Number(item.failure_count || 0),
+        0,
+      );
+      const weightedLatency = groupItems.reduce(
+        (sum, item) =>
+          sum + Number(item.avg_latency || 0) * Number(item.request_count || 0),
+        0,
+      );
+      const latestActive = groupItems.reduce((latest, item) => {
+        if (!item.last_active) {
+          return latest;
+        }
+        if (!latest) {
+          return item.last_active;
+        }
+        return new Date(item.last_active).getTime() > new Date(latest).getTime()
+          ? item.last_active
+          : latest;
+      }, '');
+      const summary = {
+        id: `group-${groupName}`,
+        __rowKey: `group-${groupName}`,
+        __groupRow: true,
+        name: groupName,
+        group_name: groupName,
+        request_count: totalRequests,
+        failure_count: totalFailures,
+        success_rate:
+          totalRequests > 0
+            ? (totalRequests - totalFailures) / totalRequests
+            : 0,
+        avg_latency: totalRequests > 0 ? weightedLatency / totalRequests : 0,
+        p95_latency: Math.max(
+          ...groupItems.map((item) => Number(item.p95_latency || 0)),
+          0,
+        ),
+        last_active: latestActive,
+        channel_count: groupItems.length,
+      };
+      return {
+        summary,
+        items: sortChannelMonitorItems(groupItems, sortBy, order).map(
+          (item) => ({
+            ...item,
+            __rowKey: `channel-${item.id}`,
+          }),
+        ),
+      };
+    },
+  );
 
   const sortedGroups = groupedItems.sort((left, right) => {
     const ascending = String(order || '').toLowerCase() === 'asc';
     if (sortBy === 'group_name') {
       return ascending
-        ? String(left.summary.group_name || '').localeCompare(String(right.summary.group_name || ''))
-        : String(right.summary.group_name || '').localeCompare(String(left.summary.group_name || ''));
+        ? String(left.summary.group_name || '').localeCompare(
+            String(right.summary.group_name || ''),
+          )
+        : String(right.summary.group_name || '').localeCompare(
+            String(left.summary.group_name || ''),
+          );
     }
     if (sortBy === 'group_success_rate') {
       const leftRate = Number(left.summary.success_rate || 0);
@@ -388,16 +436,28 @@ const buildGroupedChannels = (items = [], sortBy = 'request_count', order = 'des
       if (leftRate !== rightRate) {
         return ascending ? leftRate - rightRate : rightRate - leftRate;
       }
-      return String(left.summary.group_name || '').localeCompare(String(right.summary.group_name || ''));
+      return String(left.summary.group_name || '').localeCompare(
+        String(right.summary.group_name || ''),
+      );
     }
-    const rankedSummaries = sortChannelMonitorItems([left.summary, right.summary], sortBy, order);
-    if (rankedSummaries.length < 2 || rankedSummaries[0].id === rankedSummaries[1].id) {
+    const rankedSummaries = sortChannelMonitorItems(
+      [left.summary, right.summary],
+      sortBy,
+      order,
+    );
+    if (
+      rankedSummaries.length < 2 ||
+      rankedSummaries[0].id === rankedSummaries[1].id
+    ) {
       return 0;
     }
     return rankedSummaries[0].id === left.summary.id ? -1 : 1;
   });
 
-  return sortedGroups.flatMap(({ summary, items: groupItems }) => [summary, ...groupItems]);
+  return sortedGroups.flatMap(({ summary, items: groupItems }) => [
+    summary,
+    ...groupItems,
+  ]);
 };
 
 const isChannelMonitorItemLess = (left, right, sortBy) => {
@@ -422,7 +482,10 @@ const isChannelMonitorItemLess = (left, right, sortBy) => {
       if (left.p95_latency !== right.p95_latency) {
         return left.p95_latency < right.p95_latency;
       }
-      return String(left.name || '').toLowerCase() < String(right.name || '').toLowerCase();
+      return (
+        String(left.name || '').toLowerCase() <
+        String(right.name || '').toLowerCase()
+      );
     }
     case 'p95_latency':
       if (left.p95_latency !== right.p95_latency) {
@@ -435,24 +498,42 @@ const isChannelMonitorItemLess = (left, right, sortBy) => {
       }
       return left.request_count < right.request_count;
     case 'last_active': {
-      const leftTime = left.last_active ? new Date(left.last_active).getTime() : 0;
-      const rightTime = right.last_active ? new Date(right.last_active).getTime() : 0;
+      const leftTime = left.last_active
+        ? new Date(left.last_active).getTime()
+        : 0;
+      const rightTime = right.last_active
+        ? new Date(right.last_active).getTime()
+        : 0;
       if (leftTime !== rightTime) {
         return leftTime < rightTime;
       }
-      return String(left.name || '').toLowerCase() < String(right.name || '').toLowerCase();
+      return (
+        String(left.name || '').toLowerCase() <
+        String(right.name || '').toLowerCase()
+      );
     }
     case 'group_name': {
-      const leftGroup = String(left.group_name || '').trim().toLowerCase();
-      const rightGroup = String(right.group_name || '').trim().toLowerCase();
+      const leftGroup = String(left.group_name || '')
+        .trim()
+        .toLowerCase();
+      const rightGroup = String(right.group_name || '')
+        .trim()
+        .toLowerCase();
       if (leftGroup !== rightGroup) {
         return leftGroup < rightGroup;
       }
-      return String(left.name || '').toLowerCase() < String(right.name || '').toLowerCase();
+      return (
+        String(left.name || '').toLowerCase() <
+        String(right.name || '').toLowerCase()
+      );
     }
     case 'group_success_rate': {
-      const leftGroup = String(left.group_name || '').trim().toLowerCase();
-      const rightGroup = String(right.group_name || '').trim().toLowerCase();
+      const leftGroup = String(left.group_name || '')
+        .trim()
+        .toLowerCase();
+      const rightGroup = String(right.group_name || '')
+        .trim()
+        .toLowerCase();
       if (leftGroup !== rightGroup) {
         return leftGroup < rightGroup;
       }
@@ -465,15 +546,24 @@ const isChannelMonitorItemLess = (left, right, sortBy) => {
       if (left.request_count !== right.request_count) {
         return left.request_count > right.request_count;
       }
-      return String(left.name || '').toLowerCase() < String(right.name || '').toLowerCase();
+      return (
+        String(left.name || '').toLowerCase() <
+        String(right.name || '').toLowerCase()
+      );
     }
     case 'name':
-      return String(left.name || '').toLowerCase() < String(right.name || '').toLowerCase();
+      return (
+        String(left.name || '').toLowerCase() <
+        String(right.name || '').toLowerCase()
+      );
     default:
       if (left.request_count !== right.request_count) {
         return left.request_count < right.request_count;
       }
-      return String(left.name || '').toLowerCase() < String(right.name || '').toLowerCase();
+      return (
+        String(left.name || '').toLowerCase() <
+        String(right.name || '').toLowerCase()
+      );
   }
 };
 
@@ -482,22 +572,34 @@ const sortChannelMonitorItems = (items, sortBy, order) => {
   const ascending = String(order || '').toLowerCase() === 'asc';
   const normalizedSortBy = String(sortBy || 'request_count').toLowerCase();
 
-  if (normalizedSortBy === 'group_name' || normalizedSortBy === 'group_success_rate') {
+  if (
+    normalizedSortBy === 'group_name' ||
+    normalizedSortBy === 'group_success_rate'
+  ) {
     nextItems.sort((left, right) => {
-      const leftGroup = String(left.group_name || '').trim().toLowerCase();
-      const rightGroup = String(right.group_name || '').trim().toLowerCase();
+      const leftGroup = String(left.group_name || '')
+        .trim()
+        .toLowerCase();
+      const rightGroup = String(right.group_name || '')
+        .trim()
+        .toLowerCase();
       const groupCompare = ascending
         ? leftGroup.localeCompare(rightGroup)
         : rightGroup.localeCompare(leftGroup);
       if (groupCompare !== 0) {
         return groupCompare;
       }
-      if (normalizedSortBy === 'group_success_rate' && left.success_rate !== right.success_rate) {
+      if (
+        normalizedSortBy === 'group_success_rate' &&
+        left.success_rate !== right.success_rate
+      ) {
         return ascending
           ? Number(left.success_rate || 0) - Number(right.success_rate || 0)
           : Number(right.success_rate || 0) - Number(left.success_rate || 0);
       }
-      return String(left.name || '').toLowerCase().localeCompare(String(right.name || '').toLowerCase());
+      return String(left.name || '')
+        .toLowerCase()
+        .localeCompare(String(right.name || '').toLowerCase());
     });
     return nextItems;
   }
@@ -538,7 +640,15 @@ const ChannelMonitorPage = () => {
   const [channels, setChannels] = useState([]);
   const [timeline, setTimeline] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
-  const [overrideModal, setOverrideModal] = useState({ visible: false, record: null, value: 0 });
+  const [overrideModal, setOverrideModal] = useState({
+    visible: false,
+    record: null,
+    value: 0,
+  });
+  const [editModal, setEditModal] = useState({
+    visible: false,
+    channel: { id: undefined },
+  });
 
   const updateChannelItem = useCallback((channelId, updateFn) => {
     setChannels((prevChannels) =>
@@ -557,7 +667,9 @@ const ChannelMonitorPage = () => {
     const { record, value } = overrideModal;
     try {
       await setChannelScoreOverride(record.id, value);
-      updateChannelItem(record.id, (item) => { item.current_weighted_score = value; });
+      updateChannelItem(record.id, (item) => {
+        item.current_weighted_score = value;
+      });
       setOverrideModal((v) => ({ ...v, visible: false }));
     } catch (e) {
       showError(e.message);
@@ -568,7 +680,9 @@ const ChannelMonitorPage = () => {
     const { record } = overrideModal;
     try {
       await setChannelScoreOverride(record.id, null);
-      updateChannelItem(record.id, (item) => { item.current_weighted_score = null; });
+      updateChannelItem(record.id, (item) => {
+        item.current_weighted_score = null;
+      });
       setOverrideModal((v) => ({ ...v, visible: false }));
     } catch (e) {
       showError(e.message);
@@ -618,6 +732,14 @@ const ChannelMonitorPage = () => {
     }
   }, [loadChannels, loadTimeline]);
 
+  const closeEditModal = useCallback(() => {
+    setEditModal({ visible: false, channel: { id: undefined } });
+  }, []);
+
+  const refreshAfterEdit = useCallback(async () => {
+    await loadChannels();
+  }, [loadChannels]);
+
   useEffect(() => {
     loadChannels();
   }, [loadChannels]);
@@ -635,15 +757,23 @@ const ChannelMonitorPage = () => {
     }
   }, [groupFilter, groupOptions]);
 
-  const groupFilterOptionList = useMemo(() => {
-    return [
-      { label: '全部分组', value: GROUP_FILTER_ALL },
-      ...groupOptions.map((group) => ({
-        label: group,
-        value: group,
-      })),
-    ];
-  }, [groupOptions]);
+  const groupedChannelCounts = useMemo(() => {
+    return channels.reduce(
+      (counts, item) => {
+        const key = normalizeGroupName(item.group_name);
+        counts.all += 1;
+        counts[key] = (counts[key] || 0) + 1;
+        return counts;
+      },
+      { all: 0 },
+    );
+  }, [channels]);
+
+  const availableGroupTabs = useMemo(() => {
+    return groupOptions.filter(
+      (group) => groupedChannelCounts[normalizeGroupName(group)] > 0,
+    );
+  }, [groupOptions, groupedChannelCounts]);
 
   const timelineByChannelId = useMemo(() => {
     const map = new Map();
@@ -654,16 +784,27 @@ const ChannelMonitorPage = () => {
   }, [timeline]);
 
   const displayChannels = useMemo(() => {
-    const normalizedKeyword = String(keyword || '').trim().toLowerCase();
+    const normalizedKeyword = String(keyword || '')
+      .trim()
+      .toLowerCase();
     const filteredChannels = channels.filter((item) => {
       const matchesGroup =
-        groupFilter === GROUP_FILTER_ALL || normalizeGroupName(item.group_name) === groupFilter;
+        groupFilter === GROUP_FILTER_ALL ||
+        normalizeGroupName(item.group_name) === groupFilter;
       const matchesKeyword =
-        normalizedKeyword === '' || String(item.name || '').toLowerCase().includes(normalizedKeyword);
-      const matchesStatus = statusFilter === 'all' || String(item.status || '') === statusFilter;
+        normalizedKeyword === '' ||
+        String(item.name || '')
+          .toLowerCase()
+          .includes(normalizedKeyword);
+      const matchesStatus =
+        statusFilter === 'all' || String(item.status || '') === statusFilter;
       return matchesGroup && matchesKeyword && matchesStatus;
     });
-    const sortedChannels = sortChannelMonitorItems(filteredChannels, sortBy, order);
+    const sortedChannels = sortChannelMonitorItems(
+      filteredChannels,
+      sortBy,
+      order,
+    );
     if (groupMode === 'group') {
       return buildGroupedChannels(sortedChannels, sortBy, order);
     }
@@ -698,10 +839,20 @@ const ChannelMonitorPage = () => {
             <div className='flex flex-col gap-1'>
               <div className='flex items-center gap-2 flex-wrap'>
                 {getChannelIcon(record.type)}
-                <span className='font-medium'>{text || '-'}</span>
+                <Text
+                  link
+                  className='!font-medium cursor-pointer'
+                  onClick={() =>
+                    setEditModal({ visible: true, channel: record })
+                  }
+                >
+                  {text || '-'}
+                </Text>
               </div>
               <div className='flex items-center gap-2 flex-wrap'>
-                {renderGroup(record.group_name)}
+                {groupFilter === GROUP_FILTER_ALL
+                  ? renderGroup(record.group_name)
+                  : null}
                 {renderChannelStatus(record.status)}
                 {record.temporary_circuit_open ? (
                   <Tag
@@ -718,7 +869,11 @@ const ChannelMonitorPage = () => {
         },
       },
       {
-        title: <Tooltip content='用于监控页排序和手动覆盖的路由选择评分，不等同于渠道配置中的权重。'>{'路由评分'}</Tooltip>,
+        title: (
+          <Tooltip content='用于监控页排序和手动覆盖的路由选择评分，不等同于渠道配置中的权重。'>
+            {'路由评分'}
+          </Tooltip>
+        ),
         dataIndex: 'current_weighted_score',
         key: 'weight_score',
         width: 120,
@@ -734,11 +889,19 @@ const ChannelMonitorPage = () => {
                 <Text type='secondary'>{'当前'}</Text>
                 <div
                   className='cursor-pointer'
-                  onClick={() => setOverrideModal({ visible: true, record, value: suggestion.score })}
+                  onClick={() =>
+                    setOverrideModal({
+                      visible: true,
+                      record,
+                      value: suggestion.score,
+                    })
+                  }
                   title='点击设置路由评分'
                 >
                   {hasWeightScore(currentValue) ? (
-                    <div title={record.temporary_circuit_reason || ''}>{renderScoreTag(currentValue)}</div>
+                    <div title={record.temporary_circuit_reason || ''}>
+                      {renderScoreTag(currentValue)}
+                    </div>
                   ) : (
                     <Text type='secondary'>
                       {record.temporary_circuit_open ? '熔断中' : '-'}
@@ -771,157 +934,226 @@ const ChannelMonitorPage = () => {
         },
       },
     ];
-  }, [loadingTimeline, timelineByChannelId]);
+  }, [loadingTimeline, timelineByChannelId, setEditModal]);
 
   return (
     <>
-    <div className='mt-[60px] px-2 pb-6'>
-      <div className='space-y-4'>
-        <Card
-          bordered
-          className='!rounded-2xl overflow-hidden'
-          bodyStyle={{ padding: 20 }}
-          style={{
-            background:
-              'linear-gradient(135deg, rgba(15,23,42,0.04) 0%, rgba(15,118,110,0.05) 35%, rgba(37,99,235,0.04) 100%)',
-          }}
-        >
-          <div className='flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between'>
-            <div>
-              <div className='text-2xl font-semibold'>{'渠道监控'}</div>
-            </div>
-            <Space wrap>
-              <Space spacing={8} wrap>
-                {DAY_OPTIONS.map((item) => {
-                  const active = days === item.value;
-                  return (
-                    <Button
-                      key={item.value}
-                      theme={active ? 'solid' : 'light'}
-                      type={active ? 'primary' : 'tertiary'}
-                      onClick={() => {
-                        setDays(item.value);
-                      }}
-                    >
-                      {item.label}
-                    </Button>
-                  );
-                })}
-              </Space>
-              <Select
-                value={groupFilter}
-                optionList={groupFilterOptionList}
-                onChange={(value) => {
-                  setGroupFilter(value || GROUP_FILTER_ALL);
-                }}
-                style={{ width: 160 }}
-              />
-              <div className='flex items-center gap-2'>
-                <Text type='secondary'>{groupMode === 'group' ? '按渠道分组' : '不分组'}</Text>
-                <Switch
-                  checked={groupMode === 'group'}
-                  onChange={(checked) => {
-                    const value = checked ? 'group' : 'none';
-                    setGroupMode(value);
-                    if (!checked && (sortBy === 'group_success_rate' || sortBy === 'group_name')) {
-                      setSortBy('success_rate');
+      <EditChannelModal
+        refresh={refreshAfterEdit}
+        visible={editModal.visible}
+        handleClose={closeEditModal}
+        editingChannel={editModal.channel}
+      />
+      <div className='mt-[60px] px-2 pb-6'>
+        <div className='space-y-4'>
+          <Card
+            bordered
+            className='!rounded-2xl overflow-hidden'
+            bodyStyle={{ padding: 20 }}
+            style={{
+              background:
+                'linear-gradient(135deg, rgba(15,23,42,0.04) 0%, rgba(15,118,110,0.05) 35%, rgba(37,99,235,0.04) 100%)',
+            }}
+          >
+            <div className='flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between'>
+              <div>
+                <div className='text-2xl font-semibold'>{'渠道监控'}</div>
+              </div>
+              <Space wrap>
+                <Space spacing={8} wrap>
+                  {DAY_OPTIONS.map((item) => {
+                    const active = days === item.value;
+                    return (
+                      <Button
+                        key={item.value}
+                        theme={active ? 'solid' : 'light'}
+                        type={active ? 'primary' : 'tertiary'}
+                        onClick={() => {
+                          setDays(item.value);
+                        }}
+                      >
+                        {item.label}
+                      </Button>
+                    );
+                  })}
+                </Space>
+                <div className='flex items-center gap-2'>
+                  <Text type='secondary'>
+                    {groupMode === 'group' ? '按渠道分组' : '不分组'}
+                  </Text>
+                  <Switch
+                    checked={groupMode === 'group'}
+                    onChange={(checked) => {
+                      const value = checked ? 'group' : 'none';
+                      setGroupMode(value);
+                      if (
+                        !checked &&
+                        (sortBy === 'group_success_rate' ||
+                          sortBy === 'group_name')
+                      ) {
+                        setSortBy('success_rate');
+                      }
+                    }}
+                  />
+                </div>
+                <Input
+                  value={keyword}
+                  placeholder='搜索渠道名称'
+                  onChange={(value) => {
+                    setKeyword(value);
+                  }}
+                  showClear
+                  style={{ width: 200 }}
+                />
+                <Select
+                  value={statusFilter}
+                  optionList={STATUS_FILTER_OPTIONS}
+                  onChange={(value) => {
+                    setStatusFilter(value || '1');
+                  }}
+                  style={{ width: 140 }}
+                />
+                <Select
+                  value={sortBy}
+                  optionList={SORT_OPTIONS.map((item) => ({
+                    label: item.label,
+                    value: item.value,
+                  }))}
+                  onChange={(value) => {
+                    setSortBy(value);
+                    if (
+                      value === 'group_success_rate' ||
+                      value === 'group_name'
+                    ) {
+                      setGroupMode('group');
                     }
                   }}
+                  style={{ width: 140 }}
                 />
-              </div>
-              <Input
-                value={keyword}
-                placeholder='搜索渠道名称'
-                onChange={(value) => {
-                  setKeyword(value);
-                }}
-                showClear
-                style={{ width: 200 }}
-              />
-              <Select
-                value={statusFilter}
-                optionList={STATUS_FILTER_OPTIONS}
-                onChange={(value) => {
-                  setStatusFilter(value || '1');
-                }}
-                style={{ width: 140 }}
-              />
-              <Select
-                value={sortBy}
-                optionList={SORT_OPTIONS.map((item) => ({
-                  label: item.label,
-                  value: item.value,
-                }))}
-                onChange={(value) => {
-                  setSortBy(value);
-                  if (value === 'group_success_rate' || value === 'group_name') {
-                    setGroupMode('group');
+                <div className='flex items-center gap-2'>
+                  <Text type='secondary'>
+                    {order === 'asc' ? '升序' : '降序'}
+                  </Text>
+                  <Switch
+                    checked={order === 'asc'}
+                    onChange={(checked) => {
+                      setOrder(checked ? 'asc' : 'desc');
+                    }}
+                  />
+                </div>
+                <Button
+                  theme='light'
+                  type='tertiary'
+                  icon={
+                    <RefreshCw
+                      size={14}
+                      className={refreshing ? 'animate-spin' : ''}
+                    />
                   }
-                }}
-                style={{ width: 140 }}
-              />
-              <div className='flex items-center gap-2'>
-                <Text type='secondary'>{order === 'asc' ? '升序' : '降序'}</Text>
-                <Switch
-                  checked={order === 'asc'}
-                  onChange={(checked) => {
-                    setOrder(checked ? 'asc' : 'desc');
-                  }}
+                  onClick={handleRefresh}
+                  loading={refreshing}
                 />
-              </div>
-              <Button
-                theme='light'
-                type='tertiary'
-                icon={<RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />}
-                onClick={handleRefresh}
-                loading={refreshing}
-              />
-            </Space>
-          </div>
-        </Card>
+              </Space>
+            </div>
+          </Card>
 
-        {errorMessage ? (
-          <Banner
-            type='danger'
-            fullMode={false}
-            bordered
-            title={'渠道监控加载失败'}
-            description={errorMessage}
-            closeIcon={null}
+          {errorMessage ? (
+            <Banner
+              type='danger'
+              fullMode={false}
+              bordered
+              title={'渠道监控加载失败'}
+              description={errorMessage}
+              closeIcon={null}
+            />
+          ) : null}
+
+          <ChannelTable
+            tabs={
+              <Tabs
+                activeKey={groupFilter}
+                type='card'
+                collapsible
+                onChange={(key) => setGroupFilter(key || GROUP_FILTER_ALL)}
+              >
+                <TabPane
+                  itemKey={GROUP_FILTER_ALL}
+                  tab={
+                    <span className='flex items-center gap-2'>
+                      {'全部'}
+                      <Tag
+                        color={
+                          groupFilter === GROUP_FILTER_ALL ? 'red' : 'grey'
+                        }
+                        shape='circle'
+                      >
+                        {groupedChannelCounts.all || 0}
+                      </Tag>
+                    </span>
+                  }
+                />
+                {availableGroupTabs.map((group) => {
+                  const key = normalizeGroupName(group);
+                  return (
+                    <TabPane
+                      key={key}
+                      itemKey={key}
+                      tab={
+                        <span className='flex items-center gap-2'>
+                          <Tag color='grey' shape='circle'>
+                            {group || 'default'}
+                          </Tag>
+                          <Tag
+                            color={groupFilter === key ? 'red' : 'grey'}
+                            shape='circle'
+                          >
+                            {groupedChannelCounts[key] || 0}
+                          </Tag>
+                        </span>
+                      }
+                    />
+                  );
+                })}
+              </Tabs>
+            }
+            emptyDescription={'暂无渠道监控数据'}
+            loading={loadingChannels}
+            channels={displayChannels}
+            columns={columns}
           />
-        ) : null}
-
-        <ChannelTable
-          title={'渠道明细列表'}
-          emptyDescription={'暂无渠道监控数据'}
-          loading={loadingChannels}
-          channels={displayChannels}
-          columns={columns}
-        />
+        </div>
       </div>
-    </div>
-    <Modal
-      title='手动设置路由评分'
-      visible={overrideModal.visible}
-      onOk={handleScoreOverride}
-      onCancel={() => setOverrideModal((v) => ({ ...v, visible: false }))}
-    >
-      <div className='flex flex-col gap-3'>
-        <InputNumber
-          min={0}
-          max={1}
-          step={0.01}
-          precision={2}
-          value={overrideModal.value}
-          onChange={(v) => setOverrideModal((prev) => ({ ...prev, value: v }))}
-          style={{ width: '100%' }}
-        />
-        <Text type='tertiary' size='small'>{'注意：此设置仅在内存中生效，服务重启后将恢复自动计算。'}</Text>
-        <Button type='danger' theme='borderless' size='small' onClick={handleClearOverride}>
-          {'清除覆盖，恢复自动计算'}
-        </Button>
-      </div>
-    </Modal>
+      <Modal
+        title='手动设置路由评分'
+        visible={overrideModal.visible}
+        onOk={handleScoreOverride}
+        onCancel={() => setOverrideModal((v) => ({ ...v, visible: false }))}
+      >
+        <div className='flex flex-col gap-3'>
+          <InputNumber
+            min={0}
+            max={1}
+            step={0.01}
+            precision={2}
+            value={overrideModal.value}
+            onChange={(v) =>
+              setOverrideModal((prev) => ({ ...prev, value: v }))
+            }
+            style={{ width: '100%' }}
+          />
+          <Text type='tertiary' size='small'>
+            {'注意：此设置仅在内存中生效，服务重启后将恢复自动计算。'}
+          </Text>
+          <Button
+            type='danger'
+            theme='borderless'
+            size='small'
+            onClick={handleClearOverride}
+          >
+            {'清除覆盖，恢复自动计算'}
+          </Button>
+        </div>
+      </Modal>
     </>
   );
 };

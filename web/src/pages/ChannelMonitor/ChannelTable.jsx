@@ -27,6 +27,7 @@ import CardTable from '../../components/common/ui/CardTable';
 
 const ChannelTable = ({
   title,
+  tabs,
   emptyDescription,
   loading,
   channels,
@@ -36,9 +37,10 @@ const ChannelTable = ({
     <Card
       loading={loading}
       className='!rounded-2xl'
-      title={title}
+      title={title || undefined}
       bodyStyle={{ padding: 12 }}
     >
+      {tabs ? <div className='mb-3'>{tabs}</div> : null}
       {channels.length === 0 && !loading ? (
         <Empty
           image={<IllustrationNoResult style={{ width: 150, height: 150 }} />}
