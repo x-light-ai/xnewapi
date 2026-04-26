@@ -18,7 +18,7 @@ For commercial licensing, please contact support@quantumnous.com
 */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Banner, Button, Card, Input, InputNumber, Modal, Select, Space, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
+import { Banner, Button, Card, Input, InputNumber, Modal, Select, Space, Switch, Tag, Tooltip, Typography } from '@douyinfe/semi-ui';
 import { RefreshCw } from 'lucide-react';
 import {
   getChannelIcon,
@@ -53,16 +53,6 @@ const SORT_OPTIONS = [
   { label: '请求数', value: 'request_count' },
   { label: '渠道分组', value: 'group_name' },
   { label: '组内成功率', value: 'group_success_rate' },
-];
-
-const ORDER_OPTIONS = [
-  { label: '降序', value: 'desc' },
-  { label: '升序', value: 'asc' },
-];
-
-const GROUP_MODE_OPTIONS = [
-  { label: '不分组', value: 'none' },
-  { label: '按渠道分组', value: 'group' },
 ];
 
 const STATUS_FILTER_OPTIONS = [
@@ -826,6 +816,19 @@ const ChannelMonitorPage = () => {
                 }}
                 style={{ width: 160 }}
               />
+              <div className='flex items-center gap-2'>
+                <Text type='secondary'>{groupMode === 'group' ? '按渠道分组' : '不分组'}</Text>
+                <Switch
+                  checked={groupMode === 'group'}
+                  onChange={(checked) => {
+                    const value = checked ? 'group' : 'none';
+                    setGroupMode(value);
+                    if (!checked && (sortBy === 'group_success_rate' || sortBy === 'group_name')) {
+                      setSortBy('success_rate');
+                    }
+                  }}
+                />
+              </div>
               <Input
                 value={keyword}
                 placeholder='搜索渠道名称'
@@ -844,20 +847,6 @@ const ChannelMonitorPage = () => {
                 style={{ width: 140 }}
               />
               <Select
-                value={groupMode}
-                optionList={GROUP_MODE_OPTIONS.map((item) => ({
-                  label: item.label,
-                  value: item.value,
-                }))}
-                onChange={(value) => {
-                  setGroupMode(value);
-                  if (value === 'none' && (sortBy === 'group_success_rate' || sortBy === 'group_name')) {
-                    setSortBy('success_rate');
-                  }
-                }}
-                style={{ width: 140 }}
-              />
-              <Select
                 value={sortBy}
                 optionList={SORT_OPTIONS.map((item) => ({
                   label: item.label,
@@ -871,17 +860,15 @@ const ChannelMonitorPage = () => {
                 }}
                 style={{ width: 140 }}
               />
-              <Select
-                value={order}
-                optionList={ORDER_OPTIONS.map((item) => ({
-                  label: item.label,
-                  value: item.value,
-                }))}
-                onChange={(value) => {
-                  setOrder(value);
-                }}
-                style={{ width: 120 }}
-              />
+              <div className='flex items-center gap-2'>
+                <Text type='secondary'>{order === 'asc' ? '升序' : '降序'}</Text>
+                <Switch
+                  checked={order === 'asc'}
+                  onChange={(checked) => {
+                    setOrder(checked ? 'asc' : 'desc');
+                  }}
+                />
+              </div>
               <Button
                 theme='light'
                 type='tertiary'
