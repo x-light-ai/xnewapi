@@ -29,10 +29,12 @@ import {
 } from '../../helpers';
 import {
   fetchChannelMonitorChannels,
+  fetchChannelMonitorSelectionLogs,
   fetchChannelMonitorTimeline,
   setChannelScoreOverride,
 } from '../../helpers/api/channel-monitor';
 import ChannelTable from './ChannelTable';
+import SelectionLogTable from './SelectionLogTable';
 
 const { Text } = Typography;
 
@@ -48,6 +50,7 @@ const SORT_OPTIONS = [
   { label: '平均延迟', value: 'avg_latency' },
   { label: 'P95 延迟', value: 'p95_latency' },
   { label: '失败数', value: 'failure_count' },
+  { label: '最近活跃时间', value: 'last_active' },
   { label: '名称', value: 'name' },
   { label: '请求数', value: 'request_count' },
   { label: '渠道分组', value: 'group_name' },
@@ -76,6 +79,7 @@ const GROUP_FILTER_ALL = '__all__';
 const TIMELINE_HOURS = 24;
 const TIMELINE_BUCKET_MINUTES = 10;
 const TIMELINE_LIMIT = 20;
+const SELECTION_LOG_POLL_INTERVAL = 5000;
 
 const renderChannelStatus = (status) => {
   switch (status) {
@@ -248,7 +252,7 @@ const getSuggestion = (record) => {
   };
 };
 
-const AvailabilityTrend = ({ item, loading = false }) => {
+const AvailabilityTrend = ({ item, loading = false, lastActive }) => {
   const points = item?.points || [];
   const sparklinePoints = getSparklinePoints(points);
   const hasData = sparklinePoints.some((point) => point.active);
@@ -257,7 +261,7 @@ const AvailabilityTrend = ({ item, loading = false }) => {
     return <Text type='secondary'>{'加载中...'}</Text>;
   }
 
-  const summaryText = hasData
+  const trendSummaryText = hasData
     ? `${formatPercentage(item?.success_rate)} · P95 ${formatLatencyValue(item?.p95_latency)} · ${formatRequestSummary(
         item?.request_count,
         item?.failure_count,
@@ -266,13 +270,17 @@ const AvailabilityTrend = ({ item, loading = false }) => {
         item?.request_count,
         item?.failure_count,
       )}`;
+  let lastActiveText = '--';
+  if (lastActive) {
+    const ts = Math.floor(new Date(lastActive).getTime() / 1000);
+    if (ts && !Number.isNaN(ts)) {
+      lastActiveText = timestamp2string(ts);
+    }
+  }
 
   return (
-    <div className='flex min-w-[360px] items-center gap-3'>
-      <Text className='shrink-0 whitespace-nowrap text-xs text-[var(--semi-color-text-2)]'>
-        {summaryText}
-      </Text>
-      <div className='flex min-w-[120px] flex-1 items-center justify-end gap-1'>
+    <div className='flex min-w-[300px] flex-col items-start gap-2'>
+      <div className='flex min-w-[120px] items-center justify-start gap-1'>
         {hasData ? (
           sparklinePoints.map((point) => (
             <Tooltip
@@ -307,7 +315,10 @@ const AvailabilityTrend = ({ item, loading = false }) => {
           </Text>
         )}
       </div>
-      <Text className='shrink-0 whitespace-nowrap text-xs text-[var(--semi-color-text-2)]'>{'24h'}</Text>
+      <div className='flex items-center justify-start gap-2 whitespace-nowrap text-[11px] leading-4 text-[var(--semi-color-text-2)]'>
+        <span>{trendSummaryText}</span>
+        <span>{lastActiveText}</span>
+      </div>
     </div>
   );
 };
@@ -539,6 +550,15 @@ const ChannelMonitorPage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [channels, setChannels] = useState([]);
   const [timeline, setTimeline] = useState([]);
+  const [selectionLogs, setSelectionLogs] = useState([]);
+  const [loadingSelectionLogs, setLoadingSelectionLogs] = useState(false);
+  const [selectedChannelForLogs, setSelectedChannelForLogs] = useState(null);
+  const [selectionLogFilters, setSelectionLogFilters] = useState({
+    model: '',
+    group: GROUP_FILTER_ALL,
+    outcome: 'all',
+    abnormalOnly: false,
+  });
   const [errorMessage, setErrorMessage] = useState('');
   const [overrideModal, setOverrideModal] = useState({ visible: false, record: null, value: 0 });
 
@@ -611,14 +631,44 @@ const ChannelMonitorPage = () => {
     }
   }, []);
 
+  const loadSelectionLogs = useCallback(async (channelId, filters = selectionLogFilters, options = {}) => {
+    const silent = Boolean(options.silent);
+    if (!silent) {
+      setLoadingSelectionLogs(true);
+    }
+    try {
+      const data = await fetchChannelMonitorSelectionLogs({
+        channelId,
+        model: filters.model,
+        group: filters.group === GROUP_FILTER_ALL ? '' : filters.group,
+        outcome: filters.outcome,
+        abnormalOnly: filters.abnormalOnly,
+        limit: 100,
+      });
+      setSelectionLogs(data);
+    } catch (error) {
+      if (!silent) {
+        setSelectionLogs([]);
+      }
+    } finally {
+      if (!silent) {
+        setLoadingSelectionLogs(false);
+      }
+    }
+  }, [selectionLogFilters]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadChannels(), loadTimeline()]);
+      await Promise.all([
+        loadChannels(),
+        loadTimeline(),
+        loadSelectionLogs(selectedChannelForLogs?.id, selectionLogFilters),
+      ]);
     } finally {
       setRefreshing(false);
     }
-  }, [loadChannels, loadTimeline]);
+  }, [loadChannels, loadSelectionLogs, loadTimeline, selectedChannelForLogs, selectionLogFilters]);
 
   useEffect(() => {
     loadChannels();
@@ -627,6 +677,19 @@ const ChannelMonitorPage = () => {
   useEffect(() => {
     loadTimeline();
   }, [loadTimeline]);
+
+  useEffect(() => {
+    loadSelectionLogs(selectedChannelForLogs?.id, selectionLogFilters);
+  }, [loadSelectionLogs, selectedChannelForLogs, selectionLogFilters]);
+
+  useEffect(() => {
+    const channelId = selectedChannelForLogs?.id;
+    const filters = selectionLogFilters;
+    const timer = setInterval(() => {
+      loadSelectionLogs(channelId, filters, { silent: true });
+    }, SELECTION_LOG_POLL_INTERVAL);
+    return () => clearInterval(timer);
+  }, [loadSelectionLogs, selectedChannelForLogs, selectionLogFilters]);
 
   useEffect(() => {
     if (groupFilter === GROUP_FILTER_ALL) {
@@ -675,6 +738,22 @@ const ChannelMonitorPage = () => {
     }));
   }, [channels, groupFilter, groupMode, keyword, order, sortBy, statusFilter]);
 
+  const handleChannelClick = useCallback((record) => {
+    if (!record || record.__groupRow) {
+      return;
+    }
+    setSelectedChannelForLogs((prev) => {
+      if (prev && Number(prev.id) === Number(record.id)) {
+        return prev;
+      }
+      return { id: record.id, name: record.name };
+    });
+  }, []);
+
+  const handleClearSelectionLogFilter = useCallback(() => {
+    setSelectedChannelForLogs(null);
+  }, []);
+
   const columns = useMemo(() => {
     return [
       {
@@ -720,7 +799,7 @@ const ChannelMonitorPage = () => {
         },
       },
       {
-        title: '权重分数',
+        title: <Tooltip content='用于监控页排序和手动覆盖的路由选择评分，不等同于渠道配置中的权重。'>{'路由评分'}</Tooltip>,
         dataIndex: 'current_weighted_score',
         key: 'weight_score',
         width: 120,
@@ -737,7 +816,7 @@ const ChannelMonitorPage = () => {
                 <div
                   className='cursor-pointer'
                   onClick={() => setOverrideModal({ visible: true, record, value: suggestion.score })}
-                  title='点击设置权重分数'
+                  title='点击设置路由评分'
                 >
                   {hasWeightScore(currentValue) ? (
                     <div title={record.temporary_circuit_reason || ''}>{renderScoreTag(currentValue)}</div>
@@ -757,25 +836,6 @@ const ChannelMonitorPage = () => {
         },
       },
       {
-        title: '最近活跃',
-        dataIndex: 'last_active',
-        key: 'last_active',
-        width: 126,
-        render: (value, record) => {
-          if (record.__groupRow && !value) {
-            return <Text type='secondary'>-</Text>;
-          }
-          if (!value) {
-            return <Text type='secondary'>-</Text>;
-          }
-          const ts = Math.floor(new Date(value).getTime() / 1000);
-          if (!ts || Number.isNaN(ts)) {
-            return <Text type='secondary'>-</Text>;
-          }
-          return <Text className='whitespace-nowrap'>{timestamp2string(ts)}</Text>;
-        },
-      },
-      {
         title: '可用性趋势',
         key: 'availability_trend',
         render: (_, record) => {
@@ -786,6 +846,7 @@ const ChannelMonitorPage = () => {
             <AvailabilityTrend
               item={timelineByChannelId.get(Number(record.id))}
               loading={loadingTimeline}
+              lastActive={record.last_active}
             />
           );
         },
@@ -920,11 +981,24 @@ const ChannelMonitorPage = () => {
           loading={loadingChannels}
           channels={displayChannels}
           columns={columns}
+          selectedChannelId={selectedChannelForLogs?.id}
+          onChannelClick={handleChannelClick}
+        />
+
+        <SelectionLogTable
+          logs={selectionLogs}
+          loading={loadingSelectionLogs}
+          selectedChannel={selectedChannelForLogs}
+          filters={selectionLogFilters}
+          groupOptions={groupOptions}
+          groupFilterAll={GROUP_FILTER_ALL}
+          onFiltersChange={setSelectionLogFilters}
+          onClearChannelFilter={handleClearSelectionLogFilter}
         />
       </div>
     </div>
     <Modal
-      title='手动设置权重分数'
+      title='手动设置路由评分'
       visible={overrideModal.visible}
       onOk={handleScoreOverride}
       onCancel={() => setOverrideModal((v) => ({ ...v, visible: false }))}

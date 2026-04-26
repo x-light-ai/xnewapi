@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,7 +26,14 @@ func buildChannelAffinityStatsContextForTest(ruleName, usingGroup, keyFP string)
 	return ctx
 }
 
+func resetChannelAffinityUsageCacheStatsForTest(t *testing.T) {
+	t.Helper()
+	channelAffinityUsageCacheStatsCache = nil
+	channelAffinityUsageCacheStatsOnce = sync.Once{}
+}
+
 func TestObserveChannelAffinityUsageCacheByRelayFormat_ClaudeMode(t *testing.T) {
+	resetChannelAffinityUsageCacheStatsForTest(t)
 	ruleName := fmt.Sprintf("rule_%d", time.Now().UnixNano())
 	usingGroup := "default"
 	keyFP := fmt.Sprintf("fp_%d", time.Now().UnixNano())
@@ -53,6 +61,7 @@ func TestObserveChannelAffinityUsageCacheByRelayFormat_ClaudeMode(t *testing.T) 
 }
 
 func TestObserveChannelAffinityUsageCacheByRelayFormat_MixedMode(t *testing.T) {
+	resetChannelAffinityUsageCacheStatsForTest(t)
 	ruleName := fmt.Sprintf("rule_%d", time.Now().UnixNano())
 	usingGroup := "default"
 	keyFP := fmt.Sprintf("fp_%d", time.Now().UnixNano())
@@ -83,6 +92,7 @@ func TestObserveChannelAffinityUsageCacheByRelayFormat_MixedMode(t *testing.T) {
 }
 
 func TestObserveChannelAffinityUsageCacheByRelayFormat_UnsupportedModeKeepsEmpty(t *testing.T) {
+	resetChannelAffinityUsageCacheStatsForTest(t)
 	ruleName := fmt.Sprintf("rule_%d", time.Now().UnixNano())
 	usingGroup := "default"
 	keyFP := fmt.Sprintf("fp_%d", time.Now().UnixNano())

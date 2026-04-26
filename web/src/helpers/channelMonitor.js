@@ -99,6 +99,31 @@ export async function fetchChannelMonitorRankings({ days = 1, top = 10 } = {}) {
   };
 }
 
+export async function fetchChannelMonitorSelectionLogs({
+  channelId,
+  model,
+  group,
+  outcome,
+  abnormalOnly = false,
+  limit = 100,
+} = {}) {
+  const response = await API.get('/api/channel_monitor/selection_logs', {
+    params: {
+      channel_id: channelId || undefined,
+      model: model || undefined,
+      group: group || undefined,
+      outcome: outcome && outcome !== 'all' ? outcome : undefined,
+      abnormal_only: abnormalOnly || undefined,
+      limit,
+    },
+  });
+  const { success, data, message } = response.data || {};
+  if (!success) {
+    throw new Error(message || 'Failed to fetch channel selection logs');
+  }
+  return Array.isArray(data) ? data : [];
+}
+
 export async function setChannelScoreOverride(channelId, score) {
   const response = await API.post(`/api/channel_monitor/channels/${channelId}/score_override`, { score });
   const { success, message } = response.data || {};

@@ -131,14 +131,14 @@ const StabilityRankTable = ({ channels = [], loading = false }) => {
       render: (value) => renderNumber(value || 0),
     },
     {
-      title: '建议权重',
+      title: '建议路由评分',
       dataIndex: 'suggested_weight_score',
       key: 'suggested_weight_score',
       width: 120,
       render: (value) => renderScoreTag(value),
     },
     {
-      title: '当前权重分数',
+      title: '当前路由评分',
       dataIndex: 'current_weighted_score',
       key: 'current_weighted_score',
       width: 140,

@@ -120,6 +120,26 @@ func GetChannelMonitorChannels(c *gin.Context) {
 	})
 }
 
+func GetChannelMonitorSelectionLogs(c *gin.Context) {
+	channelID, _ := strconv.Atoi(strings.TrimSpace(c.Query("channel_id")))
+	limit, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("limit", "100")))
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	abnormalOnly, _ := strconv.ParseBool(strings.TrimSpace(c.DefaultQuery("abnormal_only", "false")))
+	common.ApiSuccess(c, service.ListChannelSelectionLogs(service.ChannelSelectionLogFilter{
+		ChannelID:    channelID,
+		ModelName:    strings.TrimSpace(c.Query("model")),
+		Group:        strings.TrimSpace(c.Query("group")),
+		Outcome:      strings.TrimSpace(c.Query("outcome")),
+		AbnormalOnly: abnormalOnly,
+		Limit:        limit,
+	}))
+}
+
 func SetChannelScoreOverride(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {

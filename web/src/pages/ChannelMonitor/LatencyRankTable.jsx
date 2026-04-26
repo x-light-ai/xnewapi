@@ -128,7 +128,7 @@ const LatencyRankTable = ({ channels = [], loading = false }) => {
       render: (value) => renderLatencyTag(value),
     },
     {
-      title: '建议权重',
+      title: '建议路由评分',
       dataIndex: 'suggested_weight_score',
       key: 'suggested_weight_score',
       width: 120,

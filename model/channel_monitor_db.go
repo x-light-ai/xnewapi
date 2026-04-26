@@ -88,22 +88,22 @@ type ChannelMonitorHealthPoint struct {
 }
 
 type ChannelMonitorChannelItem struct {
-	Id                    int       `json:"id"`
-	Name                  string    `json:"name"`
-	GroupName             string    `json:"group_name"`
-	Type                  int       `json:"type"`
-	Status                int       `json:"status"`
-	SuccessRate           float64   `json:"success_rate"`
-	AvgLatencyMs          float64   `json:"avg_latency"`
-	P95LatencyMs          float64   `json:"p95_latency"`
-	RequestCount          int64     `json:"request_count"`
-	FailureCount          int64     `json:"failure_count"`
-	LastActiveAt          time.Time `json:"last_active"`
-	HealthTrend           []float64 `json:"health_trend"`
-	TemporaryCircuitOpen  bool      `json:"temporary_circuit_open"`
-	TemporaryCircuitUntil time.Time `json:"temporary_circuit_until"`
-	TemporaryCircuitReason string   `json:"temporary_circuit_reason"`
-	CurrentWeightedScore  float64   `json:"current_weighted_score"`
+	Id                     int       `json:"id"`
+	Name                   string    `json:"name"`
+	GroupName              string    `json:"group_name"`
+	Type                   int       `json:"type"`
+	Status                 int       `json:"status"`
+	SuccessRate            float64   `json:"success_rate"`
+	AvgLatencyMs           float64   `json:"avg_latency"`
+	P95LatencyMs           float64   `json:"p95_latency"`
+	RequestCount           int64     `json:"request_count"`
+	FailureCount           int64     `json:"failure_count"`
+	LastActiveAt           time.Time `json:"last_active"`
+	HealthTrend            []float64 `json:"health_trend"`
+	TemporaryCircuitOpen   bool      `json:"temporary_circuit_open"`
+	TemporaryCircuitUntil  time.Time `json:"temporary_circuit_until"`
+	TemporaryCircuitReason string    `json:"temporary_circuit_reason"`
+	CurrentWeightedScore   float64   `json:"current_weighted_score"`
 }
 
 type ChannelTimelinePoint struct {
@@ -118,13 +118,13 @@ type ChannelTimelinePoint struct {
 }
 
 type ChannelTimelineChannel struct {
-	ChannelID     int                   `json:"channel_id"`
-	ChannelName   string                `json:"channel_name"`
-	ChannelType   int                   `json:"channel_type"`
-	ChannelStatus int                   `json:"channel_status"`
+	ChannelID     int                    `json:"channel_id"`
+	ChannelName   string                 `json:"channel_name"`
+	ChannelType   int                    `json:"channel_type"`
+	ChannelStatus int                    `json:"channel_status"`
 	Points        []ChannelTimelinePoint `json:"points"`
-	RequestCount  int64                 `json:"request_count"`
-	SuccessRate   float64               `json:"success_rate"`
+	RequestCount  int64                  `json:"request_count"`
+	SuccessRate   float64                `json:"success_rate"`
 }
 
 type channelTimelineRow struct {
@@ -738,6 +738,25 @@ func buildChannelMonitorGroupCondition(columnExpr string) string {
 	return `(',' || ` + columnExpr + ` || ',') LIKE ?`
 }
 
+func channelMonitorGroupColumn(tableName string) string {
+	if common.UsingPostgreSQL {
+		if tableName == "" {
+			return `"group"`
+		}
+		return tableName + `."group"`
+	}
+	if common.UsingSQLite {
+		if tableName == "" {
+			return `"group"`
+		}
+		return tableName + `."group"`
+	}
+	if tableName == "" {
+		return "`group`"
+	}
+	return tableName + ".`group`"
+}
+
 func GetChannelMonitorGroups() ([]string, error) {
 	if DB == nil {
 		return []string{}, nil
@@ -787,7 +806,7 @@ func GetChannelMonitorTimelineByGroup(hours int, bucketMinutes int, limit int, g
 		Joins("LEFT JOIN channels ON channels.id = cms.channel_id").
 		Where("cms.granularity = ? AND cms.time_bucket >= ? AND cms.request_count > 0", ChannelMonitorGranularityMinute, start)
 	if groupFilter != "" {
-		query = query.Where(buildChannelMonitorGroupCondition("channels."+commonGroupCol), "%,"+groupFilter+",%")
+		query = query.Where(buildChannelMonitorGroupCondition(channelMonitorGroupColumn("channels")), "%,"+groupFilter+",%")
 	}
 	err := query.
 		Group("cms.channel_id, channels.name, channels.type, channels.status, cms.time_bucket").
@@ -876,7 +895,7 @@ func buildChannelMonitorChannelItemsByGroup(days int, groupFilter string) ([]Cha
 	channels := make([]*Channel, 0)
 	query := DB.Omit("key")
 	if groupFilter != "" {
-		query = query.Where(buildChannelMonitorGroupCondition(commonGroupCol), "%,"+groupFilter+",%")
+		query = query.Where(buildChannelMonitorGroupCondition(channelMonitorGroupColumn("")), "%,"+groupFilter+",%")
 	}
 	if err = query.Find(&channels).Error; err != nil {
 		return nil, err

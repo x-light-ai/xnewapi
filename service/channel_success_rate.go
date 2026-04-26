@@ -11,7 +11,6 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
-	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
 	"github.com/QuantumNous/new-api/types"
@@ -19,18 +18,18 @@ import (
 )
 
 type channelSuccessRateState struct {
-	success                   float64
-	failure                   float64
-	updated                   time.Time
-	consecutiveFails          int
-	observed                  int
-	temporaryOpenUntil        time.Time
-	temporaryOpenReason       string
-	halfOpenUntil             time.Time
-	halfOpenReason            string
-	halfOpenSuccesses         int
-	halfOpenSuccessThreshold  int
-	halfOpenProbeInFlight     bool
+	success                  float64
+	failure                  float64
+	updated                  time.Time
+	consecutiveFails         int
+	observed                 int
+	temporaryOpenUntil       time.Time
+	temporaryOpenReason      string
+	halfOpenUntil            time.Time
+	halfOpenReason           string
+	halfOpenSuccesses        int
+	halfOpenSuccessThreshold int
+	halfOpenProbeInFlight    bool
 }
 
 type channelFailureEvent struct {
@@ -157,25 +156,6 @@ func formatSelectionDecision(decision selectionDecision) string {
 	return fmt.Sprintf("#%d(%s，权重%d)：当前权重分数%.4f", decision.channelID, decision.name, decision.priority, decision.score)
 }
 
-func logSuccessRateSelection(ctx *gin.Context, modelName string, group string, candidates []*model.Channel, selected *model.Channel, selectedScore float64, others []selectionDecision) {
-	if ctx == nil || selected == nil {
-		return
-	}
-	parts := make([]string, 0, len(others))
-	for i, item := range others {
-		if i >= 5 {
-			parts = append(parts, fmt.Sprintf("其余%d个渠道已省略", len(others)-i))
-			break
-		}
-		parts = append(parts, formatSelectionDecision(item))
-	}
-	otherSummary := "无"
-	if len(parts) > 0 {
-		otherSummary = strings.Join(parts, "；")
-	}
-	logger.LogDebug(ctx, "请求模型 %s，分组 %s，共 %d 个候选渠道，最终选择渠道 #%d(%s，权重%d)，当前权重分数 %.4f；其它渠道情况：%s", modelName, group, len(candidates), selected.Id, selected.Name, selected.GetPriority(), selectedScore, otherSummary)
-}
-
 func selectChannelWithSuccessRate(ctx *gin.Context, group string, modelName string, retry int) (*model.Channel, error) {
 	if !operation_setting.GetSuccessRateSelectorEnabled() {
 		return model.GetRandomSatisfiedChannel(group, modelName, retry)
@@ -209,9 +189,12 @@ func selectChannelWithSuccessRate(ctx *gin.Context, group string, modelName stri
 		}
 		selected, selectedScore, others := defaultChannelSuccessRateSelector.pickDetailed(group, modelName, available, cfg)
 		if selected == nil {
+			if len(others) > 0 {
+				appendChannelSelectionLog(defaultChannelSuccessRateSelector.now(), modelName, group, len(available), 0, "", 0, 0, others)
+			}
 			continue
 		}
-		logSuccessRateSelection(ctx, modelName, group, available, selected, selectedScore, others)
+		appendChannelSelectionLog(defaultChannelSuccessRateSelector.now(), modelName, group, len(available), selected.Id, selected.Name, selected.GetPriority(), selectedScore, others)
 		return selected, nil
 	}
 	return nil, nil
@@ -234,8 +217,10 @@ func SelectBySuccessRate(ctx *gin.Context, group string, modelName string, retry
 	}
 	cfg := buildChannelSuccessRateConfig()
 	selected, selectedScore, others := defaultChannelSuccessRateSelector.pickDetailed(group, modelName, channels, cfg)
-	if selected != nil && ctx != nil {
-		logSuccessRateSelection(ctx, modelName, group, channels, selected, selectedScore, others)
+	if selected != nil {
+		appendChannelSelectionLog(defaultChannelSuccessRateSelector.now(), modelName, group, len(channels), selected.Id, selected.Name, selected.GetPriority(), selectedScore, others)
+	} else if len(others) > 0 {
+		appendChannelSelectionLog(defaultChannelSuccessRateSelector.now(), modelName, group, len(channels), 0, "", 0, 0, others)
 	}
 	return selected, nil
 }
@@ -264,10 +249,30 @@ func ObserveChannelRequestResult(c *gin.Context, success bool, err *types.NewAPI
 
 	model.ObserveChannelRuntime(group, modelName, channelID, success, latency)
 	defaultChannelSuccessRateSelector.observeDetailed(group, modelName, channelID, success, err, cfg)
-
-	if !success && err != nil {
-		logger.LogDebug(c, "Success-rate selector observed channel #%d failure: status=%d code=%s", channelID, err.StatusCode, err.GetErrorCode())
+	if !success {
+		appendChannelRequestObservationLog(defaultChannelSuccessRateSelector.now(), group, modelName, channelID, err, cfg)
 	}
+}
+
+func appendChannelRequestObservationLog(now time.Time, group string, modelName string, channelID int, err *types.NewAPIError, cfg channelSuccessRateConfig) {
+	channelName := ""
+	priority := int64(0)
+	channel, channelErr := model.CacheGetChannel(channelID)
+	if channelErr == nil && channel != nil {
+		channelName = channel.Name
+		priority = channel.GetPriority()
+	}
+	score := defaultChannelSuccessRateSelector.getScore(group, modelName, channelID, cfg)
+	detail := "请求失败"
+	if err != nil {
+		detail = fmt.Sprintf("请求失败：status=%d code=%s", err.StatusCode, err.GetErrorCode())
+	}
+	circuitReason := ""
+	state := defaultChannelSuccessRateSelector.GetRuntimeStateForChannel(channelID, cfg)
+	if state.TemporaryCircuitOpen {
+		circuitReason = state.TemporaryCircuitReason
+	}
+	appendChannelSelectionObservationLog(now, modelName, group, channelID, channelName, priority, score, false, detail, circuitReason)
 }
 
 func GetChannelSuccessRateScore(group string, modelName string, channelID int) float64 {
@@ -939,8 +944,8 @@ func buildChannelSuccessRateConfig() channelSuccessRateConfig {
 			502: {},
 			522: {},
 		},
-		ImmediateDisableErrors: make(map[string]struct{}),
-		ImmediateDisableTypes:  make(map[string]struct{}),
+		ImmediateDisableErrors:   make(map[string]struct{}),
+		ImmediateDisableTypes:    make(map[string]struct{}),
 		DisableThreshold:         0.2,
 		EnableThreshold:          0.7,
 		MinSampleSize:            10,
