@@ -975,122 +975,19 @@ func buildChannelMonitorChannelItemsByGroup(days int, groupFilter string) ([]Cha
 	return items, nil
 }
 
-func isChannelMonitorItemLess(left ChannelMonitorChannelItem, right ChannelMonitorChannelItem, sortBy string) bool {
-	switch sortBy {
-	case "success_rate":
-		if left.SuccessRate != right.SuccessRate {
-			return left.SuccessRate < right.SuccessRate
-		}
-		if left.FailureCount != right.FailureCount {
-			return left.FailureCount < right.FailureCount
-		}
-		return left.RequestCount < right.RequestCount
-	case "avg_latency":
-		leftHasLatency := left.AvgLatencyMs > 0
-		rightHasLatency := right.AvgLatencyMs > 0
-		if leftHasLatency != rightHasLatency {
-			return leftHasLatency && !rightHasLatency
-		}
-		if left.AvgLatencyMs != right.AvgLatencyMs {
-			return left.AvgLatencyMs < right.AvgLatencyMs
-		}
-		if left.P95LatencyMs != right.P95LatencyMs {
-			return left.P95LatencyMs < right.P95LatencyMs
-		}
-		return strings.ToLower(left.Name) < strings.ToLower(right.Name)
-	case "p95_latency":
-		if left.P95LatencyMs != right.P95LatencyMs {
-			return left.P95LatencyMs < right.P95LatencyMs
-		}
+func isChannelMonitorLatencyLess(left ChannelMonitorChannelItem, right ChannelMonitorChannelItem) bool {
+	leftHasLatency := left.AvgLatencyMs > 0
+	rightHasLatency := right.AvgLatencyMs > 0
+	if leftHasLatency != rightHasLatency {
+		return leftHasLatency && !rightHasLatency
+	}
+	if left.AvgLatencyMs != right.AvgLatencyMs {
 		return left.AvgLatencyMs < right.AvgLatencyMs
-	case "failure_count":
-		if left.FailureCount != right.FailureCount {
-			return left.FailureCount < right.FailureCount
-		}
-		return left.RequestCount < right.RequestCount
-	case "last_active":
-		if !left.LastActiveAt.Equal(right.LastActiveAt) {
-			return left.LastActiveAt.Before(right.LastActiveAt)
-		}
-		return strings.ToLower(left.Name) < strings.ToLower(right.Name)
-	case "group_name":
-		leftGroup := strings.ToLower(strings.TrimSpace(left.GroupName))
-		rightGroup := strings.ToLower(strings.TrimSpace(right.GroupName))
-		if leftGroup != rightGroup {
-			return leftGroup < rightGroup
-		}
-		return strings.ToLower(left.Name) < strings.ToLower(right.Name)
-	case "group_success_rate":
-		leftGroup := strings.ToLower(strings.TrimSpace(left.GroupName))
-		rightGroup := strings.ToLower(strings.TrimSpace(right.GroupName))
-		if leftGroup != rightGroup {
-			return leftGroup < rightGroup
-		}
-		if left.SuccessRate != right.SuccessRate {
-			return left.SuccessRate > right.SuccessRate
-		}
-		if left.FailureCount != right.FailureCount {
-			return left.FailureCount < right.FailureCount
-		}
-		if left.RequestCount != right.RequestCount {
-			return left.RequestCount > right.RequestCount
-		}
-		return strings.ToLower(left.Name) < strings.ToLower(right.Name)
-	case "name":
-		return strings.ToLower(left.Name) < strings.ToLower(right.Name)
-	default:
-		if left.RequestCount != right.RequestCount {
-			return left.RequestCount < right.RequestCount
-		}
-		return strings.ToLower(left.Name) < strings.ToLower(right.Name)
 	}
-}
-
-func sortChannelMonitorChannelItems(items []ChannelMonitorChannelItem, sortBy string, order string) {
-	order = strings.ToLower(strings.TrimSpace(order))
-	ascending := order == "asc"
-	sortBy = strings.ToLower(strings.TrimSpace(sortBy))
-	if sortBy == "" {
-		sortBy = "request_count"
+	if left.P95LatencyMs != right.P95LatencyMs {
+		return left.P95LatencyMs < right.P95LatencyMs
 	}
-	if sortBy == "group_name" || sortBy == "group_success_rate" {
-		sort.SliceStable(items, func(i, j int) bool {
-			left := items[i]
-			right := items[j]
-			leftGroup := strings.ToLower(strings.TrimSpace(left.GroupName))
-			rightGroup := strings.ToLower(strings.TrimSpace(right.GroupName))
-			if leftGroup != rightGroup {
-				return leftGroup < rightGroup
-			}
-			if sortBy == "group_success_rate" {
-				if left.SuccessRate != right.SuccessRate {
-					if ascending {
-						return left.SuccessRate < right.SuccessRate
-					}
-					return left.SuccessRate > right.SuccessRate
-				}
-				if left.FailureCount != right.FailureCount {
-					return left.FailureCount < right.FailureCount
-				}
-				if left.RequestCount != right.RequestCount {
-					return left.RequestCount > right.RequestCount
-				}
-			}
-			leftName := strings.ToLower(left.Name)
-			rightName := strings.ToLower(right.Name)
-			if ascending {
-				return leftName < rightName
-			}
-			return leftName > rightName
-		})
-		return
-	}
-	sort.SliceStable(items, func(i, j int) bool {
-		if ascending {
-			return isChannelMonitorItemLess(items[i], items[j], sortBy)
-		}
-		return isChannelMonitorItemLess(items[j], items[i], sortBy)
-	})
+	return strings.ToLower(left.Name) < strings.ToLower(right.Name)
 }
 
 func GetChannelMonitorChannelRankings(days int, top int) ([]ChannelMonitorChannelItem, []ChannelMonitorChannelItem, error) {
@@ -1119,7 +1016,7 @@ func GetChannelMonitorChannelRankings(days int, top int) ([]ChannelMonitorChanne
 	}
 	latencyItems := append([]ChannelMonitorChannelItem(nil), items...)
 	sort.SliceStable(latencyItems, func(i, j int) bool {
-		return isChannelMonitorItemLess(latencyItems[i], latencyItems[j], "avg_latency")
+		return isChannelMonitorLatencyLess(latencyItems[i], latencyItems[j])
 	})
 	if len(latencyItems) > top {
 		latencyItems = latencyItems[:top]
@@ -1127,11 +1024,11 @@ func GetChannelMonitorChannelRankings(days int, top int) ([]ChannelMonitorChanne
 	return stabilityItems, latencyItems, nil
 }
 
-func GetChannelMonitorChannelPage(days int, page int, pageSize int, sortBy string, order string) ([]ChannelMonitorChannelItem, int64, error) {
-	return GetChannelMonitorChannelPageByGroup(days, page, pageSize, sortBy, order, "")
+func GetChannelMonitorChannelPage(days int, page int, pageSize int) ([]ChannelMonitorChannelItem, int64, error) {
+	return GetChannelMonitorChannelPageByGroup(days, page, pageSize, "")
 }
 
-func GetChannelMonitorChannelPageByGroup(days int, page int, pageSize int, sortBy string, order string, groupFilter string) ([]ChannelMonitorChannelItem, int64, error) {
+func GetChannelMonitorChannelPageByGroup(days int, page int, pageSize int, groupFilter string) ([]ChannelMonitorChannelItem, int64, error) {
 	days = normalizeChannelMonitorDays(days)
 	if page < 1 {
 		page = 1
@@ -1140,7 +1037,6 @@ func GetChannelMonitorChannelPageByGroup(days int, page int, pageSize int, sortB
 	if err != nil {
 		return nil, 0, err
 	}
-	sortChannelMonitorChannelItems(items, sortBy, order)
 	total := int64(len(items))
 	if pageSize <= 0 {
 		return items, total, nil

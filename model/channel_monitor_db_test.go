@@ -251,7 +251,7 @@ func TestGetChannelMonitorHealthReturnsEmptyBucketsWhenNoData(t *testing.T) {
 	}
 }
 
-func TestGetChannelMonitorChannelPageSortsAndBuildsTrend(t *testing.T) {
+func TestGetChannelMonitorChannelPageBuildsTrend(t *testing.T) {
 	db := setupChannelMonitorTestDB(t)
 	now := time.Now()
 	yesterday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -1).Add(9 * time.Hour)
@@ -265,7 +265,7 @@ func TestGetChannelMonitorChannelPageSortsAndBuildsTrend(t *testing.T) {
 
 	ObserveChannelRuntime("default", "gpt-4", alpha.Id, true, 100*time.Millisecond)
 
-	items, total, err := GetChannelMonitorChannelPage(2, 1, 2, "success_rate", "desc")
+	items, total, err := GetChannelMonitorChannelPage(2, 1, 2)
 	if err != nil {
 		t.Fatalf("expected channel page without error, got %v", err)
 	}
@@ -302,7 +302,7 @@ func TestGetChannelMonitorChannelPageSortsAndBuildsTrend(t *testing.T) {
 		t.Fatalf("unexpected beta trend: %+v", items[1].HealthTrend)
 	}
 
-	pageTwoItems, pageTwoTotal, err := GetChannelMonitorChannelPage(2, 2, 2, "success_rate", "desc")
+	pageTwoItems, pageTwoTotal, err := GetChannelMonitorChannelPage(2, 2, 2)
 	if err != nil {
 		t.Fatalf("expected second page without error, got %v", err)
 	}
@@ -324,7 +324,7 @@ func TestGetChannelMonitorChannelPageReturnsEmptyMetricsWhenNoData(t *testing.T)
 	db := setupChannelMonitorTestDB(t)
 	alpha := seedChannelMonitorTestChannel(t, db, "Alpha", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
 
-	items, total, err := GetChannelMonitorChannelPage(2, 1, 20, "request_count", "desc")
+	items, total, err := GetChannelMonitorChannelPage(2, 1, 20)
 	if err != nil {
 		t.Fatalf("expected empty page without error, got %v", err)
 	}
@@ -366,7 +366,7 @@ func TestGetChannelMonitorChannelPageByGroupFiltersMultiGroupChannels(t *testing
 	ObserveChannelRuntime("alpha", "gpt-4", alpha.Id, true, 90*time.Millisecond)
 	ObserveChannelRuntime("beta", "gpt-4", beta.Id, false, 200*time.Millisecond)
 
-	items, total, err := GetChannelMonitorChannelPageByGroup(2, 1, 20, "request_count", "desc", "alpha")
+	items, total, err := GetChannelMonitorChannelPageByGroup(2, 1, 20, "alpha")
 	if err != nil {
 		t.Fatalf("expected grouped page without error, got %v", err)
 	}
@@ -409,7 +409,7 @@ func TestGetChannelMonitorSummaryAndPageMatchObservedRuntimeRequests(t *testing.
 		t.Fatalf("expected time range last_24h, got %s", summary.TimeRange)
 	}
 
-	items, total, err := GetChannelMonitorChannelPage(1, 1, 20, "request_count", "desc")
+	items, total, err := GetChannelMonitorChannelPage(1, 1, 20)
 	if err != nil {
 		t.Fatalf("expected runtime-only page without error, got %v", err)
 	}

@@ -10,6 +10,16 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func mergeChannelMonitorRuntimeState(items []model.ChannelMonitorChannelItem) {
+	for i := range items {
+		runtimeState := service.GetChannelSuccessRateRuntimeState(items[i].Id)
+		items[i].TemporaryCircuitOpen = runtimeState.TemporaryCircuitOpen
+		items[i].TemporaryCircuitUntil = runtimeState.TemporaryCircuitUntil
+		items[i].TemporaryCircuitReason = runtimeState.TemporaryCircuitReason
+		items[i].CurrentWeightedScore = runtimeState.CurrentWeightedScore
+	}
+}
+
 func GetChannelMonitorSummary(c *gin.Context) {
 	days, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("days", "7")))
 	summary, err := model.GetChannelMonitorSummary(days)
@@ -51,20 +61,8 @@ func GetChannelMonitorRankings(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	for i := range stabilityItems {
-		runtimeState := service.GetChannelSuccessRateRuntimeState(stabilityItems[i].Id)
-		stabilityItems[i].TemporaryCircuitOpen = runtimeState.TemporaryCircuitOpen
-		stabilityItems[i].TemporaryCircuitUntil = runtimeState.TemporaryCircuitUntil
-		stabilityItems[i].TemporaryCircuitReason = runtimeState.TemporaryCircuitReason
-		stabilityItems[i].CurrentWeightedScore = runtimeState.CurrentWeightedScore
-	}
-	for i := range latencyItems {
-		runtimeState := service.GetChannelSuccessRateRuntimeState(latencyItems[i].Id)
-		latencyItems[i].TemporaryCircuitOpen = runtimeState.TemporaryCircuitOpen
-		latencyItems[i].TemporaryCircuitUntil = runtimeState.TemporaryCircuitUntil
-		latencyItems[i].TemporaryCircuitReason = runtimeState.TemporaryCircuitReason
-		latencyItems[i].CurrentWeightedScore = runtimeState.CurrentWeightedScore
-	}
+	mergeChannelMonitorRuntimeState(stabilityItems)
+	mergeChannelMonitorRuntimeState(latencyItems)
 	common.ApiSuccess(c, gin.H{
 		"stability": stabilityItems,
 		"latency":   latencyItems,
@@ -91,10 +89,8 @@ func GetChannelMonitorChannels(c *gin.Context) {
 		}
 	}
 	days, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("days", "7")))
-	sortBy := strings.TrimSpace(c.DefaultQuery("sort", "request_count"))
-	order := strings.TrimSpace(c.DefaultQuery("order", "desc"))
 	group := strings.TrimSpace(c.Query("group"))
-	items, total, err := model.GetChannelMonitorChannelPageByGroup(days, pageInfo.Page, pageInfo.PageSize, sortBy, order, group)
+	items, total, err := model.GetChannelMonitorChannelPageByGroup(days, pageInfo.Page, pageInfo.PageSize, group)
 	if err != nil {
 		common.ApiError(c, err)
 		return
@@ -104,13 +100,7 @@ func GetChannelMonitorChannels(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	for i := range items {
-		runtimeState := service.GetChannelSuccessRateRuntimeState(items[i].Id)
-		items[i].TemporaryCircuitOpen = runtimeState.TemporaryCircuitOpen
-		items[i].TemporaryCircuitUntil = runtimeState.TemporaryCircuitUntil
-		items[i].TemporaryCircuitReason = runtimeState.TemporaryCircuitReason
-		items[i].CurrentWeightedScore = runtimeState.CurrentWeightedScore
-	}
+	mergeChannelMonitorRuntimeState(items)
 	common.ApiSuccess(c, gin.H{
 		"items":     items,
 		"total":     total,

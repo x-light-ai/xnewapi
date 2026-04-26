@@ -27,7 +27,7 @@ import {
   verifyJSON,
 } from '../../../../helpers';
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
-import { CHANNEL_OPTIONS, MODEL_FETCHABLE_CHANNEL_TYPES } from '../../../../constants';
+import { CHANNEL_OPTIONS, MODEL_FETCHABLE_CHANNEL_TYPES, getDefaultChannelFormInputs } from '../../../../constants';
 import {
   SideSheet,
   Space,
@@ -169,53 +169,7 @@ const EditChannelModal = (props) => {
   const handleCancel = () => {
     props.handleClose();
   };
-  const originInputs = {
-    name: '',
-    type: 1,
-    key: '',
-    openai_organization: '',
-    max_input_tokens: 0,
-    base_url: '',
-    other: '',
-    model_mapping: '',
-    param_override: '',
-    status_code_mapping: '',
-    models: [],
-    auto_ban: 1,
-    test_model: '',
-    groups: ['default'],
-    priority: 0,
-    weight: 0,
-    tag: '',
-    multi_key_mode: 'random',
-    // 渠道额外设置的默认值
-    force_format: false,
-    thinking_to_content: false,
-    proxy: '',
-    pass_through_body_enabled: false,
-    system_prompt: '',
-    system_prompt_override: false,
-    settings: '',
-    // 仅 Vertex: 密钥格式（存入 settings.vertex_key_type）
-    vertex_key_type: 'json',
-    // 仅 AWS: 密钥格式和区域（存入 settings.aws_key_type 和 settings.aws_region）
-    aws_key_type: 'ak_sk',
-    // 企业账户设置
-    is_enterprise_account: false,
-    // 字段透传控制默认值
-    allow_service_tier: false,
-    disable_store: false, // false = 允许透传（默认开启）
-    allow_safety_identifier: false,
-    allow_include_obfuscation: false,
-    allow_inference_geo: false,
-    allow_speed: false,
-    claude_beta_query: false,
-    upstream_model_update_check_enabled: false,
-    upstream_model_update_auto_sync_enabled: false,
-    upstream_model_update_last_check_time: 0,
-    upstream_model_update_last_detected_models: [],
-    upstream_model_update_ignored_models: '',
-  };
+  const originInputs = getDefaultChannelFormInputs();
   const [batch, setBatch] = useState(false);
   const [multiToSingle, setMultiToSingle] = useState(false);
   const [multiKeyMode, setMultiKeyMode] = useState('random');

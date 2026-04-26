@@ -38,38 +38,23 @@ import {
   verifyJSON,
 } from '../../../helpers';
 import { useTranslation } from 'react-i18next';
+import {
+  CHANNEL_SUCCESS_RATE_HEALTH_MANAGER_TEMPLATE,
+  CHANNEL_SUCCESS_RATE_IMMEDIATE_DISABLE_TEMPLATE,
+  CHANNEL_SUCCESS_RATE_JSON_OPTION_KEYS,
+  CHANNEL_SUCCESS_RATE_KEYS,
+  CHANNEL_SUCCESS_RATE_PRIORITY_WEIGHTS_TEMPLATE,
+  getDefaultChannelSuccessRateOptions,
+} from '../../../constants';
 
-const KEY_ENABLED = 'channel_success_rate_setting.enabled';
-const KEY_HALF_LIFE = 'channel_success_rate_setting.half_life_seconds';
-const KEY_EXPLORE_RATE = 'channel_success_rate_setting.explore_rate';
-const KEY_QUICK_DOWNGRADE = 'channel_success_rate_setting.quick_downgrade';
-const KEY_CONSECUTIVE_FAIL_THRESHOLD =
-  'channel_success_rate_setting.consecutive_fail_threshold';
-const KEY_PRIORITY_WEIGHTS = 'channel_success_rate_setting.priority_weights';
-const KEY_IMMEDIATE_DISABLE = 'channel_success_rate_setting.immediate_disable';
-const KEY_HEALTH_MANAGER = 'channel_success_rate_setting.health_manager';
-
-const PRIORITY_WEIGHTS_TEMPLATE = {
-  10: 0.2,
-  5: 0,
-  0: -0.1,
-};
-
-const IMMEDIATE_DISABLE_TEMPLATE = {
-  enabled: true,
-  status_codes: [401, 403, 429],
-  error_codes: [],
-  error_types: [],
-};
-
-const HEALTH_MANAGER_TEMPLATE = {
-  circuit_scope: 'model',
-  disable_threshold: 0.2,
-  enable_threshold: 0.7,
-  min_sample_size: 10,
-  recovery_check_interval: 600,
-  half_open_success_threshold: 2,
-};
+const KEY_ENABLED = CHANNEL_SUCCESS_RATE_KEYS.ENABLED;
+const KEY_HALF_LIFE = CHANNEL_SUCCESS_RATE_KEYS.HALF_LIFE;
+const KEY_EXPLORE_RATE = CHANNEL_SUCCESS_RATE_KEYS.EXPLORE_RATE;
+const KEY_QUICK_DOWNGRADE = CHANNEL_SUCCESS_RATE_KEYS.QUICK_DOWNGRADE;
+const KEY_CONSECUTIVE_FAIL_THRESHOLD = CHANNEL_SUCCESS_RATE_KEYS.CONSECUTIVE_FAIL_THRESHOLD;
+const KEY_PRIORITY_WEIGHTS = CHANNEL_SUCCESS_RATE_KEYS.PRIORITY_WEIGHTS;
+const KEY_IMMEDIATE_DISABLE = CHANNEL_SUCCESS_RATE_KEYS.IMMEDIATE_DISABLE;
+const KEY_HEALTH_MANAGER = CHANNEL_SUCCESS_RATE_KEYS.HEALTH_MANAGER;
 
 const IMMEDIATE_DISABLE_KEY_DESCRIPTIONS = {
   enabled: '开启后，命中下列任一状态码、错误码或错误类型时会立即触发禁用。',
@@ -95,26 +80,14 @@ export default function SettingsSuccessRateSelector(props) {
   const refForm = useRef();
   const readOnly = props.readOnly === true;
   const sectionTitle = props.sectionTitle || t('SuccessRateSelector 设置');
-  const [inputs, setInputs] = useState({
-    [KEY_ENABLED]: false,
-    [KEY_HALF_LIFE]: 1800,
-    [KEY_EXPLORE_RATE]: 0.02,
-    [KEY_QUICK_DOWNGRADE]: true,
-    [KEY_CONSECUTIVE_FAIL_THRESHOLD]: 3,
-    [KEY_PRIORITY_WEIGHTS]: JSON.stringify(PRIORITY_WEIGHTS_TEMPLATE, null, 2),
-    [KEY_IMMEDIATE_DISABLE]: JSON.stringify(IMMEDIATE_DISABLE_TEMPLATE, null, 2),
-    [KEY_HEALTH_MANAGER]: JSON.stringify(HEALTH_MANAGER_TEMPLATE, null, 2),
-  });
+  const [inputs, setInputs] = useState(getDefaultChannelSuccessRateOptions);
   const [inputsRow, setInputsRow] = useState(inputs);
 
   const handleFieldChange = (fieldName) => (value) => {
     setInputs((prev) => ({ ...prev, [fieldName]: value }));
   };
 
-  const jsonFields = useMemo(
-    () => [KEY_PRIORITY_WEIGHTS, KEY_IMMEDIATE_DISABLE, KEY_HEALTH_MANAGER],
-    [],
-  );
+  const jsonFields = useMemo(() => CHANNEL_SUCCESS_RATE_JSON_OPTION_KEYS, []);
 
   const validateJsonFields = () => {
     for (const field of jsonFields) {
@@ -310,7 +283,7 @@ export default function SettingsSuccessRateSelector(props) {
               onChange={handleFieldChange(KEY_PRIORITY_WEIGHTS)}
               formApi={refForm.current}
               placeholder={t('请输入 JSON 对象')}
-              template={PRIORITY_WEIGHTS_TEMPLATE}
+              template={CHANNEL_SUCCESS_RATE_PRIORITY_WEIGHTS_TEMPLATE}
               templateLabel={t('填入推荐模板')}
               disabled={readOnly}
               extraText={t('示例：10: 0.2 表示 priority=10 的渠道额外加 0.2 分；0: -0.1 表示 priority=0 的渠道额外减 0.1 分。')}
@@ -330,7 +303,7 @@ export default function SettingsSuccessRateSelector(props) {
               onChange={handleFieldChange(KEY_IMMEDIATE_DISABLE)}
               formApi={refForm.current}
               placeholder={t('请输入 JSON 对象')}
-              template={IMMEDIATE_DISABLE_TEMPLATE}
+              template={CHANNEL_SUCCESS_RATE_IMMEDIATE_DISABLE_TEMPLATE}
               templateLabel={t('填入推荐模板')}
               disabled={readOnly}
               keyDescriptions={IMMEDIATE_DISABLE_KEY_DESCRIPTIONS}
@@ -350,7 +323,7 @@ export default function SettingsSuccessRateSelector(props) {
               onChange={handleFieldChange(KEY_HEALTH_MANAGER)}
               formApi={refForm.current}
               placeholder={t('请输入 JSON 对象')}
-              template={HEALTH_MANAGER_TEMPLATE}
+              template={CHANNEL_SUCCESS_RATE_HEALTH_MANAGER_TEMPLATE}
               templateLabel={t('填入推荐模板')}
               disabled={readOnly}
               keyDescriptions={HEALTH_MANAGER_KEY_DESCRIPTIONS}

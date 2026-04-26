@@ -31,7 +31,7 @@ import {
   fetchChannelMonitorChannels,
   fetchChannelMonitorTimeline,
   setChannelScoreOverride,
-} from '../../helpers/api/channel-monitor';
+} from '../../helpers/channelMonitor';
 import ChannelTable from './ChannelTable';
 
 const { Text } = Typography;

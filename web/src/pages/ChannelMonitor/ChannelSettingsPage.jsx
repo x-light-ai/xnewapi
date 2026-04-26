@@ -20,21 +20,15 @@ For commercial licensing, please contact support@quantumnous.com
 import React, { useEffect, useState } from 'react';
 import { Banner, Card, Spin, Typography } from '@douyinfe/semi-ui';
 import { API, isRoot, showError, toBoolean } from '../../helpers';
+import {
+  CHANNEL_SUCCESS_RATE_BOOLEAN_OPTION_KEYS,
+  getDefaultChannelSuccessRateOptions,
+} from '../../constants';
 import SettingsSuccessRateSelector from '../Setting/Operation/SettingsSuccessRateSelector';
 
 const ChannelSettingsPage = () => {
   const [loading, setLoading] = useState(false);
-  const [inputs, setInputs] = useState({
-    'channel_success_rate_setting.enabled': false,
-    'channel_success_rate_setting.half_life_seconds': 1800,
-    'channel_success_rate_setting.explore_rate': 0.02,
-    'channel_success_rate_setting.quick_downgrade': true,
-    'channel_success_rate_setting.consecutive_fail_threshold': 3,
-    'channel_success_rate_setting.priority_weights': '',
-    'channel_success_rate_setting.immediate_disable': '',
-    'channel_success_rate_setting.health_manager': '',
-    RetryTimes: 0,
-  });
+  const [inputs, setInputs] = useState(getDefaultChannelSuccessRateOptions);
 
   const getOptions = async () => {
     const res = await API.get('/api/option/');
@@ -42,9 +36,9 @@ const ChannelSettingsPage = () => {
     if (success) {
       const nextInputs = {};
       data.forEach((item) => {
-        if (typeof inputs[item.key] === 'boolean') {
+        if (CHANNEL_SUCCESS_RATE_BOOLEAN_OPTION_KEYS.includes(item.key)) {
           nextInputs[item.key] = toBoolean(item.value);
-        } else {
+        } else if (item.key in getDefaultChannelSuccessRateOptions()) {
           nextInputs[item.key] = item.value;
         }
       });
