@@ -29,12 +29,10 @@ import {
 } from '../../helpers';
 import {
   fetchChannelMonitorChannels,
-  fetchChannelMonitorSelectionLogs,
   fetchChannelMonitorTimeline,
   setChannelScoreOverride,
 } from '../../helpers/api/channel-monitor';
 import ChannelTable from './ChannelTable';
-import SelectionLogTable from './SelectionLogTable';
 
 const { Text } = Typography;
 
@@ -79,7 +77,6 @@ const GROUP_FILTER_ALL = '__all__';
 const TIMELINE_HOURS = 24;
 const TIMELINE_BUCKET_MINUTES = 10;
 const TIMELINE_LIMIT = 20;
-const SELECTION_LOG_POLL_INTERVAL = 5000;
 
 const renderChannelStatus = (status) => {
   switch (status) {
@@ -550,15 +547,6 @@ const ChannelMonitorPage = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [channels, setChannels] = useState([]);
   const [timeline, setTimeline] = useState([]);
-  const [selectionLogs, setSelectionLogs] = useState([]);
-  const [loadingSelectionLogs, setLoadingSelectionLogs] = useState(false);
-  const [selectedChannelForLogs, setSelectedChannelForLogs] = useState(null);
-  const [selectionLogFilters, setSelectionLogFilters] = useState({
-    model: '',
-    group: GROUP_FILTER_ALL,
-    outcome: 'all',
-    abnormalOnly: false,
-  });
   const [errorMessage, setErrorMessage] = useState('');
   const [overrideModal, setOverrideModal] = useState({ visible: false, record: null, value: 0 });
 
@@ -631,44 +619,14 @@ const ChannelMonitorPage = () => {
     }
   }, []);
 
-  const loadSelectionLogs = useCallback(async (channelId, filters = selectionLogFilters, options = {}) => {
-    const silent = Boolean(options.silent);
-    if (!silent) {
-      setLoadingSelectionLogs(true);
-    }
-    try {
-      const data = await fetchChannelMonitorSelectionLogs({
-        channelId,
-        model: filters.model,
-        group: filters.group === GROUP_FILTER_ALL ? '' : filters.group,
-        outcome: filters.outcome,
-        abnormalOnly: filters.abnormalOnly,
-        limit: 100,
-      });
-      setSelectionLogs(data);
-    } catch (error) {
-      if (!silent) {
-        setSelectionLogs([]);
-      }
-    } finally {
-      if (!silent) {
-        setLoadingSelectionLogs(false);
-      }
-    }
-  }, [selectionLogFilters]);
-
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        loadChannels(),
-        loadTimeline(),
-        loadSelectionLogs(selectedChannelForLogs?.id, selectionLogFilters),
-      ]);
+      await Promise.all([loadChannels(), loadTimeline()]);
     } finally {
       setRefreshing(false);
     }
-  }, [loadChannels, loadSelectionLogs, loadTimeline, selectedChannelForLogs, selectionLogFilters]);
+  }, [loadChannels, loadTimeline]);
 
   useEffect(() => {
     loadChannels();
@@ -677,19 +635,6 @@ const ChannelMonitorPage = () => {
   useEffect(() => {
     loadTimeline();
   }, [loadTimeline]);
-
-  useEffect(() => {
-    loadSelectionLogs(selectedChannelForLogs?.id, selectionLogFilters);
-  }, [loadSelectionLogs, selectedChannelForLogs, selectionLogFilters]);
-
-  useEffect(() => {
-    const channelId = selectedChannelForLogs?.id;
-    const filters = selectionLogFilters;
-    const timer = setInterval(() => {
-      loadSelectionLogs(channelId, filters, { silent: true });
-    }, SELECTION_LOG_POLL_INTERVAL);
-    return () => clearInterval(timer);
-  }, [loadSelectionLogs, selectedChannelForLogs, selectionLogFilters]);
 
   useEffect(() => {
     if (groupFilter === GROUP_FILTER_ALL) {
@@ -737,22 +682,6 @@ const ChannelMonitorPage = () => {
       __rowKey: `channel-${item.id}`,
     }));
   }, [channels, groupFilter, groupMode, keyword, order, sortBy, statusFilter]);
-
-  const handleChannelClick = useCallback((record) => {
-    if (!record || record.__groupRow) {
-      return;
-    }
-    setSelectedChannelForLogs((prev) => {
-      if (prev && Number(prev.id) === Number(record.id)) {
-        return prev;
-      }
-      return { id: record.id, name: record.name };
-    });
-  }, []);
-
-  const handleClearSelectionLogFilter = useCallback(() => {
-    setSelectedChannelForLogs(null);
-  }, []);
 
   const columns = useMemo(() => {
     return [
@@ -981,19 +910,6 @@ const ChannelMonitorPage = () => {
           loading={loadingChannels}
           channels={displayChannels}
           columns={columns}
-          selectedChannelId={selectedChannelForLogs?.id}
-          onChannelClick={handleChannelClick}
-        />
-
-        <SelectionLogTable
-          logs={selectionLogs}
-          loading={loadingSelectionLogs}
-          selectedChannel={selectedChannelForLogs}
-          filters={selectionLogFilters}
-          groupOptions={groupOptions}
-          groupFilterAll={GROUP_FILTER_ALL}
-          onFiltersChange={setSelectionLogFilters}
-          onClearChannelFilter={handleClearSelectionLogFilter}
         />
       </div>
     </div>

@@ -21,7 +21,6 @@ export {
   fetchChannelMonitorChannels,
   fetchChannelMonitorHealth,
   fetchChannelMonitorRankings,
-  fetchChannelMonitorSelectionLogs,
   fetchChannelMonitorSummary,
   fetchChannelMonitorTimeline,
   setChannelScoreOverride,

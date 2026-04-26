@@ -149,13 +149,6 @@ type selectionDecision struct {
 	reason    string
 }
 
-func formatSelectionDecision(decision selectionDecision) string {
-	if decision.reason != "" {
-		return fmt.Sprintf("#%d(%s，权重%d)：%s", decision.channelID, decision.name, decision.priority, decision.reason)
-	}
-	return fmt.Sprintf("#%d(%s，权重%d)：当前权重分数%.4f", decision.channelID, decision.name, decision.priority, decision.score)
-}
-
 func selectChannelWithSuccessRate(ctx *gin.Context, group string, modelName string, retry int) (*model.Channel, error) {
 	if !operation_setting.GetSuccessRateSelectorEnabled() {
 		return model.GetRandomSatisfiedChannel(group, modelName, retry)
@@ -187,14 +180,10 @@ func selectChannelWithSuccessRate(ctx *gin.Context, group string, modelName stri
 		if len(available) == 0 {
 			continue
 		}
-		selected, selectedScore, others := defaultChannelSuccessRateSelector.pickDetailed(group, modelName, available, cfg)
+		selected, _, _ := defaultChannelSuccessRateSelector.pickDetailed(group, modelName, available, cfg)
 		if selected == nil {
-			if len(others) > 0 {
-				appendChannelSelectionLog(defaultChannelSuccessRateSelector.now(), modelName, group, len(available), 0, "", 0, 0, others)
-			}
 			continue
 		}
-		appendChannelSelectionLog(defaultChannelSuccessRateSelector.now(), modelName, group, len(available), selected.Id, selected.Name, selected.GetPriority(), selectedScore, others)
 		return selected, nil
 	}
 	return nil, nil
@@ -216,12 +205,7 @@ func SelectBySuccessRate(ctx *gin.Context, group string, modelName string, retry
 		channels = filtered
 	}
 	cfg := buildChannelSuccessRateConfig()
-	selected, selectedScore, others := defaultChannelSuccessRateSelector.pickDetailed(group, modelName, channels, cfg)
-	if selected != nil {
-		appendChannelSelectionLog(defaultChannelSuccessRateSelector.now(), modelName, group, len(channels), selected.Id, selected.Name, selected.GetPriority(), selectedScore, others)
-	} else if len(others) > 0 {
-		appendChannelSelectionLog(defaultChannelSuccessRateSelector.now(), modelName, group, len(channels), 0, "", 0, 0, others)
-	}
+	selected, _, _ := defaultChannelSuccessRateSelector.pickDetailed(group, modelName, channels, cfg)
 	return selected, nil
 }
 
@@ -249,30 +233,6 @@ func ObserveChannelRequestResult(c *gin.Context, success bool, err *types.NewAPI
 
 	model.ObserveChannelRuntime(group, modelName, channelID, success, latency)
 	defaultChannelSuccessRateSelector.observeDetailed(group, modelName, channelID, success, err, cfg)
-	if !success {
-		appendChannelRequestObservationLog(defaultChannelSuccessRateSelector.now(), group, modelName, channelID, err, cfg)
-	}
-}
-
-func appendChannelRequestObservationLog(now time.Time, group string, modelName string, channelID int, err *types.NewAPIError, cfg channelSuccessRateConfig) {
-	channelName := ""
-	priority := int64(0)
-	channel, channelErr := model.CacheGetChannel(channelID)
-	if channelErr == nil && channel != nil {
-		channelName = channel.Name
-		priority = channel.GetPriority()
-	}
-	score := defaultChannelSuccessRateSelector.getScore(group, modelName, channelID, cfg)
-	detail := "请求失败"
-	if err != nil {
-		detail = fmt.Sprintf("请求失败：status=%d code=%s", err.StatusCode, err.GetErrorCode())
-	}
-	circuitReason := ""
-	state := defaultChannelSuccessRateSelector.GetRuntimeStateForChannel(channelID, cfg)
-	if state.TemporaryCircuitOpen {
-		circuitReason = state.TemporaryCircuitReason
-	}
-	appendChannelSelectionObservationLog(now, modelName, group, channelID, channelName, priority, score, false, detail, circuitReason)
 }
 
 func GetChannelSuccessRateScore(group string, modelName string, channelID int) float64 {

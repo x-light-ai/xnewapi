@@ -31,8 +31,6 @@ const ChannelTable = ({
   loading,
   channels,
   columns,
-  selectedChannelId,
-  onChannelClick,
 }) => {
   return (
     <Card
@@ -60,18 +58,6 @@ const ChannelTable = ({
           size='middle'
           pagination={false}
           scroll={{ x: '100%' }}
-          onRow={(record) => ({
-            onClick: () => {
-              if (!record.__groupRow) {
-                onChannelClick?.(record);
-              }
-            },
-            style: !record.__groupRow && Number(record.id) === Number(selectedChannelId)
-              ? { backgroundColor: 'var(--semi-color-fill-0)', cursor: 'pointer' }
-              : record.__groupRow
-                ? undefined
-                : { cursor: 'pointer' },
-          })}
         />
       )}
     </Card>
