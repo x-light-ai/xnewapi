@@ -49,6 +49,48 @@ func TestGetChannelSuccessRateRuntimeStateReturnsWeightedScore(t *testing.T) {
 	require.Greater(t, state.CurrentWeightedScore, 0.0)
 }
 
+func TestChannelSuccessRateManualScoreOverrideAffectsRuntimeStateAndSelection(t *testing.T) {
+	prepareSuccessRateSelectionIntegrationTest(t)
+
+	suffix := time.Now().UnixNano()
+	group := fmt.Sprintf("sr-manual-override-%d", suffix)
+	modelName := fmt.Sprintf("gpt-4o-manual-override-%d", suffix)
+	baseID := int(suffix%1_000_000_000) + 930000
+
+	lowChannel := seedSuccessRateIntegrationChannel(t, baseID+1, group, modelName, 10, common.ChannelStatusEnabled)
+	highChannel := seedSuccessRateIntegrationChannel(t, baseID+2, group, modelName, 10, common.ChannelStatusEnabled)
+	model.InitChannelCache()
+
+	lowKey := defaultChannelSuccessRateSelector.scoreKey(successRateGroupKey(group), successRateModelKey(modelName), lowChannel.Id)
+	highKey := defaultChannelSuccessRateSelector.scoreKey(successRateGroupKey(group), successRateModelKey(modelName), highChannel.Id)
+	defaultChannelSuccessRateSelector.mu.Lock()
+	defaultChannelSuccessRateSelector.state[lowKey] = channelSuccessRateState{
+		success:  1,
+		failure:  9,
+		updated:  time.Now(),
+		observed: 10,
+	}
+	defaultChannelSuccessRateSelector.state[highKey] = channelSuccessRateState{
+		success:  9,
+		failure:  1,
+		updated:  time.Now(),
+		observed: 10,
+	}
+	defaultChannelSuccessRateSelector.mu.Unlock()
+
+	overrideScore := 1.5
+	SetChannelScoreOverride(lowChannel.Id, &overrideScore)
+
+	state := GetChannelSuccessRateRuntimeState(lowChannel.Id)
+	require.Equal(t, overrideScore, state.CurrentWeightedScore)
+
+	selected, selectedScore, others := defaultChannelSuccessRateSelector.pickDetailed(group, modelName, []*model.Channel{lowChannel, highChannel}, buildChannelSuccessRateConfig())
+	require.Equal(t, lowChannel.Id, selected.Id)
+	require.Equal(t, overrideScore, selectedScore)
+	require.Len(t, others, 1)
+	require.Equal(t, highChannel.Id, others[0].channelID)
+}
+
 func TestHandleChannelSuccessRateFailureConsecutiveSkipsWhenSampleSizeInsufficient(t *testing.T) {
 	prepareSuccessRateSelectionIntegrationTest(t)
 

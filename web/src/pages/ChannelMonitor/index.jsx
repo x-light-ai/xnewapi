@@ -45,6 +45,8 @@ import {
 } from '../../helpers';
 import {
   fetchChannelMonitorChannels,
+  fetchChannelMonitorHealth,
+  fetchChannelMonitorSummary,
   fetchChannelMonitorTimeline,
   setChannelScoreOverride,
   updateChannelPriority,
@@ -129,6 +131,58 @@ const formatLatencyValue = (value) => {
 const formatRequestSummary = (requestCount, failureCount) => {
   return `请求 ${renderNumber(requestCount || 0)} / 失败 ${renderNumber(failureCount || 0)}`;
 };
+
+const formatTimeRange = (timeRange, days) => {
+  if (timeRange === 'last_24h' || days === 1) {
+    return '24 小时';
+  }
+  const matched = String(timeRange || '').match(/^last_(\d+)d$/);
+  if (matched) {
+    return `${matched[1]} 天`;
+  }
+  return `${days} 天`;
+};
+
+const getAvailabilityMeta = (successRate, errorChannels) => {
+  if (Number(successRate || 0) >= 0.98 && Number(errorChannels || 0) <= 0) {
+    return { label: '稳定', color: 'green' };
+  }
+  if (Number(successRate || 0) < 0.9 || Number(errorChannels || 0) > 0) {
+    return { label: '需处理', color: 'red' };
+  }
+  return { label: '关注', color: 'orange' };
+};
+
+const buildActionSuggestion = (summary, latestHealth) => {
+  const requestCount = Number(summary?.total_requests || 0);
+  const successRate = Number(summary?.success_rate || 0);
+  const activeChannels = Number(summary?.active_channels || 0);
+  const totalChannels = Number(summary?.total_channels || 0);
+  const errorChannels = Number(latestHealth?.error_channels || 0);
+  const warningChannels = Number(latestHealth?.warning_channels || 0);
+
+  if (requestCount <= 0) {
+    return '暂无足够请求样本，先观察实际流量或检查监控统计是否正常写入。';
+  }
+  if (successRate < 0.9) {
+    return '优先排查失败数最高和成功率最低的渠道，必要时临时降权或禁用异常渠道。';
+  }
+  if (errorChannels > 0) {
+    return '切到失败数排序，优先处理异常渠道；必要时启用自动禁用或降低路由评分。';
+  }
+  if (totalChannels > 0 && activeChannels / totalChannels < 0.3) {
+    return '检查是否存在渠道长时间无流量、分组配置不均或路由过于集中。';
+  }
+  if (successRate >= 0.98 && errorChannels <= 0) {
+    return '当前整体稳定，继续观察失败数突增和异常渠道变化即可。';
+  }
+  if (warningChannels > 0) {
+    return '关注预警渠道的失败数变化，必要时调整路由评分。';
+  }
+  return '当前整体表现正常，建议保持现有路由策略并持续观察。';
+};
+
+const renderMetricValue = (loading, value) => (loading ? '--' : value);
 
 const renderScoreTag = (score) => {
   const value = Number(score || 0);
@@ -638,9 +692,12 @@ const ChannelMonitorPage = () => {
   const [groupOptions, setGroupOptions] = useState([]);
   const [loadingChannels, setLoadingChannels] = useState(true);
   const [loadingTimeline, setLoadingTimeline] = useState(false);
+  const [loadingSummary, setLoadingSummary] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [channels, setChannels] = useState([]);
   const [timeline, setTimeline] = useState([]);
+  const [summary, setSummary] = useState(null);
+  const [health, setHealth] = useState([]);
   const [errorMessage, setErrorMessage] = useState('');
   const [overrideModal, setOverrideModal] = useState({
     visible: false,
@@ -753,14 +810,31 @@ const ChannelMonitorPage = () => {
     }
   }, []);
 
+  const loadSummary = useCallback(async () => {
+    setLoadingSummary(true);
+    try {
+      const [summaryData, healthData] = await Promise.all([
+        fetchChannelMonitorSummary(days),
+        fetchChannelMonitorHealth(days),
+      ]);
+      setSummary(summaryData || null);
+      setHealth(healthData || []);
+    } catch (error) {
+      setSummary(null);
+      setHealth([]);
+    } finally {
+      setLoadingSummary(false);
+    }
+  }, [days]);
+
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([loadChannels(), loadTimeline()]);
+      await Promise.all([loadChannels(), loadTimeline(), loadSummary()]);
     } finally {
       setRefreshing(false);
     }
-  }, [loadChannels, loadTimeline]);
+  }, [loadChannels, loadTimeline, loadSummary]);
 
   const closeEditModal = useCallback(() => {
     setEditModal({ visible: false, channel: { id: undefined } });
@@ -773,6 +847,10 @@ const ChannelMonitorPage = () => {
   useEffect(() => {
     loadChannels();
   }, [loadChannels]);
+
+  useEffect(() => {
+    loadSummary();
+  }, [loadSummary]);
 
   useEffect(() => {
     loadTimeline();
@@ -843,6 +921,67 @@ const ChannelMonitorPage = () => {
       __rowKey: `channel-${item.id}`,
     }));
   }, [channels, groupFilter, groupMode, keyword, order, sortBy, statusFilter]);
+
+  const latestHealth = useMemo(() => {
+    if (!Array.isArray(health) || health.length === 0) {
+      return null;
+    }
+    return health[health.length - 1];
+  }, [health]);
+
+  const availabilityMeta = useMemo(
+    () => getAvailabilityMeta(summary?.success_rate, latestHealth?.error_channels),
+    [latestHealth?.error_channels, summary?.success_rate],
+  );
+
+  const summaryDescription = useMemo(() => {
+    if (!summary) {
+      return loadingSummary ? '正在加载渠道概览...' : '暂无渠道概览数据。';
+    }
+    const timeRange = formatTimeRange(summary.time_range, days);
+    const healthText = latestHealth
+      ? `，当前健康 ${renderNumber(latestHealth.healthy_channels || 0)}、预警 ${renderNumber(
+          latestHealth.warning_channels || 0,
+        )}、异常 ${renderNumber(latestHealth.error_channels || 0)}`
+      : '';
+    return `近 ${timeRange} 内，系统可用性 ${formatPercentage(summary.success_rate)}，共处理 ${renderNumber(
+      summary.total_requests || 0,
+    )} 次请求，平均延迟 ${formatLatencyValue(summary.avg_latency)}，当前活跃渠道 ${renderNumber(
+      summary.active_channels || 0,
+    )}/${renderNumber(summary.total_channels || 0)}${healthText}。`;
+  }, [days, latestHealth, loadingSummary, summary]);
+
+  const summarySuggestion = useMemo(() => {
+    if (!summary) {
+      return '';
+    }
+    return buildActionSuggestion(summary, latestHealth);
+  }, [latestHealth, summary]);
+
+  const summaryMetrics = useMemo(
+    () => [
+      {
+        label: '系统可用性',
+        value: formatPercentage(summary?.success_rate),
+        accent: true,
+      },
+      {
+        label: '请求总量',
+        value: renderNumber(summary?.total_requests || 0),
+      },
+      {
+        label: '平均延迟',
+        value: formatLatencyValue(summary?.avg_latency),
+      },
+      {
+        label: '活跃渠道',
+        value: `${renderNumber(summary?.active_channels || 0)}/${renderNumber(
+          summary?.total_channels || 0,
+        )}`,
+      },
+    ],
+    [summary],
+  );
 
   const columns = useMemo(() => {
     return [
@@ -1125,6 +1264,69 @@ const ChannelMonitorPage = () => {
               closeIcon={null}
             />
           ) : null}
+
+          <Card
+            bordered
+            loading={loadingSummary}
+            className='!rounded-2xl overflow-hidden'
+            bodyStyle={{ padding: 20 }}
+          >
+            <div className='flex flex-col gap-4'>
+              <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4'>
+                {summaryMetrics.map((metric) => (
+                  <div
+                    key={metric.label}
+                    className={`rounded-2xl border border-[var(--semi-color-border)] bg-[var(--semi-color-bg-1)] p-4 ${
+                      metric.accent
+                        ? 'shadow-sm ring-1 ring-[rgba(var(--semi-green-5),0.16)]'
+                        : ''
+                    }`}
+                  >
+                    <Text type='secondary' size='small'>
+                      {metric.label}
+                    </Text>
+                    <div
+                      className={`mt-2 font-semibold ${
+                        metric.accent
+                          ? 'text-3xl text-[var(--semi-color-success)]'
+                          : 'text-2xl'
+                      }`}
+                    >
+                      {renderMetricValue(loadingSummary, metric.value)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className='flex flex-col gap-3 rounded-2xl bg-[var(--semi-color-fill-0)] p-4 lg:flex-row lg:items-start lg:justify-between'>
+                <div className='flex-1 leading-6'>
+                  <Text>{summaryDescription}</Text>
+                  {summarySuggestion ? (
+                    <div className='mt-2'>
+                      <Text>{`建议：${summarySuggestion}`}</Text>
+                    </div>
+                  ) : null}
+                </div>
+                <Space wrap>
+                  <Tag color={availabilityMeta.color} shape='circle'>
+                    {availabilityMeta.label}
+                  </Tag>
+                  {latestHealth ? (
+                    <>
+                      <Tag color='green' shape='circle'>{`健康 ${renderNumber(
+                        latestHealth.healthy_channels || 0,
+                      )}`}</Tag>
+                      <Tag color='orange' shape='circle'>{`预警 ${renderNumber(
+                        latestHealth.warning_channels || 0,
+                      )}`}</Tag>
+                      <Tag color='red' shape='circle'>{`异常 ${renderNumber(
+                        latestHealth.error_channels || 0,
+                      )}`}</Tag>
+                    </>
+                  ) : null}
+                </Space>
+              </div>
+            </div>
+          </Card>
 
           <ChannelTable
             tabs={

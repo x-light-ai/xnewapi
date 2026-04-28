@@ -393,7 +393,7 @@ func (s *channelSuccessRateSelector) pickDetailed(group string, modelName string
 		scoreState := s.state[s.scoreKey(keyGroup, successRateModelKey(modelName), channel.Id)]
 		scored = append(scored, scoredChannel{
 			channel: channel,
-			score:   scoreForStateLocked(scoreState, channel.GetPriority(), cfg),
+			score:   s.scoreForChannelLocked(scoreState, channel.Id, channel.GetPriority(), cfg),
 		})
 	}
 	if len(scored) == 0 {
@@ -436,7 +436,7 @@ func (s *channelSuccessRateSelector) pickDetailed(group string, modelName string
 				channelID: item.Id,
 				name:      item.Name,
 				priority:  item.GetPriority(),
-				score:     scoreForStateLocked(state, item.GetPriority(), cfg),
+				score:     s.scoreForChannelLocked(state, item.Id, item.GetPriority(), cfg),
 				reason:    "当前权重分数并列，轮询让给其它同分渠道",
 			})
 		}
@@ -448,7 +448,7 @@ func (s *channelSuccessRateSelector) pickDetailed(group string, modelName string
 		selectedCircuitState.halfOpenProbeInFlight = true
 		s.circuitState[selectedCircuitKey] = selectedCircuitState
 	}
-	selectedScore := scoreForStateLocked(selectedState, selected.GetPriority(), cfg)
+	selectedScore := s.scoreForChannelLocked(selectedState, selected.Id, selected.GetPriority(), cfg)
 	s.mu.Unlock()
 	return selected, selectedScore, others
 }
@@ -604,7 +604,7 @@ func (s *channelSuccessRateSelector) buildSelectionDecision(group string, modelN
 		return decision
 	}
 	s.mu.Lock()
-	decision.score = scoreForStateLocked(s.state[s.scoreKey(successRateGroupKey(group), successRateModelKey(modelName), channel.Id)], channel.GetPriority(), cfg)
+	decision.score = s.scoreForChannelLocked(s.state[s.scoreKey(successRateGroupKey(group), successRateModelKey(modelName), channel.Id)], channel.Id, channel.GetPriority(), cfg)
 	s.mu.Unlock()
 	decision.reason = fmt.Sprintf("当前权重分数%.4f", decision.score)
 	return decision
@@ -680,6 +680,13 @@ func (s *channelSuccessRateSelector) observeDetailed(group string, modelName str
 	}
 }
 
+func (s *channelSuccessRateSelector) scoreForChannelLocked(state channelSuccessRateState, channelID int, priority int64, cfg channelSuccessRateConfig) float64 {
+	if override, ok := s.scoreOverrides[channelID]; ok {
+		return override
+	}
+	return scoreForStateLocked(state, priority, cfg)
+}
+
 func (s *channelSuccessRateSelector) getScore(group string, modelName string, channelID int, cfg channelSuccessRateConfig) float64 {
 	if s == nil || channelID <= 0 {
 		return 0
@@ -693,7 +700,7 @@ func (s *channelSuccessRateSelector) getScore(group string, modelName string, ch
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	state := s.state[key]
-	return scoreForStateLocked(state, priority, cfg)
+	return s.scoreForChannelLocked(state, channelID, priority, cfg)
 }
 
 func (s *channelSuccessRateSelector) getSampleSize(group string, modelName string, channelID int) int {
@@ -1136,10 +1143,7 @@ func (s *channelSuccessRateSelector) GetRuntimeStateForChannel(channelID int, cf
 		if err == nil && channel != nil {
 			priority = channel.GetPriority()
 		}
-		weightedScore := scoreForStateLocked(scoreState, priority, cfg)
-		if override, ok := s.scoreOverrides[channelID]; ok {
-			weightedScore = override
-		}
+		weightedScore := s.scoreForChannelLocked(scoreState, channelID, priority, cfg)
 		candidate := ChannelSuccessRateRuntimeState{
 			TemporaryCircuitOpen:   isTemporaryCircuitOpenAt(circuitState, now),
 			TemporaryCircuitUntil:  circuitState.temporaryOpenUntil,
@@ -1157,6 +1161,11 @@ func (s *channelSuccessRateSelector) GetRuntimeStateForChannel(channelID int, cf
 		if candidate.Observed > bestObserved {
 			best = candidate
 			bestObserved = candidate.Observed
+		}
+	}
+	if bestObserved < 0 {
+		if override, ok := s.scoreOverrides[channelID]; ok {
+			return ChannelSuccessRateRuntimeState{CurrentWeightedScore: override}
 		}
 	}
 	return best
