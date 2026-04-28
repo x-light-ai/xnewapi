@@ -93,6 +93,7 @@ type ChannelMonitorChannelItem struct {
 	GroupName              string    `json:"group_name"`
 	Type                   int       `json:"type"`
 	Status                 int       `json:"status"`
+	Priority               int64     `json:"priority"`
 	SuccessRate            float64   `json:"success_rate"`
 	AvgLatencyMs           float64   `json:"avg_latency"`
 	P95LatencyMs           float64   `json:"p95_latency"`
@@ -124,6 +125,8 @@ type ChannelTimelineChannel struct {
 	ChannelStatus int                    `json:"channel_status"`
 	Points        []ChannelTimelinePoint `json:"points"`
 	RequestCount  int64                  `json:"request_count"`
+	SuccessCount  int64                  `json:"success_count"`
+	FailureCount  int64                  `json:"failure_count"`
 	SuccessRate   float64                `json:"success_rate"`
 }
 
@@ -855,7 +858,8 @@ func GetChannelMonitorTimelineByGroup(hours int, bucketMinutes int, limit int, g
 		point.SuccessCount += row.SuccessCount
 		point.FailureCount += row.FailureCount
 		item.RequestCount += row.RequestCount
-		item.SuccessRate += float64(row.SuccessCount)
+		item.SuccessCount += row.SuccessCount
+		item.FailureCount += row.FailureCount
 	}
 	items := make([]ChannelTimelineChannel, 0, len(channelMap))
 	for _, item := range channelMap {
@@ -865,7 +869,7 @@ func GetChannelMonitorTimelineByGroup(hours int, bucketMinutes int, limit int, g
 		sort.SliceStable(item.Points, func(i, j int) bool {
 			return item.Points[i].TimeBucket.Before(item.Points[j].TimeBucket)
 		})
-		item.SuccessRate = item.SuccessRate / float64(item.RequestCount)
+		item.SuccessRate = float64(item.SuccessCount) / float64(item.RequestCount)
 		items = append(items, *item)
 	}
 	sort.SliceStable(items, func(i, j int) bool {
@@ -944,12 +948,17 @@ func buildChannelMonitorChannelItemsByGroup(days int, groupFilter string) ([]Cha
 	items := make([]ChannelMonitorChannelItem, 0, len(channels))
 	trendStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -(days - 1))
 	for _, channel := range channels {
+		priority := int64(0)
+		if channel.Priority != nil {
+			priority = *channel.Priority
+		}
 		item := ChannelMonitorChannelItem{
 			Id:          channel.Id,
 			Name:        channel.Name,
 			GroupName:   channel.Group,
 			Type:        channel.Type,
 			Status:      channel.Status,
+			Priority:    priority,
 			HealthTrend: make([]float64, 0, days),
 		}
 		agg := metrics[channel.Id]

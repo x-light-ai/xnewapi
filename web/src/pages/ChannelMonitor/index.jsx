@@ -40,12 +40,14 @@ import {
   renderGroup,
   renderNumber,
   showError,
+  showSuccess,
   timestamp2string,
 } from '../../helpers';
 import {
   fetchChannelMonitorChannels,
   fetchChannelMonitorTimeline,
   setChannelScoreOverride,
+  updateChannelPriority,
 } from '../../helpers/channelMonitor';
 import EditChannelModal from '../../components/table/channels/modals/EditChannelModal';
 import ChannelTable from './ChannelTable';
@@ -689,6 +691,34 @@ const ChannelMonitorPage = () => {
     }
   }, [overrideModal, updateChannelItem]);
 
+  const handlePriorityChange = useCallback(
+    async (record, value) => {
+      if (
+        record.__groupRow ||
+        value === '' ||
+        value === undefined ||
+        value === null
+      ) {
+        return;
+      }
+      const priority = parseInt(value, 10);
+      if (Number.isNaN(priority)) {
+        showError('优先级必须是整数！');
+        return;
+      }
+      try {
+        await updateChannelPriority(record.id, priority);
+        updateChannelItem(record.id, (item) => {
+          item.priority = priority;
+        });
+        showSuccess('操作成功完成！');
+      } catch (e) {
+        showError(e.message);
+      }
+    },
+    [updateChannelItem],
+  );
+
   const loadChannels = useCallback(async () => {
     setLoadingChannels(true);
     try {
@@ -869,6 +899,29 @@ const ChannelMonitorPage = () => {
         },
       },
       {
+        title: '渠道优先级',
+        dataIndex: 'priority',
+        key: 'priority',
+        width: 110,
+        render: (_, record) => {
+          if (record.__groupRow) {
+            return <Text type='secondary'>-</Text>;
+          }
+          return (
+            <InputNumber
+              style={{ width: 70 }}
+              name='priority'
+              onBlur={(e) => handlePriorityChange(record, e.target.value)}
+              keepFocus={true}
+              innerButtons
+              defaultValue={record.priority}
+              min={-999}
+              size='small'
+            />
+          );
+        },
+      },
+      {
         title: (
           <Tooltip content='用于监控页排序和手动覆盖的路由选择评分，不等同于渠道配置中的权重。'>
             {'路由评分'}
@@ -934,7 +987,12 @@ const ChannelMonitorPage = () => {
         },
       },
     ];
-  }, [loadingTimeline, timelineByChannelId, setEditModal]);
+  }, [
+    handlePriorityChange,
+    loadingTimeline,
+    timelineByChannelId,
+    setEditModal,
+  ]);
 
   return (
     <>

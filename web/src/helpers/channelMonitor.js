@@ -100,7 +100,19 @@ export async function fetchChannelMonitorRankings({ days = 1, top = 10 } = {}) {
 }
 
 export async function setChannelScoreOverride(channelId, score) {
-  const response = await API.post(`/api/channel_monitor/channels/${channelId}/score_override`, { score });
+  const response = await API.post(
+    `/api/channel_monitor/channels/${channelId}/score_override`,
+    { score },
+  );
   const { success, message } = response.data || {};
   if (!success) throw new Error(message || 'Failed to set score override');
+}
+
+export async function updateChannelPriority(channelId, priority) {
+  const response = await API.put('/api/channel/', {
+    id: channelId,
+    priority,
+  });
+  const { success, message } = response.data || {};
+  if (!success) throw new Error(message || 'Failed to update channel priority');
 }
