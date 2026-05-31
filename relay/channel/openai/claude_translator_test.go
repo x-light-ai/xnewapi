@@ -1,6 +1,7 @@
 package openai
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"testing"
 
@@ -81,7 +82,7 @@ func TestConvertClaudeRequestToOpenAIRequest_MapsSystemThinkingToolsAndToolResul
 	require.Equal(t, "What's the weather in Paris?", userParts[0].Text)
 
 	require.Equal(t, "assistant", converted.Messages[2].Role)
-	require.Equal(t, "Need weather tool", converted.Messages[2].ReasoningContent)
+	require.Empty(t, converted.Messages[2].ReasoningContent)
 	var toolCalls []dto.ToolCallResponse
 	require.NoError(t, common.Unmarshal(converted.Messages[2].ToolCalls, &toolCalls))
 	require.Len(t, toolCalls, 1)
@@ -103,6 +104,54 @@ func TestConvertClaudeRequestToOpenAIRequest_MapsSystemThinkingToolsAndToolResul
 	var userID string
 	require.NoError(t, common.Unmarshal(converted.User, &userID))
 	require.Equal(t, "user-123", userID)
+}
+
+func TestConvertClaudeRequestToOpenAIRequest_SignedThinkingCompatibility(t *testing.T) {
+	maxTokens := uint(256)
+	request := &dto.ClaudeRequest{
+		Model:     "claude-3-7-sonnet",
+		MaxTokens: &maxTokens,
+		Messages: []dto.ClaudeMessage{
+			{
+				Role: "assistant",
+				Content: []dto.ClaudeMediaMessage{
+					{Type: "thinking", Thinking: common.GetPointer("provider state"), Signature: validGPTChatReasoningSignature()},
+					{Type: dto.ContentTypeText, Text: common.GetPointer("visible answer")},
+				},
+			},
+		},
+	}
+
+	converted, err := ConvertClaudeRequestToOpenAIRequest(request, "gpt-4.1", false)
+	require.NoError(t, err)
+	require.Len(t, converted.Messages, 1)
+	require.Equal(t, "provider state", converted.Messages[0].ReasoningContent)
+	parts := converted.Messages[0].ParseContent()
+	require.Len(t, parts, 1)
+	require.Equal(t, "visible answer", parts[0].Text)
+}
+
+func TestConvertClaudeRequestToOpenAIRequest_StripsClaudeCodeAttribution(t *testing.T) {
+	maxTokens := uint(256)
+	request := &dto.ClaudeRequest{
+		Model:     "claude-3-7-sonnet",
+		MaxTokens: &maxTokens,
+		System: []dto.ClaudeMediaMessage{
+			{Type: dto.ContentTypeText, Text: common.GetPointer("x-anthropic-billing-header: cc_version=2.1.63; cch=123;")},
+			{Type: dto.ContentTypeText, Text: common.GetPointer("User system prompt")},
+		},
+		Messages: []dto.ClaudeMessage{
+			{Role: "user", Content: []dto.ClaudeMediaMessage{{Type: dto.ContentTypeText, Text: common.GetPointer("hi")}}},
+		},
+	}
+
+	converted, err := ConvertClaudeRequestToOpenAIRequest(request, "gpt-4.1", false)
+	require.NoError(t, err)
+	require.Len(t, converted.Messages, 2)
+	require.Equal(t, "system", converted.Messages[0].Role)
+	parts := converted.Messages[0].ParseContent()
+	require.Len(t, parts, 1)
+	require.Equal(t, "User system prompt", parts[0].Text)
 }
 
 func TestResponseOpenAI2ClaudeWithTranslator_RestoresToolNameAndUsage(t *testing.T) {
@@ -307,6 +356,108 @@ func TestStreamResponseOpenAI2ClaudeWithTranslator_EmitsThinkingToolAndStop(t *t
 	require.Equal(t, "tool_calls", info.FinishReason)
 }
 
+func TestStreamResponseOpenAI2ClaudeWithTranslator_SuppressesEmptyToolName(t *testing.T) {
+	info := &relaycommon.RelayInfo{
+		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
+			LastMessagesType: relaycommon.LastMessageTypeNone,
+		},
+	}
+
+	responses, err := StreamResponseOpenAI2ClaudeWithTranslator(&dto.ChatCompletionsStreamResponse{
+		Id:      "chatcmpl_empty_tool",
+		Object:  "chat.completion.chunk",
+		Created: 1710000000,
+		Model:   "gpt-4.1",
+		Choices: []dto.ChatCompletionsStreamResponseChoice{{
+			Delta: dto.ChatCompletionsStreamResponseChoiceDelta{
+				ToolCalls: []dto.ToolCallResponse{{
+					Index: common.GetPointer(0),
+					ID:    "call_skip",
+					Type:  "function",
+					Function: dto.FunctionResponse{
+						Name:      "",
+						Arguments: "",
+					},
+				}},
+			},
+		}},
+	}, info)
+	require.NoError(t, err)
+	require.Len(t, responses, 1)
+	require.Equal(t, "message_start", responses[0].Type)
+
+	finishReason := "tool_calls"
+	responses, err = StreamResponseOpenAI2ClaudeWithTranslator(&dto.ChatCompletionsStreamResponse{
+		Id:      "chatcmpl_empty_tool",
+		Object:  "chat.completion.chunk",
+		Created: 1710000000,
+		Model:   "gpt-4.1",
+		Choices: []dto.ChatCompletionsStreamResponseChoice{{
+			FinishReason: &finishReason,
+		}},
+		Usage: &dto.Usage{PromptTokens: 1, CompletionTokens: 1},
+	}, info)
+	require.NoError(t, err)
+	require.Len(t, responses, 2)
+	require.Equal(t, "message_delta", responses[0].Type)
+	require.NotNil(t, responses[0].Delta)
+	require.NotNil(t, responses[0].Delta.StopReason)
+	require.NotEqual(t, "tool_use", *responses[0].Delta.StopReason)
+	require.Equal(t, "message_stop", responses[1].Type)
+}
+
+func TestStreamResponseOpenAI2ClaudeWithTranslator_BelatedToolStartUsesSyntheticID(t *testing.T) {
+	info := &relaycommon.RelayInfo{
+		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
+			LastMessagesType: relaycommon.LastMessageTypeNone,
+		},
+	}
+
+	responses, err := StreamResponseOpenAI2ClaudeWithTranslator(&dto.ChatCompletionsStreamResponse{
+		Id:      "chatcmpl_belated_tool",
+		Object:  "chat.completion.chunk",
+		Created: 1710000000,
+		Model:   "gpt-4.1",
+		Choices: []dto.ChatCompletionsStreamResponseChoice{{
+			Delta: dto.ChatCompletionsStreamResponseChoiceDelta{
+				ToolCalls: []dto.ToolCallResponse{{
+					Index: common.GetPointer(0),
+					Type:  "function",
+					Function: dto.FunctionResponse{
+						Name:      "do_it",
+						Arguments: `{"x":1}`,
+					},
+				}},
+			},
+		}},
+	}, info)
+	require.NoError(t, err)
+	require.Len(t, responses, 1)
+	require.Equal(t, "message_start", responses[0].Type)
+
+	finishReason := "tool_calls"
+	responses, err = StreamResponseOpenAI2ClaudeWithTranslator(&dto.ChatCompletionsStreamResponse{
+		Id:      "chatcmpl_belated_tool",
+		Object:  "chat.completion.chunk",
+		Created: 1710000000,
+		Model:   "gpt-4.1",
+		Choices: []dto.ChatCompletionsStreamResponseChoice{{
+			FinishReason: &finishReason,
+		}},
+		Usage: &dto.Usage{PromptTokens: 1, CompletionTokens: 1},
+	}, info)
+	require.NoError(t, err)
+	require.Len(t, responses, 5)
+	require.Equal(t, "content_block_start", responses[0].Type)
+	require.Equal(t, "tool_use", responses[0].ContentBlock.Type)
+	require.Equal(t, "do_it", responses[0].ContentBlock.Name)
+	require.Contains(t, responses[0].ContentBlock.Id, "toolu_")
+	require.Equal(t, "content_block_delta", responses[1].Type)
+	require.Equal(t, "content_block_stop", responses[2].Type)
+	require.Equal(t, "message_delta", responses[3].Type)
+	require.Equal(t, "message_stop", responses[4].Type)
+}
+
 func TestRestoreSanitizedToolNameAndSanitizedToolNameMap(t *testing.T) {
 	raw := []byte(`{"tools":[{"name":"mcp/server/read","input_schema":{}},{"name":"tool@v2","input_schema":{}},{"name":"read/file","input_schema":{}},{"name":"read@file","input_schema":{}}]}`)
 	m := sanitizedToolNameMap(raw)
@@ -316,4 +467,14 @@ func TestRestoreSanitizedToolNameAndSanitizedToolNameMap(t *testing.T) {
 	require.Equal(t, "read/file", m["read_file"])
 	require.Equal(t, "mcp/server/read", restoreSanitizedToolName(m, "mcp_server_read"))
 	require.Equal(t, "unknown", restoreSanitizedToolName(m, "unknown"))
+}
+
+func validGPTChatReasoningSignature() string {
+	raw := make([]byte, 1+8+16+16+32)
+	raw[0] = 0x80
+	raw[8] = 1
+	for i := 9; i < len(raw); i++ {
+		raw[i] = byte(i)
+	}
+	return base64.URLEncoding.EncodeToString(raw)
 }

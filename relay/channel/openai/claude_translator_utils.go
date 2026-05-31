@@ -2,6 +2,7 @@ package openai
 
 import (
 	"bytes"
+	"encoding/base64"
 	"fmt"
 	"strings"
 	"sync/atomic"
@@ -305,6 +306,51 @@ func mapReasoningEffort(thinkingType string, budgetTokens *int, effort string) s
 	default:
 		return ""
 	}
+}
+
+func isClaudeCodeAttributionSystemText(text string) bool {
+	text = strings.TrimLeftFunc(text, func(r rune) bool {
+		return r == ' ' || r == '\t' || r == '\n' || r == '\r' || r == '\f' || r == '\v'
+	})
+	return strings.HasPrefix(text, "x-anthropic-billing-header:")
+}
+
+func shouldMapClaudeThinkingToGPTReasoning(part gjson.Result) bool {
+	signature := strings.TrimSpace(part.Get("signature").String())
+	if signature == "" {
+		return false
+	}
+	return isValidGPTReasoningSignature(signature)
+}
+
+func isValidGPTReasoningSignature(rawSignature string) bool {
+	sig := strings.TrimSpace(rawSignature)
+	if strings.HasPrefix(sig, "gpt#") || strings.HasPrefix(sig, "openai#") || strings.HasPrefix(sig, "codex#") {
+		_, sig, _ = strings.Cut(sig, "#")
+		sig = strings.TrimSpace(sig)
+	}
+	if sig == "" || len(sig) > 32*1024*1024 || !strings.HasPrefix(sig, "gAAAA") {
+		return false
+	}
+	for _, r := range sig {
+		switch {
+		case r >= 'A' && r <= 'Z':
+		case r >= 'a' && r <= 'z':
+		case r >= '0' && r <= '9':
+		case r == '-' || r == '_' || r == '=':
+		default:
+			return false
+		}
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(sig)
+	if err != nil {
+		decoded, err = base64.URLEncoding.DecodeString(sig)
+	}
+	if err != nil || len(decoded) < 73 || decoded[0] != 0x80 {
+		return false
+	}
+	ciphertextLen := len(decoded) - 1 - 8 - 16 - 32
+	return ciphertextLen > 0 && ciphertextLen%16 == 0
 }
 
 func decodeOutputConfigEffort(raw jsonpkg.RawMessage) string {

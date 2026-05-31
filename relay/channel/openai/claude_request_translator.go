@@ -62,7 +62,7 @@ func ConvertClaudeRequestToOpenAI(modelName string, inputRawJSON []byte, stream 
 	hasSystemContent := false
 	if system := root.Get("system"); system.Exists() {
 		if system.Type == gjson.String {
-			if system.String() != "" {
+			if system.String() != "" && !isClaudeCodeAttributionSystemText(system.String()) {
 				oldSystem := []byte(`{"type":"text","text":""}`)
 				oldSystem, _ = sjson.SetBytes(oldSystem, "text", system.String())
 				systemMsgJSON, _ = sjson.SetRawBytes(systemMsgJSON, "content.-1", oldSystem)
@@ -96,6 +96,9 @@ func ConvertClaudeRequestToOpenAI(modelName string, inputRawJSON []byte, stream 
 					switch part.Get("type").String() {
 					case "thinking":
 						if role == "assistant" {
+							if !shouldMapClaudeThinkingToGPTReasoning(part) {
+								return true
+							}
 							thinkingText := strings.TrimSpace(part.Get("thinking").String())
 							if thinkingText == "" {
 								thinkingText = strings.TrimSpace(part.Get("text").String())
@@ -228,6 +231,8 @@ func ConvertClaudeRequestToOpenAI(modelName string, inputRawJSON []byte, stream 
 
 	if user := root.Get("metadata.user_id"); user.Exists() && strings.TrimSpace(user.String()) != "" {
 		out, _ = sjson.SetBytes(out, "user", user.String())
+	} else if user := root.Get("user"); user.Exists() && strings.TrimSpace(user.String()) != "" {
+		out, _ = sjson.SetBytes(out, "user", user.String())
 	}
 
 	return out
@@ -253,7 +258,7 @@ func convertClaudeContentPart(part gjson.Result) (string, bool) {
 	switch part.Get("type").String() {
 	case "text":
 		text := part.Get("text").String()
-		if strings.TrimSpace(text) == "" {
+		if strings.TrimSpace(text) == "" || isClaudeCodeAttributionSystemText(text) {
 			return "", false
 		}
 		textContent := []byte(`{"type":"text","text":""}`)
