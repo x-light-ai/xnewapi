@@ -847,6 +847,8 @@ const EditChannelModal = (props) => {
             parsedSettings.allow_inference_geo || false;
           data.allow_speed = parsedSettings.allow_speed || false;
           data.claude_beta_query = parsedSettings.claude_beta_query || false;
+          data.upstream_protocol =
+            parsedSettings.upstream_protocol || 'anthropic';
           data.upstream_model_update_check_enabled =
             parsedSettings.upstream_model_update_check_enabled === true;
           data.upstream_model_update_auto_sync_enabled =
@@ -877,6 +879,7 @@ const EditChannelModal = (props) => {
           data.allow_inference_geo = false;
           data.allow_speed = false;
           data.claude_beta_query = false;
+          data.upstream_protocol = 'anthropic';
           data.upstream_model_update_check_enabled = false;
           data.upstream_model_update_auto_sync_enabled = false;
           data.upstream_model_update_last_check_time = 0;
@@ -895,6 +898,7 @@ const EditChannelModal = (props) => {
         data.allow_inference_geo = false;
         data.allow_speed = false;
         data.claude_beta_query = false;
+        data.upstream_protocol = 'anthropic';
         data.upstream_model_update_check_enabled = false;
         data.upstream_model_update_auto_sync_enabled = false;
         data.upstream_model_update_last_check_time = 0;
@@ -973,6 +977,7 @@ const EditChannelModal = (props) => {
         data.pass_through_body_enabled ||
         data.force_format ||
         data.claude_beta_query ||
+        data.upstream_protocol === 'codex' ||
         data.system_prompt_override;
       if (hasAdvancedValues) {
         setAdvancedSettingsOpen(true);
@@ -1736,6 +1741,10 @@ const EditChannelModal = (props) => {
         settings.allow_inference_geo = localInputs.allow_inference_geo === true;
         settings.allow_speed = localInputs.allow_speed === true;
         settings.claude_beta_query = localInputs.claude_beta_query === true;
+        settings.upstream_protocol =
+          localInputs.upstream_protocol === 'codex' ? 'codex' : 'anthropic';
+      } else if ('upstream_protocol' in settings) {
+        delete settings.upstream_protocol;
       }
     }
 
@@ -1784,6 +1793,7 @@ const EditChannelModal = (props) => {
     delete localInputs.allow_inference_geo;
     delete localInputs.allow_speed;
     delete localInputs.claude_beta_query;
+    delete localInputs.upstream_protocol;
     delete localInputs.upstream_model_update_check_enabled;
     delete localInputs.upstream_model_update_auto_sync_enabled;
     delete localInputs.upstream_model_update_last_check_time;
@@ -2453,6 +2463,10 @@ const EditChannelModal = (props) => {
 
                   {inputs.type === 14 && (
                     <Form.Switch field='claude_beta_query' label={t('Claude 强制 beta=true')} checkedText={t('开')} uncheckedText={t('关')} onChange={(value) => handleChannelOtherSettingsChange('claude_beta_query', value)} extraText={t('开启后，该渠道请求 Claude 时将强制追加 ?beta=true（无需客户端手动传参）')} />
+                  )}
+
+                  {inputs.type === 14 && (
+                    <Form.Select field='upstream_protocol' label={t('上游协议类型')} optionList={[{ label: t('Anthropic Claude'), value: 'anthropic' }, { label: t('Codex'), value: 'codex' }]} onChange={(value) => handleChannelOtherSettingsChange('upstream_protocol', value || 'anthropic')} extraText={t('客户端仍使用 Claude /v1/messages；当真实上游是 Codex 时选择 Codex 以启用 Codex 与 Claude 的直接转换')} />
                   )}
 
                   {inputs.type === 1 && (

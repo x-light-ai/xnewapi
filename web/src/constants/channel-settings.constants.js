@@ -120,6 +120,7 @@ export const getDefaultChannelFormInputs = () => ({
   allow_inference_geo: false,
   allow_speed: false,
   claude_beta_query: false,
+  upstream_protocol: 'anthropic',
   upstream_model_update_check_enabled: false,
   upstream_model_update_auto_sync_enabled: false,
   upstream_model_update_last_check_time: 0,
