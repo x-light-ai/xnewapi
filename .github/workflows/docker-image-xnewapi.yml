@@ -1,9 +1,6 @@
 name: Publish Docker image - xnewapi
 
 on:
-  push:
-    branches:
-      - dev
   workflow_dispatch:
     inputs:
       name:
