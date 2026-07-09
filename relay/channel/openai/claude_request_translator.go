@@ -86,6 +86,15 @@ func ConvertClaudeRequestToOpenAI(modelName string, inputRawJSON []byte, stream 
 			role := message.Get("role").String()
 			contentResult := message.Get("content")
 
+			if role == "system" {
+				if reminderText, ok := claudeMessageSystemReminderText(contentResult); ok {
+					msgJSON := []byte(`{"role":"user","content":[{"type":"text","text":""}]}`)
+					msgJSON, _ = sjson.SetBytes(msgJSON, "content.0.text", reminderText)
+					messagesJSON, _ = sjson.SetRawBytes(messagesJSON, "-1", msgJSON)
+				}
+				return true
+			}
+
 			if contentResult.Exists() && contentResult.IsArray() {
 				contentItems := make([][]byte, 0)
 				var reasoningParts []string
@@ -203,7 +212,7 @@ func ConvertClaudeRequestToOpenAI(modelName string, inputRawJSON []byte, stream 
 			openAIToolJSON, _ = sjson.SetBytes(openAIToolJSON, "function.name", tool.Get("name").String())
 			openAIToolJSON, _ = sjson.SetBytes(openAIToolJSON, "function.description", tool.Get("description").String())
 			if inputSchema := tool.Get("input_schema"); inputSchema.Exists() {
-				openAIToolJSON, _ = sjson.SetBytes(openAIToolJSON, "function.parameters", inputSchema.Value())
+				openAIToolJSON, _ = sjson.SetBytes(openAIToolJSON, "function.parameters", normalizeObjectSchemaProperties(inputSchema.Value()))
 			}
 			toolsJSON, _ = sjson.SetRawBytes(toolsJSON, "-1", openAIToolJSON)
 			return true
@@ -236,6 +245,28 @@ func ConvertClaudeRequestToOpenAI(modelName string, inputRawJSON []byte, stream 
 	}
 
 	return out
+}
+
+func normalizeObjectSchemaProperties(schema any) any {
+	switch value := schema.(type) {
+	case map[string]any:
+		if schemaType, ok := value["type"].(string); ok && schemaType == "object" {
+			if _, ok := value["properties"]; !ok {
+				value["properties"] = map[string]any{}
+			}
+		}
+		for key, child := range value {
+			value[key] = normalizeObjectSchemaProperties(child)
+		}
+		return value
+	case []any:
+		for i, child := range value {
+			value[i] = normalizeObjectSchemaProperties(child)
+		}
+		return value
+	default:
+		return schema
+	}
 }
 
 func ConvertClaudeRequestToOpenAIRequest(request *dto.ClaudeRequest, infoModel string, forceStream bool) (*dto.GeneralOpenAIRequest, error) {

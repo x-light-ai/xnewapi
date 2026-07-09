@@ -108,6 +108,15 @@ export async function setChannelScoreOverride(channelId, score) {
   if (!success) throw new Error(message || 'Failed to set score override');
 }
 
+export async function clearChannelTemporaryCircuit(channelId) {
+  const response = await API.post(
+    `/api/channel_monitor/channels/${channelId}/clear_circuit`,
+  );
+  const { success, message } = response.data || {};
+  if (!success)
+    throw new Error(message || 'Failed to clear channel temporary circuit');
+}
+
 export async function updateChannelPriority(channelId, priority) {
   const response = await API.put('/api/channel/', {
     id: channelId,

@@ -259,6 +259,7 @@ func SetApiRouter(router *gin.Engine) {
 			channelMonitorRoute.GET("/channels", controller.GetChannelMonitorChannels)
 			channelMonitorRoute.GET("/rankings", controller.GetChannelMonitorRankings)
 			channelMonitorRoute.POST("/channels/:id/score_override", controller.SetChannelScoreOverride)
+			channelMonitorRoute.POST("/channels/:id/clear_circuit", controller.ClearChannelTemporaryCircuit)
 		}
 		tokenRoute := apiRouter.Group("/token")
 		tokenRoute.Use(middleware.UserAuth())

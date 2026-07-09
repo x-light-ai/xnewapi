@@ -126,3 +126,13 @@ func SetChannelScoreOverride(c *gin.Context) {
 	service.SetChannelScoreOverride(id, body.Score)
 	common.ApiSuccess(c, nil)
 }
+
+func ClearChannelTemporaryCircuit(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	service.ClearChannelTemporaryCircuit(id)
+	common.ApiSuccess(c, nil)
+}

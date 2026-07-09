@@ -25,6 +25,7 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popconfirm,
   Select,
   Space,
   Switch,
@@ -34,7 +35,7 @@ import {
   Tooltip,
   Typography,
 } from '@douyinfe/semi-ui';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, RotateCcw } from 'lucide-react';
 import {
   getChannelIcon,
   renderGroup,
@@ -48,6 +49,7 @@ import {
   fetchChannelMonitorHealth,
   fetchChannelMonitorSummary,
   fetchChannelMonitorTimeline,
+  clearChannelTemporaryCircuit,
   setChannelScoreOverride,
   updateChannelPriority,
 } from '../../helpers/channelMonitor';
@@ -748,6 +750,23 @@ const ChannelMonitorPage = () => {
     }
   }, [overrideModal, updateChannelItem]);
 
+  const handleClearCircuit = useCallback(
+    async (record) => {
+      try {
+        await clearChannelTemporaryCircuit(record.id);
+        updateChannelItem(record.id, (item) => {
+          item.temporary_circuit_open = false;
+          item.temporary_circuit_reason = '';
+          item.temporary_circuit_until = null;
+        });
+        showSuccess('已解除临时熔断');
+      } catch (e) {
+        showError(e.message);
+      }
+    },
+    [updateChannelItem],
+  );
+
   const handlePriorityChange = useCallback(
     async (record, value) => {
       if (
@@ -930,7 +949,8 @@ const ChannelMonitorPage = () => {
   }, [health]);
 
   const availabilityMeta = useMemo(
-    () => getAvailabilityMeta(summary?.success_rate, latestHealth?.error_channels),
+    () =>
+      getAvailabilityMeta(summary?.success_rate, latestHealth?.error_channels),
     [latestHealth?.error_channels, summary?.success_rate],
   );
 
@@ -1024,13 +1044,30 @@ const ChannelMonitorPage = () => {
                   : null}
                 {renderChannelStatus(record.status)}
                 {record.temporary_circuit_open ? (
-                  <Tag
-                    color='orange'
-                    shape='circle'
-                    title={record.temporary_circuit_reason || '临时熔断中'}
-                  >
-                    {'临时熔断'}
-                  </Tag>
+                  <span className='flex items-center gap-1'>
+                    <Tag
+                      color='orange'
+                      shape='circle'
+                      title={record.temporary_circuit_reason || '临时熔断中'}
+                    >
+                      {'临时熔断'}
+                    </Tag>
+                    <Popconfirm
+                      title='解除临时熔断'
+                      content='确定立即解除该渠道的临时熔断，恢复正常状态吗？'
+                      okText='解除'
+                      cancelText='取消'
+                      onConfirm={() => handleClearCircuit(record)}
+                    >
+                      <Button
+                        theme='borderless'
+                        type='tertiary'
+                        size='small'
+                        icon={<RotateCcw size={14} />}
+                        title='解除临时熔断，恢复正常状态'
+                      />
+                    </Popconfirm>
+                  </span>
                 ) : null}
               </div>
             </div>
@@ -1127,6 +1164,7 @@ const ChannelMonitorPage = () => {
       },
     ];
   }, [
+    handleClearCircuit,
     handlePriorityChange,
     loadingTimeline,
     timelineByChannelId,

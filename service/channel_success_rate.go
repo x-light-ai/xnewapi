@@ -247,6 +247,14 @@ func GetChannelSuccessRateRuntimeState(channelID int) ChannelSuccessRateRuntimeS
 	return defaultChannelSuccessRateSelector.GetRuntimeStateForChannel(channelID, buildChannelSuccessRateConfig())
 }
 
+// ClearChannelTemporaryCircuit clears any temporary circuit / half-open state for
+// the channel across all group/model scopes and resets its in-memory success-rate
+// statistics, restoring the channel to a normal selectable state. Historical
+// statistics persisted in the database are not affected.
+func ClearChannelTemporaryCircuit(channelID int) {
+	defaultChannelSuccessRateSelector.clearTemporaryCircuitForChannel(channelID)
+}
+
 func getChannelRequestLatency(c *gin.Context) time.Duration {
 	if c == nil {
 		return 0
@@ -1110,6 +1118,40 @@ func (s *channelSuccessRateSelector) clearExpiredTemporaryCircuits(cfg channelSu
 			continue
 		}
 		s.circuitState[key] = state
+	}
+}
+
+func (s *channelSuccessRateSelector) clearTemporaryCircuitForChannel(channelID int) {
+	if s == nil || channelID <= 0 {
+		return
+	}
+	now := time.Now()
+	if s.now != nil {
+		now = s.now()
+	}
+	target := strconv.Itoa(channelID)
+	recoveredKeys := make([]string, 0)
+	s.mu.Lock()
+	for key, state := range s.circuitState {
+		parts := strings.Split(key, ":")
+		if len(parts) < 3 || parts[len(parts)-1] != target {
+			continue
+		}
+		if !state.temporaryOpenUntil.IsZero() || !state.halfOpenUntil.IsZero() {
+			recoveredKeys = append(recoveredKeys, key)
+		}
+		delete(s.circuitState, key)
+	}
+	for key := range s.state {
+		parts := strings.Split(key, ":")
+		if len(parts) < 3 || parts[len(parts)-1] != target {
+			continue
+		}
+		delete(s.state, key)
+	}
+	s.mu.Unlock()
+	for _, key := range recoveredKeys {
+		recordTemporaryCircuitRecovered(key, now)
 	}
 }
 
