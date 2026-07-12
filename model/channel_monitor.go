@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/setting/ratio_setting"
 )
 
@@ -247,17 +248,17 @@ func buildChannelRuntimeBucket(group string, modelName string, channelID int, bu
 	}
 }
 
-func GetSatisfiedChannels(group string, modelName string, retry int) ([]*Channel, error) {
+func GetSatisfiedChannels(group string, modelName string, retry int, requestPath string) ([]*Channel, error) {
 	if !common.MemoryCacheEnabled {
-		return getSatisfiedChannelsFromDB(group, modelName, retry)
+		return getSatisfiedChannelsFromDB(group, modelName, retry, requestPath)
 	}
 	channelSyncLock.RLock()
 	defer channelSyncLock.RUnlock()
 
-	channels := group2model2channels[group][modelName]
+	channels := filterChannelsByRequestPathAndModel(group2model2channels[group][modelName], requestPath, modelName)
 	if len(channels) == 0 {
 		normalizedModel := ratio_setting.FormatMatchingModelName(modelName)
-		channels = group2model2channels[group][normalizedModel]
+		channels = filterChannelsByRequestPathAndModel(group2model2channels[group][normalizedModel], requestPath, modelName)
 	}
 	if len(channels) == 0 {
 		return nil, nil
@@ -339,7 +340,7 @@ func GetPriorityStageCount(group string, modelName string) int {
 	return len(seen)
 }
 
-func getSatisfiedChannelsFromDB(group string, modelName string, retry int) ([]*Channel, error) {
+func getSatisfiedChannelsFromDB(group string, modelName string, retry int, requestPath string) ([]*Channel, error) {
 	channelQuery, err := getChannelQuery(group, modelName, retry)
 	if err != nil {
 		return nil, err
@@ -381,6 +382,12 @@ func getSatisfiedChannelsFromDB(group string, modelName string, retry int) ([]*C
 		}
 		if channel.Status != common.ChannelStatusEnabled {
 			continue
+		}
+		if channel.Type == constant.ChannelTypeAdvancedCustom {
+			config := channel.GetOtherSettings().AdvancedCustom
+			if config == nil || !config.SupportsPathForModel(requestPath, modelName) {
+				continue
+			}
 		}
 		result = append(result, channel)
 	}

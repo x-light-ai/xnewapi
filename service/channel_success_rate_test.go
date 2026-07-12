@@ -76,13 +76,13 @@ func prepareSuccessRateSelectionIntegrationTest(t *testing.T) {
 func seedSuccessRateIntegrationRootUser(t *testing.T, suffix int64) *model.User {
 	t.Helper()
 	user := &model.User{
-		Username: fmt.Sprintf("root-user-%d", suffix),
-		Password: "password123",
+		Username:    fmt.Sprintf("root-user-%d", suffix),
+		Password:    "password123",
 		DisplayName: fmt.Sprintf("Root %d", suffix),
-		Role: common.RoleRootUser,
-		Status: common.UserStatusEnabled,
-		Email: fmt.Sprintf("root-%d@example.com", suffix),
-		Group: "default",
+		Role:        common.RoleRootUser,
+		Status:      common.UserStatusEnabled,
+		Email:       fmt.Sprintf("root-%d@example.com", suffix),
+		Group:       "default",
 	}
 	require.NoError(t, model.DB.Create(user).Error)
 	return user
@@ -500,8 +500,8 @@ func TestChannelSuccessRateSelectorExplorePathSkipsTemporaryCircuitChannels(t *t
 	channels := []*model.Channel{{Id: 11, Name: "blocked"}, {Id: 22, Name: "healthy"}}
 	key := selector.circuitKeyForScope(successRateGroupKey("default"), "gpt-4o", 11, cfg.CircuitScope)
 	selector.circuitState[key] = channelSuccessRateState{
-		updated:            now,
-		temporaryOpenUntil: now.Add(time.Minute),
+		updated:             now,
+		temporaryOpenUntil:  now.Add(time.Minute),
 		temporaryOpenReason: "temporary open",
 	}
 
@@ -626,13 +626,13 @@ func TestSelectChannelWithSuccessRateDoesNotFallbackToUsedChannel(t *testing.T) 
 	ctx, _ := gin.CreateTestContext(rec)
 	ctx.Set("use_channel", []string{fmt.Sprintf("%d", primary.Id)})
 
-	selected, err := selectChannelWithSuccessRate(ctx, group, modelName, 0)
+	selected, err := selectChannelWithSuccessRate(ctx, group, modelName, 0, "")
 	require.NoError(t, err)
 	require.NotNil(t, selected)
 	require.Equal(t, secondary.Id, selected.Id)
 
 	ctx.Set("use_channel", []string{fmt.Sprintf("%d", primary.Id), fmt.Sprintf("%d", secondary.Id)})
-	selected, err = selectChannelWithSuccessRate(ctx, group, modelName, 0)
+	selected, err = selectChannelWithSuccessRate(ctx, group, modelName, 0, "")
 	require.NoError(t, err)
 	require.Nil(t, selected)
 }
@@ -710,7 +710,7 @@ func TestSelectChannelWithSuccessRateExhaustsHigherPriorityBeforeLowerPriority(t
 	rec := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(rec)
 
-	selected, err := selectChannelWithSuccessRate(ctx, group, modelName, 0)
+	selected, err := selectChannelWithSuccessRate(ctx, group, modelName, 0, "")
 	require.NoError(t, err)
 	require.NotNil(t, selected)
 	firstHighID := selected.Id
@@ -718,7 +718,7 @@ func TestSelectChannelWithSuccessRateExhaustsHigherPriorityBeforeLowerPriority(t
 
 	used := []string{fmt.Sprintf("%d", firstHighID)}
 	ctx.Set("use_channel", used)
-	selected, err = selectChannelWithSuccessRate(ctx, group, modelName, 1)
+	selected, err = selectChannelWithSuccessRate(ctx, group, modelName, 1, "")
 	require.NoError(t, err)
 	require.NotNil(t, selected)
 	secondHighID := selected.Id
@@ -727,21 +727,21 @@ func TestSelectChannelWithSuccessRateExhaustsHigherPriorityBeforeLowerPriority(t
 
 	used = append(used, fmt.Sprintf("%d", secondHighID))
 	ctx.Set("use_channel", used)
-	selected, err = selectChannelWithSuccessRate(ctx, group, modelName, 2)
+	selected, err = selectChannelWithSuccessRate(ctx, group, modelName, 2, "")
 	require.NoError(t, err)
 	require.NotNil(t, selected)
 	require.Equal(t, c.Id, selected.Id)
 
 	used = append(used, fmt.Sprintf("%d", c.Id))
 	ctx.Set("use_channel", used)
-	selected, err = selectChannelWithSuccessRate(ctx, group, modelName, 3)
+	selected, err = selectChannelWithSuccessRate(ctx, group, modelName, 3, "")
 	require.NoError(t, err)
 	require.NotNil(t, selected)
 	require.Equal(t, d.Id, selected.Id)
 
 	used = append(used, fmt.Sprintf("%d", d.Id))
 	ctx.Set("use_channel", used)
-	selected, err = selectChannelWithSuccessRate(ctx, group, modelName, 4)
+	selected, err = selectChannelWithSuccessRate(ctx, group, modelName, 4, "")
 	require.NoError(t, err)
 	require.Nil(t, selected)
 }

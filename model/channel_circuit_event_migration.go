@@ -4,7 +4,7 @@ package model
 import "github.com/QuantumNous/new-api/common"
 
 func ensureChannelCircuitEventTableSQLite() error {
-	if !common.UsingSQLite {
+	if !common.UsingMainDatabase(common.DatabaseTypeSQLite) {
 		return nil
 	}
 	tableName := (ChannelCircuitEvent{}).TableName()

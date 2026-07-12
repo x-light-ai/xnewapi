@@ -19,14 +19,11 @@ func setupChannelSuccessRateLifecycleTestDB(t *testing.T) *gorm.DB {
 
 	originalDB := model.DB
 	originalLogDB := model.LOG_DB
-	originalUsingSQLite := common.UsingSQLite
-	originalUsingMySQL := common.UsingMySQL
-	originalUsingPostgreSQL := common.UsingPostgreSQL
+	originalMainDatabaseType := common.MainDatabaseType()
+	originalLogDatabaseType := common.LogDatabaseType()
 	originalRedisEnabled := common.RedisEnabled
 
-	common.UsingSQLite = true
-	common.UsingMySQL = false
-	common.UsingPostgreSQL = false
+	common.SetDatabaseTypes(common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
 	common.RedisEnabled = false
 
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name())
@@ -39,9 +36,7 @@ func setupChannelSuccessRateLifecycleTestDB(t *testing.T) *gorm.DB {
 	t.Cleanup(func() {
 		model.DB = originalDB
 		model.LOG_DB = originalLogDB
-		common.UsingSQLite = originalUsingSQLite
-		common.UsingMySQL = originalUsingMySQL
-		common.UsingPostgreSQL = originalUsingPostgreSQL
+		common.SetDatabaseTypes(originalMainDatabaseType, originalLogDatabaseType)
 		common.RedisEnabled = originalRedisEnabled
 		if originalDB != nil {
 			model.InitChannelCache()

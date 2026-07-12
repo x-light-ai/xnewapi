@@ -51,9 +51,10 @@ func setupChannelMonitorControllerTestDB(t *testing.T) *gorm.DB {
 
 	originalDB := model.DB
 	originalLogDB := model.LOG_DB
-	common.UsingSQLite = true
-	common.UsingMySQL = false
-	common.UsingPostgreSQL = false
+	originalMainDatabaseType := common.MainDatabaseType()
+	originalLogDatabaseType := common.LogDatabaseType()
+	originalRedisEnabled := common.RedisEnabled
+	common.SetDatabaseTypes(common.DatabaseTypeSQLite, common.DatabaseTypeSQLite)
 	common.RedisEnabled = false
 
 	dsn := fmt.Sprintf("file:%s?mode=memory&cache=shared", strings.ReplaceAll(t.Name(), "/", "_"))
@@ -75,6 +76,8 @@ func setupChannelMonitorControllerTestDB(t *testing.T) *gorm.DB {
 		service.ResetChannelSuccessRateHealthManagerForTest()
 		model.DB = originalDB
 		model.LOG_DB = originalLogDB
+		common.SetDatabaseTypes(originalMainDatabaseType, originalLogDatabaseType)
+		common.RedisEnabled = originalRedisEnabled
 		sqlDB, err := db.DB()
 		if err == nil {
 			_ = sqlDB.Close()
@@ -527,13 +530,13 @@ func TestRelaySelectionFlowSamePriorityFailoverAndPriorityFallback(t *testing.T)
 	common.SetContextKey(ctx, constant.ContextKeyUsingGroup, group)
 
 	relayInfo := &relaycommon.RelayInfo{
-		TokenGroup:       group,
-		UsingGroup:       group,
-		UserGroup:        group,
-		OriginModelName:  modelName,
-		RelayFormat:      types.RelayFormatOpenAI,
-		PriceData:        types.PriceData{},
-		ChannelMeta:      &relaycommon.ChannelMeta{},
+		TokenGroup:      group,
+		UsingGroup:      group,
+		UserGroup:       group,
+		OriginModelName: modelName,
+		RelayFormat:     types.RelayFormatOpenAI,
+		PriceData:       types.PriceData{},
+		ChannelMeta:     &relaycommon.ChannelMeta{},
 	}
 	retryParam := &service.RetryParam{Ctx: ctx, TokenGroup: group, ModelName: modelName, Retry: common.GetPointer(0)}
 

@@ -128,7 +128,8 @@ func TestConvertClaudeRequestToOpenAIRequest_SignedThinkingCompatibility(t *test
 	converted, err := ConvertClaudeRequestToOpenAIRequest(request, "gpt-4.1", false)
 	require.NoError(t, err)
 	require.Len(t, converted.Messages, 1)
-	require.Equal(t, "provider state", converted.Messages[0].ReasoningContent)
+	require.NotNil(t, converted.Messages[0].ReasoningContent)
+	require.Equal(t, "provider state", *converted.Messages[0].ReasoningContent)
 	parts := converted.Messages[0].ParseContent()
 	require.Len(t, parts, 1)
 	require.Equal(t, "visible answer", parts[0].Text)
@@ -173,7 +174,7 @@ func TestResponseOpenAI2ClaudeWithTranslator_RestoresToolNameAndUsage(t *testing
 				Message: dto.Message{
 					Role:             "assistant",
 					Content:          "It is sunny.",
-					ReasoningContent: "I checked the tool output.",
+					ReasoningContent: common.GetPointer("I checked the tool output."),
 					ToolCalls:        json.RawMessage(`[{"id":"call:1","type":"function","function":{"name":"get_weather","arguments":"{\"city\":\"Paris\"}"}}]`),
 				},
 				FinishReason: "tool_calls",

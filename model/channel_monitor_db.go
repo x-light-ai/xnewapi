@@ -736,20 +736,20 @@ func normalizeChannelMonitorGroupFilter(group string) string {
 }
 
 func buildChannelMonitorGroupCondition(columnExpr string) string {
-	if common.UsingMySQL {
+	if common.UsingMainDatabase(common.DatabaseTypeMySQL) {
 		return `CONCAT(',', ` + columnExpr + `, ',') LIKE ?`
 	}
 	return `(',' || ` + columnExpr + ` || ',') LIKE ?`
 }
 
 func channelMonitorGroupColumn(tableName string) string {
-	if common.UsingPostgreSQL {
+	if common.UsingMainDatabase(common.DatabaseTypePostgreSQL) {
 		if tableName == "" {
 			return `"group"`
 		}
 		return tableName + `."group"`
 	}
-	if common.UsingSQLite {
+	if common.UsingMainDatabase(common.DatabaseTypeSQLite) {
 		if tableName == "" {
 			return `"group"`
 		}

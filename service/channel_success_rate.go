@@ -150,9 +150,9 @@ type selectionDecision struct {
 	reason    string
 }
 
-func selectChannelWithSuccessRate(ctx *gin.Context, group string, modelName string, retry int) (*model.Channel, error) {
+func selectChannelWithSuccessRate(ctx *gin.Context, group string, modelName string, retry int, requestPath string) (*model.Channel, error) {
 	if !operation_setting.GetSuccessRateSelectorEnabled() {
-		return model.GetRandomSatisfiedChannel(group, modelName, retry)
+		return model.GetRandomSatisfiedChannel(group, modelName, retry, requestPath)
 	}
 	stageCount := model.GetPriorityStageCount(group, modelName)
 	if stageCount == 0 {
@@ -160,7 +160,7 @@ func selectChannelWithSuccessRate(ctx *gin.Context, group string, modelName stri
 	}
 	cfg := buildChannelSuccessRateConfig()
 	for stage := 0; stage < stageCount; stage++ {
-		channels, err := model.GetSatisfiedChannels(group, modelName, stage)
+		channels, err := model.GetSatisfiedChannels(group, modelName, stage, requestPath)
 		if err != nil {
 			return nil, err
 		}
@@ -191,7 +191,7 @@ func selectChannelWithSuccessRate(ctx *gin.Context, group string, modelName stri
 }
 
 func SelectBySuccessRate(ctx *gin.Context, group string, modelName string, retry int) (*model.Channel, error) {
-	channels, err := model.GetSatisfiedChannels(group, modelName, retry)
+	channels, err := model.GetSatisfiedChannels(group, modelName, retry, "")
 	if err != nil || len(channels) == 0 {
 		return nil, err
 	}

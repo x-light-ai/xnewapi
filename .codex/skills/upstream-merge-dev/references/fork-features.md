@@ -29,9 +29,9 @@
 |---|------|-----------|-------------|------|
 | 1 | OpenAI↔Claude 转换器(cpaopenai) | `relay/channel/openai/claude_*.go`、`service/fork_claude_translator.go`、`forkcustom/translator.go` | 各 request/response 边界的一行 service facade hook、`relay/common/relay_info.go`、`dto/openai_request.go` | 高 |
 | 2 | Codex↔Claude 转换器(codex2claude) | `relay/channel/codex/claude_*.go` | `relay/channel/codex/adaptor.go` | 高 |
-| 3 | 第三方 Codex 供应商支持 | `relay/fork_claude_upstream.go`、`relay/channel/codex/fork_upstream_policy.go`、`web/src/extensions/xnewapi/channelSettings.jsx` | `dto/channel_settings.go`、`relay/claude_handler.go`、`web/.../EditChannelModal.jsx` | 中 |
-| 4 | 渠道成功率选择器(SuccessRateSelector) | `service/channel_success_rate*.go`、`service/fork_retry_policy.go`、`web/.../SettingsSuccessRateSelector.jsx` | `service/channel_select.go`、`controller/relay.go` 的单点 policy/observe hook | 中 |
-| 5 | 渠道监控系统 | 原有监控文件 + `forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`、`router/fork_routes.go`、`web/src/extensions/xnewapi/` | `main.go`、`model/main.go`、`router/api-router.go`、前端 shell 的单点扩展 | 中 |
+| 3 | 第三方 Codex 供应商支持 | `relay/fork_claude_upstream.go`、`relay/channel/codex/fork_upstream_policy.go`、classic/default 的 `features/xnewapi` 渠道扩展 | `dto/channel_settings.go`、`relay/claude_handler.go`、两套前端渠道表单的单点 hook | 中 |
+| 4 | 渠道成功率选择器(SuccessRateSelector) | `service/channel_success_rate*.go`、`service/fork_retry_policy.go`、classic/default 的 SuccessRateSelector 设置组件 | `service/channel_select.go`、`controller/relay.go` 的单点 policy/observe hook、default 模型设置 section registry | 中 |
+| 5 | 渠道监控系统 | 原有监控文件 + `forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`、`router/fork_routes.go`、classic/default 的 `features/xnewapi/` | `main.go`、`model/main.go`、`router/api-router.go`、两套前端 shell 的单点扩展 | 中 |
 | 6 | 渠道成功率高级配置 | `setting/operation_setting/channel_success_rate_setting.go` | — | 低 |
 | 7 | 渠道权重管理 | `service/channel_score_override.go` | (复用 #5 的 controller/router) | 低 |
 | 8 | 渠道测试与自动禁用 | — | `controller/channel-test.go` | 低 |
@@ -58,21 +58,21 @@ Claude 请求→Codex Responses、Codex 响应→Claude SSE 的协议转换,含 
 
 ### 3. 第三方 Codex 供应商支持
 Anthropic Claude 渠道新增 `upstream_protocol` 字段(`anthropic`/`codex`),按 key 形态自动分流 URL 与鉴权,使主渠道可指向第三方兼容 Codex 上游。
-- **A类实现**:`relay/fork_claude_upstream.go`、`relay/channel/codex/fork_upstream_policy.go`、`web/src/extensions/xnewapi/channelSettings.jsx`。
-- **B类接入点**:`dto/channel_settings.go`、`relay/claude_handler.go` 的单点 dispatch hook、前端 `EditChannelModal.jsx` 的 extension 调用。
+- **A类实现**:`relay/fork_claude_upstream.go`、`relay/channel/codex/fork_upstream_policy.go`、`web/classic/src/extensions/xnewapi/channelSettings.jsx`、`web/default/src/features/xnewapi/channel-upstream-protocol-field.tsx`。
+- **B类接入点**:`dto/channel_settings.go`、`relay/claude_handler.go` 的单点 dispatch hook、classic `EditChannelModal.jsx` 的 extension 调用，以及 default `channel-form.ts` / `channel-mutate-drawer.tsx` 的窄字段 hook。
 - 合并注意:上游改 `claude_handler.go` 分支或渠道设置 DTO 时验证分流逻辑。
 
 ### 4. 渠道成功率选择器(SuccessRateSelector)
 基于真实请求结果的运行时渠道择优:Laplace 平滑、半衰期衰减、连续失败惩罚、探索机制、临时熔断/半开、跨优先级切换。
-- **A类核心**:`service/channel_success_rate.go`(+ `channel_success_rate_*_test.go` 多个)、前端 `web/src/pages/Setting/Operation/SettingsSuccessRateSelector.jsx`。
+- **A类核心**:`service/channel_success_rate.go`(+ `channel_success_rate_*_test.go` 多个)、classic `SettingsSuccessRateSelector.jsx`、default `features/xnewapi/success-rate-settings-section.tsx`。
 - **B类接入点**:`service/channel_select.go` 的两处 selection hook;`controller/relay.go` 通过 `service/fork_retry_policy.go` 的单一循环条件和结果 observe hook 接入，不在 controller 展开 fork 策略。
 - 合并注意:上游重构 `channel_select.go` 或重试主流程时逐文件审查。
 
 ### 5. 渠道监控系统
 渠道健康度监控:成功率/失败数/延迟汇总、可用性趋势、延迟/稳定性排名、临时熔断事件记录,前端独立页面。
-- **A类核心**:`controller/channel_monitor.go`(+`_test.go`)、`model/channel_monitor.go`、`model/channel_monitor_db.go`(+`_test.go`)、`model/channel_circuit_event.go`、`web/src/pages/ChannelMonitor/`、`web/src/helpers/channelMonitor.js`。
-- **A类组装**:`forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`、`router/fork_routes.go`、`web/src/extensions/xnewapi/`。
-- **B类接入点**:`main.go` 仅调用 `forkcustom.Start()`;`model/main.go` 仅保留模型注册和迁移调用;`router/api-router.go` 仅调用 `registerForkRoutes`;App、Sidebar、Sidebar settings 只展开 fork extension。
+- **A类核心**:`controller/channel_monitor.go`(+`_test.go`)、`model/channel_monitor.go`、`model/channel_monitor_db.go`(+`_test.go`)、`model/channel_circuit_event.go`、`web/classic/src/pages/ChannelMonitor/`、`web/default/src/features/xnewapi/channel-monitor.tsx`。
+- **A类组装**:`forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`、`router/fork_routes.go`、classic `extensions/xnewapi/`、default `features/xnewapi/` 与 `routes/_authenticated/channel-monitor/`。
+- **B类接入点**:`main.go` 仅调用 `forkcustom.Start()`;`model/main.go` 仅保留模型注册和迁移调用;`router/api-router.go` 仅调用 `registerForkRoutes`;classic App/Sidebar 与 default sidebar/section registry 只展开 fork extension。
 - 合并注意:DB 聚合查询需保持三库兼容(Rule 2);上游改路由注册或 `model/main.go` 迁移时确认监控注册未被覆盖。
 
 ---
