@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Provide helpers for the CPA-derived Codex translator.
 package codex
 
 import (

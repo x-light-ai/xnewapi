@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/controller"
+	"github.com/QuantumNous/new-api/forkcustom"
 	"github.com/QuantumNous/new-api/i18n"
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/middleware"
@@ -124,9 +125,8 @@ func main() {
 	// Channel upstream model update check task
 	controller.StartChannelUpstreamModelUpdateTask()
 
-	model.StartChannelMonitorPersistenceTask()
-	model.StartChannelMonitorCleanupTask()
-	service.StartChannelSuccessRateHealthManager()
+	// FORK-CUSTOM: Start all fork-owned runtime integrations from one boundary.
+	forkcustom.Start()
 
 	if common.IsMasterNode && constant.UpdateTask {
 		gopool.Go(func() {

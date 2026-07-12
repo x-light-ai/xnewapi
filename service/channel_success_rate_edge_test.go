@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify SuccessRateSelector edge cases.
 package service
 
 import (

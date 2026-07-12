@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify manual clearing of temporary channel circuits.
 package service
 
 import (

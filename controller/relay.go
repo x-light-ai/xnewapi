@@ -186,10 +186,8 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 	relayInfo.RetryIndex = 0
 	relayInfo.LastError = nil
 
-	for ; ; retryParam.IncreaseRetry() {
-		if !operation_setting.GetSuccessRateSelectorEnabled() && retryParam.GetRetry() > common.RetryTimes {
-			break
-		}
+	// FORK-CUSTOM: SuccessRateSelector owns candidate exhaustion when enabled.
+	for ; service.ShouldContinueRelayRetry(retryParam); retryParam.IncreaseRetry() {
 		relayInfo.RetryIndex = retryParam.GetRetry()
 		channel, channelErr := getChannel(c, relayInfo, retryParam)
 		if channelErr != nil {
@@ -223,12 +221,14 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		}
 
 		if newAPIError == nil {
+			// FORK-CUSTOM: Feed successful relay outcomes into channel health scoring.
 			service.ObserveChannelRequestResult(c, true, nil)
 			relayInfo.LastError = nil
 			return
 		}
 
 		newAPIError = service.NormalizeViolationFeeError(newAPIError)
+		// FORK-CUSTOM: Feed failed relay outcomes into channel health scoring.
 		service.ObserveChannelRequestResult(c, false, newAPIError)
 		relayInfo.LastError = newAPIError
 
@@ -336,9 +336,8 @@ func shouldRetry(c *gin.Context, openaiErr *types.NewAPIError, retryTimes int) b
 	if _, ok := c.Get("specific_channel_id"); ok {
 		return false
 	}
-	// When SuccessRateSelector is enabled, it handles same-group candidate exhaustion
-	// internally, so we don't gate on retryTimes for status-code-based retries.
-	if !operation_setting.GetSuccessRateSelectorEnabled() && retryTimes <= 0 {
+	// FORK-CUSTOM: SuccessRateSelector bypasses the upstream retry-count gate.
+	if !service.ShouldRetryAfterStatusError(retryTimes) {
 		return false
 	}
 	code := openaiErr.StatusCode

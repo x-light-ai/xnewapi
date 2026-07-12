@@ -115,6 +115,7 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			}
 			logger.LogDebug(param.Ctx, "Auto selecting group: %s, priorityRetry: %d", autoGroup, priorityRetry)
 
+			// FORK-CUSTOM: route channel selection through the success-rate policy.
 			channel, _ = selectChannelWithSuccessRate(param.Ctx, autoGroup, param.ModelName, priorityRetry)
 			if channel == nil {
 				// Current group has no available channel for this model, try next group
@@ -153,6 +154,7 @@ func CacheGetRandomSatisfiedChannel(param *RetryParam) (*model.Channel, string, 
 			break
 		}
 	} else {
+		// FORK-CUSTOM: route channel selection through the success-rate policy.
 		channel, err = selectChannelWithSuccessRate(param.Ctx, param.TokenGroup, param.ModelName, param.GetRetry())
 		if err != nil {
 			return nil, param.TokenGroup, err

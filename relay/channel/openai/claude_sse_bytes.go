@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Encode Claude SSE events for the CPA-derived translator.
 package openai
 
 import (

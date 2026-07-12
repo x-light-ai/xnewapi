@@ -738,6 +738,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 				MaxTokens: lo.ToPtr(maxTokens),
 			}
 			if isStream {
+				// FORK-CUSTOM: StreamOptions pointers preserve explicit boolean values.
 				req.StreamOptions = &dto.StreamOptions{IncludeUsage: lo.ToPtr(true)}
 			}
 			return req
@@ -794,6 +795,7 @@ func buildTestRequest(model string, endpointType string, channel *model.Channel,
 		},
 	}
 	if isStream {
+		// FORK-CUSTOM: StreamOptions pointers preserve explicit boolean values.
 		testRequest.StreamOptions = &dto.StreamOptions{IncludeUsage: lo.ToPtr(true)}
 	}
 

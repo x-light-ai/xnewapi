@@ -74,7 +74,8 @@ func OaiResponsesToChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	var responseBody []byte
 	switch info.RelayFormat {
 	case types.RelayFormatClaude:
-		claudeResp, err := ResponseOpenAI2ClaudeWithTranslator(chatResp, info)
+		// FORK-CUSTOM: Preserve translator error semantics through the service boundary.
+		claudeResp, err := service.OpenAIResponseToClaude(chatResp, info)
 		if err != nil {
 			return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 		}

@@ -250,17 +250,8 @@ func SetApiRouter(router *gin.Engine) {
 			channelRoute.POST("/upstream_updates/detect", controller.DetectChannelUpstreamModelUpdates)
 			channelRoute.POST("/upstream_updates/detect_all", controller.DetectAllChannelUpstreamModelUpdates)
 		}
-		channelMonitorRoute := apiRouter.Group("/channel_monitor")
-		channelMonitorRoute.Use(middleware.AdminAuth())
-		{
-			channelMonitorRoute.GET("/summary", controller.GetChannelMonitorSummary)
-			channelMonitorRoute.GET("/health", controller.GetChannelMonitorHealth)
-			channelMonitorRoute.GET("/timeline", controller.GetChannelMonitorTimeline)
-			channelMonitorRoute.GET("/channels", controller.GetChannelMonitorChannels)
-			channelMonitorRoute.GET("/rankings", controller.GetChannelMonitorRankings)
-			channelMonitorRoute.POST("/channels/:id/score_override", controller.SetChannelScoreOverride)
-			channelMonitorRoute.POST("/channels/:id/clear_circuit", controller.ClearChannelTemporaryCircuit)
-		}
+		// FORK-CUSTOM: Register fork-owned admin routes from one boundary.
+		registerForkRoutes(apiRouter)
 		tokenRoute := apiRouter.Group("/token")
 		tokenRoute.Use(middleware.UserAuth())
 		{

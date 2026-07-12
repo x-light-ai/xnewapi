@@ -279,7 +279,8 @@ func OpenaiHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Respo
 			break
 		}
 	case types.RelayFormatClaude:
-		claudeResp, err := ResponseOpenAI2ClaudeWithTranslator(&simpleResponse, info)
+		// FORK-CUSTOM: Preserve translator error semantics through the service boundary.
+		claudeResp, err := service.OpenAIResponseToClaude(&simpleResponse, info)
 		if err != nil {
 			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
 		}

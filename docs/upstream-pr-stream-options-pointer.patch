@@ -1,0 +1,137 @@
+From: x-light-ai/xnewapi
+Subject: [PATCH] fix: preserve explicit false in stream options
+Target-Upstream-Commit: 4e570389dd433a717373ce9c9b822b59f5ed3d5d
+
+Optional stream booleans must distinguish an omitted field from an explicit
+false value when requests are unmarshaled and forwarded upstream.
+---
+ controller/channel-test.go      |  4 ++--
+ dto/openai_request.go           |  4 ++--
+ dto/stream_options_test.go      | 29 +++++++++++++++++++++++++++++
+ relay/channel/ali/adaptor.go    |  2 +-
+ relay/channel/ollama/adaptor.go |  3 ++-
+ relay/channel/openai/adaptor.go |  2 +-
+ relay/compatible_handler.go     |  4 ++--
+ 7 files changed, 39 insertions(+), 9 deletions(-)
+
+diff --git a/controller/channel-test.go b/controller/channel-test.go
+--- a/controller/channel-test.go
++++ b/controller/channel-test.go
+@@ -751,5 +751,5 @@
+ 			}
+ 			if isStream {
+-				req.StreamOptions = &dto.StreamOptions{IncludeUsage: true}
++				req.StreamOptions = &dto.StreamOptions{IncludeUsage: lo.ToPtr(true)}
+ 			}
+ 			return req
+@@ -808,5 +808,5 @@
+ 	}
+ 	if isStream {
+-		testRequest.StreamOptions = &dto.StreamOptions{IncludeUsage: true}
++		testRequest.StreamOptions = &dto.StreamOptions{IncludeUsage: lo.ToPtr(true)}
+ 	}
+ 
+diff --git a/dto/openai_request.go b/dto/openai_request.go
+--- a/dto/openai_request.go
++++ b/dto/openai_request.go
+@@ -253,6 +253,6 @@
+ type StreamOptions struct {
+-	IncludeUsage bool `json:"include_usage,omitempty"`
++	IncludeUsage *bool `json:"include_usage,omitempty"`
+ 	// IncludeObfuscation is only for /v1/responses stream payload.
+ 	// This field is filtered by default and can be enabled via channel setting allow_include_obfuscation.
+-	IncludeObfuscation bool `json:"include_obfuscation,omitempty"`
++	IncludeObfuscation *bool `json:"include_obfuscation,omitempty"`
+ }
+diff --git a/dto/stream_options_test.go b/dto/stream_options_test.go
+new file mode 100644
+--- /dev/null
++++ b/dto/stream_options_test.go
+@@ -0,0 +1,29 @@
++package dto
++
++import (
++	"testing"
++
++	"github.com/QuantumNous/new-api/common"
++	"github.com/stretchr/testify/require"
++)
++
++func TestStreamOptionsExplicitFalsePreserved(t *testing.T) {
++	value := false
++	wrapper := struct {
++		StreamOptions *StreamOptions `json:"stream_options,omitempty"`
++	}{
++		StreamOptions: &StreamOptions{
++			IncludeUsage:       &value,
++			IncludeObfuscation: &value,
++		},
++	}
++
++	encoded, err := common.Marshal(wrapper)
++	require.NoError(t, err)
++	require.JSONEq(t, `{
++		"stream_options": {
++			"include_usage": false,
++			"include_obfuscation": false
++		}
++	}`, string(encoded))
++}
+diff --git a/relay/channel/ali/adaptor.go b/relay/channel/ali/adaptor.go
+--- a/relay/channel/ali/adaptor.go
++++ b/relay/channel/ali/adaptor.go
+@@ -80,6 +80,6 @@
+ 		return nil, err
+ 	}
+ 	if info.SupportStreamOptions && info.IsStream {
+-		oaiReq.StreamOptions = &dto.StreamOptions{IncludeUsage: true}
++		oaiReq.StreamOptions = &dto.StreamOptions{IncludeUsage: common.GetPointer(true)}
+ 	}
+ 	return a.ConvertOpenAIRequest(c, info, oaiReq)
+diff --git a/relay/channel/ollama/adaptor.go b/relay/channel/ollama/adaptor.go
+--- a/relay/channel/ollama/adaptor.go
++++ b/relay/channel/ollama/adaptor.go
+@@ -7,5 +7,6 @@
+ 	"strings"
+ 
++	"github.com/QuantumNous/new-api/common"
+ 	"github.com/QuantumNous/new-api/dto"
+ 	"github.com/QuantumNous/new-api/relay/channel"
+ 	"github.com/QuantumNous/new-api/relay/channel/openai"
+@@ -30,7 +31,7 @@
+ 		return nil, err
+ 	}
+ 	openaiRequest.(*dto.GeneralOpenAIRequest).StreamOptions = &dto.StreamOptions{
+-		IncludeUsage: true,
++		IncludeUsage: common.GetPointer(true),
+ 	}
+ 	// map to ollama chat request (Claude -> OpenAI -> Ollama chat)
+ 	return openAIChatToOllamaChat(c, openaiRequest.(*dto.GeneralOpenAIRequest))
+diff --git a/relay/channel/openai/adaptor.go b/relay/channel/openai/adaptor.go
+--- a/relay/channel/openai/adaptor.go
++++ b/relay/channel/openai/adaptor.go
+@@ -77,5 +77,5 @@
+ 	if info.SupportStreamOptions && info.IsStream {
+ 		aiRequest.StreamOptions = &dto.StreamOptions{
+-			IncludeUsage: true,
++			IncludeUsage: common.GetPointer(true),
+ 		}
+ 	}
+diff --git a/relay/compatible_handler.go b/relay/compatible_handler.go
+--- a/relay/compatible_handler.go
++++ b/relay/compatible_handler.go
+@@ -47,5 +47,5 @@
+ 	// 判断用户是否需要返回使用情况
+ 	if request.StreamOptions != nil {
+-		includeUsage = request.StreamOptions.IncludeUsage
++		includeUsage = lo.FromPtrOr(request.StreamOptions.IncludeUsage, true)
+ 	}
+ 
+@@ -57,6 +57,6 @@
+ 		// 如果支持StreamOptions，且请求中没有设置StreamOptions，根据配置文件设置StreamOptions
+ 		if constant.ForceStreamOption {
+ 			request.StreamOptions = &dto.StreamOptions{
+-				IncludeUsage: true,
++				IncludeUsage: common.GetPointer(true),
+ 			}
+ 		}

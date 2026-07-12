@@ -26,6 +26,7 @@ func buildChannelAffinityStatsContextForTest(ruleName, usingGroup, keyFP string)
 	return ctx
 }
 
+// FORK-CUSTOM: Isolate fork channel-monitor observations across affinity tests.
 func resetChannelAffinityUsageCacheStatsForTest(t *testing.T) {
 	t.Helper()
 	channelAffinityUsageCacheStatsCache = nil

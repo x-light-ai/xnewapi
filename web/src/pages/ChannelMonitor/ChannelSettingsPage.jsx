@@ -17,13 +17,15 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+// FORK-CUSTOM: Configure fork-owned channel selection and recovery policy.
+
 import React, { useEffect, useState } from 'react';
 import { Banner, Card, Spin, Typography } from '@douyinfe/semi-ui';
 import { API, isRoot, showError, toBoolean } from '../../helpers';
 import {
   CHANNEL_SUCCESS_RATE_BOOLEAN_OPTION_KEYS,
   getDefaultChannelSuccessRateOptions,
-} from '../../constants';
+} from '../../constants/channel-settings.constants';
 import SettingsSuccessRateSelector from '../Setting/Operation/SettingsSuccessRateSelector';
 
 const ChannelSettingsPage = () => {

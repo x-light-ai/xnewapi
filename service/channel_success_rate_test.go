@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify fork-owned success-rate channel selection.
 package service
 
 import (

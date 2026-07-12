@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+// FORK-CUSTOM: Centralize fork-owned channel selection and form defaults.
+
 export const CHANNEL_SUCCESS_RATE_KEYS = {
   ENABLED: 'channel_success_rate_setting.enabled',
   HALF_LIFE: 'channel_success_rate_setting.half_life_seconds',

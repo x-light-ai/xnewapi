@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Persist fork-owned channel circuit lifecycle events.
 package model
 
 import "time"

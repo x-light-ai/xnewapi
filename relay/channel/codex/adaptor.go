@@ -138,34 +138,26 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 	if info.RelayMode != relayconstant.RelayModeResponses && info.RelayMode != relayconstant.RelayModeResponsesCompact {
 		return "", errors.New("codex channel: only /v1/responses and /v1/responses/compact are supported")
 	}
-	if isOfficialCodexOAuthKey(info.ApiKey) {
-		path := "/backend-api/codex/responses"
-		if info.RelayMode == relayconstant.RelayModeResponsesCompact {
-			path = "/backend-api/codex/responses/compact"
-		}
-		return relaycommon.GetFullRequestURL(info.ChannelBaseUrl, path, info.ChannelType), nil
+	// FORK-CUSTOM: Allow third-party Codex-compatible endpoints without changing official OAuth behavior.
+	if requestURL, handled := thirdPartyRequestURL(info); handled {
+		return requestURL, nil
 	}
-	return relaycommon.GetFullRequestURL(info.ChannelBaseUrl, info.RequestURLPath, info.ChannelType), nil
+	path := "/backend-api/codex/responses"
+	if info.RelayMode == relayconstant.RelayModeResponsesCompact {
+		path = "/backend-api/codex/responses/compact"
+	}
+	return relaycommon.GetFullRequestURL(info.ChannelBaseUrl, path, info.ChannelType), nil
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *relaycommon.RelayInfo) error {
 	channel.SetupApiRequestHeader(info, c, req)
 
-	key := strings.TrimSpace(info.ApiKey)
-	if !isOfficialCodexOAuthKey(key) {
-		if key == "" {
-			return errors.New("codex channel: api key is required")
-		}
-		req.Set("Authorization", "Bearer "+key)
-		req.Set("Content-Type", "application/json")
-		if info.IsStream {
-			req.Set("Accept", "text/event-stream")
-		} else if req.Get("Accept") == "" {
-			req.Set("Accept", "application/json")
-		}
-		return nil
+	// FORK-CUSTOM: Apply third-party bearer authentication from one policy hook.
+	if handled, err := setupThirdPartyRequestHeader(req, info); handled {
+		return err
 	}
 
+	key := strings.TrimSpace(info.ApiKey)
 	oauthKey, err := ParseOAuthKey(key)
 	if err != nil {
 		return err
@@ -202,8 +194,4 @@ func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *rel
 	}
 
 	return nil
-}
-
-func isOfficialCodexOAuthKey(key string) bool {
-	return strings.HasPrefix(strings.TrimSpace(key), "{")
 }

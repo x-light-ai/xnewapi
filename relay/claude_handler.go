@@ -11,8 +11,6 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/dto"
-	codexchannel "github.com/QuantumNous/new-api/relay/channel/codex"
-	openaichannel "github.com/QuantumNous/new-api/relay/channel/openai"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/helper"
 	"github.com/QuantumNous/new-api/service"
@@ -131,24 +129,15 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 	}
 
 	passThroughRequest := model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled
-	if !passThroughRequest && strings.EqualFold(info.ChannelOtherSettings.UpstreamProtocol, dto.UpstreamProtocolCodex) {
-		usage, newApiErr := codexchannel.ClaudeHelper(c, info, request)
-		if newApiErr != nil {
-			return newApiErr
-		}
-		service.PostTextConsumeQuota(c, info, usage, nil)
-		return nil
+	// FORK-CUSTOM: Dispatch third-party Codex upstreams through one fork-owned hook.
+	if handled, newAPIError := handleForkClaudeUpstream(c, info, request, passThroughRequest); handled {
+		return newAPIError
 	}
 
 	if !passThroughRequest &&
 		service.ShouldChatCompletionsUseResponsesGlobal(info.ChannelId, info.ChannelType, info.OriginModelName) {
-		requestRawJSON, err := common.Marshal(request)
-		if err != nil {
-			return types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
-		}
-		info.ClaudeConvertInfo.OriginalRequestRawJSON = requestRawJSON
-
-		openAIRequest, convErr := openaichannel.ConvertClaudeRequestToOpenAIRequest(request, info.UpstreamModelName, info.IsStream)
+		// FORK-CUSTOM: Use the registered Claude translator through the service boundary.
+		openAIRequest, convErr := service.TranslateClaudeRequest(*request, info)
 		if convErr != nil {
 			return types.NewError(convErr, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}

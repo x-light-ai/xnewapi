@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Provide helpers for the CPA-derived OpenAI translator.
 package openai
 
 import (

@@ -30,6 +30,11 @@ import {
 } from '@douyinfe/semi-ui';
 import { API, showSuccess, showError } from '../../../helpers';
 import { StatusContext } from '../../../context/Status';
+import {
+  getXNewApiSidebarSettingItems,
+  mergeXNewApiSidebarConfig,
+  XNEWAPI_ADMIN_SIDEBAR_DEFAULTS,
+} from '../../../extensions/xnewapi/sidebar';
 
 const { Text } = Typography;
 
@@ -61,8 +66,8 @@ export default function SettingsSidebarModulesAdmin(props) {
     admin: {
       enabled: true,
       channel: true,
-      channel_monitor: true,
-      channel_settings: true,
+      // FORK-CUSTOM: Append fork-owned sidebar defaults from one source.
+      ...XNEWAPI_ADMIN_SIDEBAR_DEFAULTS,
       models: true,
       deployment: true,
       redemption: true,
@@ -124,7 +129,7 @@ export default function SettingsSidebarModulesAdmin(props) {
       admin: {
         enabled: true,
         channel: true,
-        channel_monitor: true,
+        ...XNEWAPI_ADMIN_SIDEBAR_DEFAULTS,
         models: true,
         deployment: true,
         redemption: true,
@@ -177,14 +182,8 @@ export default function SettingsSidebarModulesAdmin(props) {
     if (props.options && props.options.SidebarModulesAdmin) {
       try {
         const modules = JSON.parse(props.options.SidebarModulesAdmin);
-        setSidebarModulesAdmin({
-          ...modules,
-          admin: {
-            ...(modules.admin || {}),
-            channel_monitor: modules.admin?.channel_monitor ?? true,
-            channel_settings: modules.admin?.channel_settings ?? true,
-          },
-        });
+        // FORK-CUSTOM: Merge persisted fork modules without replacing upstream defaults.
+        setSidebarModulesAdmin(mergeXNewApiSidebarConfig(modules));
       } catch (error) {
         // 使用默认配置
         const defaultModules = {
@@ -201,7 +200,7 @@ export default function SettingsSidebarModulesAdmin(props) {
           admin: {
             enabled: true,
             channel: true,
-            channel_monitor: true,
+            ...XNEWAPI_ADMIN_SIDEBAR_DEFAULTS,
             models: true,
             deployment: true,
             redemption: true,
@@ -276,16 +275,8 @@ export default function SettingsSidebarModulesAdmin(props) {
           title: t('订阅管理'),
           description: t('订阅套餐管理'),
         },
-        {
-          key: 'channel_monitor',
-          title: t('渠道监控'),
-          description: t('渠道健康与成功率监控'),
-        },
-        {
-          key: 'channel_settings',
-          title: t('渠道设置'),
-          description: t('渠道择优与恢复策略配置'),
-        },
+        // FORK-CUSTOM: Inject fork-owned settings rows from one source.
+        ...getXNewApiSidebarSettingItems(t),
         {
           key: 'redemption',
           title: t('兑换码管理'),

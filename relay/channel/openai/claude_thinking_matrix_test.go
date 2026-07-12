@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify thinking-block transitions in the fork translator.
 package openai
 
 import (

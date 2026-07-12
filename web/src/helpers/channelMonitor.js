@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+// FORK-CUSTOM: Provide the fork-owned channel monitoring HTTP adapter.
+
 import { API } from './api';
 
 export async function fetchChannelMonitorSummary(days = 7) {

@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify SuccessRateSelector relay integration.
 package service
 
 import (

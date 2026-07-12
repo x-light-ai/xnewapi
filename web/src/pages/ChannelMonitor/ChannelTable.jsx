@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+// FORK-CUSTOM: Render fork-owned channel health details and actions.
+
 import React from 'react';
 import { Card, Empty } from '@douyinfe/semi-ui';
 import {

@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify SuccessRateSelector interaction with channel affinity.
 package service
 
 import (

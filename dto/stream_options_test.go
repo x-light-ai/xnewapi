@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify explicit false values survive StreamOptions marshaling.
 package dto
 
 import (
@@ -15,7 +16,7 @@ func TestStreamOptions_ExplicitFalsePreserved(t *testing.T) {
 	}{
 		{"nil pointer omitted", nil, `{}`},
 		{"nil IncludeUsage omitted", &StreamOptions{}, `{}`},
-		{"explicit false preserved", &StreamOptions{IncludeUsage: BoolPtr(false)}, `{"include_usage":false}`},
+		{"explicit false preserved", &StreamOptions{IncludeUsage: BoolPtr(false), IncludeObfuscation: BoolPtr(false)}, `{"include_usage":false,"include_obfuscation":false}`},
 		{"explicit true preserved", &StreamOptions{IncludeUsage: BoolPtr(true)}, `{"include_usage":true}`},
 	}
 

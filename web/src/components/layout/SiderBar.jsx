@@ -27,6 +27,10 @@ import { useSidebar } from '../../hooks/common/useSidebar';
 import { useMinimumLoadingTime } from '../../hooks/common/useMinimumLoadingTime';
 import { isAdmin, isRoot, showError } from '../../helpers';
 import SkeletonWrapper from './components/SkeletonWrapper';
+import {
+  getXNewApiAdminItems,
+  xnewapiRouterMap,
+} from '../../extensions/xnewapi/navigation';
 
 import { Nav, Divider, Button } from '@douyinfe/semi-ui';
 
@@ -49,8 +53,8 @@ const routerMap = {
   deployment: '/console/deployment',
   playground: '/console/playground',
   personal: '/console/personal',
-  channel_monitor: '/console/channel-monitor',
-  channel_settings: '/console/channel-settings',
+  // FORK-CUSTOM: Extend the upstream route map from one fork-owned source.
+  ...xnewapiRouterMap,
 };
 
 const SiderBar = ({ onNavigate = () => {} }) => {
@@ -161,18 +165,8 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         to: '/subscription',
         className: isAdmin() ? '' : 'tableHiddle',
       },
-      {
-        text: t('渠道监控'),
-        itemKey: 'channel_monitor',
-        to: '/console/channel-monitor',
-        className: isAdmin() ? '' : 'tableHiddle',
-      },
-      {
-        text: t('渠道设置'),
-        itemKey: 'channel_settings',
-        to: '/console/channel-settings',
-        className: isAdmin() ? '' : 'tableHiddle',
-      },
+      // FORK-CUSTOM: Inject fork-owned admin navigation from one source.
+      ...getXNewApiAdminItems(t, isAdmin),
       {
         text: t('模型管理'),
         itemKey: 'models',
@@ -342,7 +336,9 @@ const SiderBar = ({ onNavigate = () => {} }) => {
         }
         icon={
           <div className='sidebar-icon-container flex-shrink-0'>
-            {getLucideIcon(item.itemKey, isSelected)}
+            {item.icon
+              ? item.icon(isSelected)
+              : getLucideIcon(item.itemKey, isSelected)}
           </div>
         }
         className={item.className}
@@ -370,7 +366,9 @@ const SiderBar = ({ onNavigate = () => {} }) => {
           }
           icon={
             <div className='sidebar-icon-container flex-shrink-0'>
-              {getLucideIcon(item.itemKey, isSelected)}
+              {item.icon
+                ? item.icon(isSelected)
+                : getLucideIcon(item.itemKey, isSelected)}
             </div>
           }
         >

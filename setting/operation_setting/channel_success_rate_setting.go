@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Define fork-owned SuccessRateSelector operation settings.
 package operation_setting
 
 import "github.com/QuantumNous/new-api/setting/config"

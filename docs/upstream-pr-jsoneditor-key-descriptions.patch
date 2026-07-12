@@ -1,0 +1,48 @@
+From: x-light-ai/xnewapi
+Subject: [PATCH] feat: support descriptions for JSON editor keys
+Target-Upstream-Commit: 4e570389dd433a717373ce9c9b822b59f5ed3d5d
+
+Allow structured settings editors to show a short description below selected
+keys without changing the existing row layout when no description is present.
+---
+ web/classic/src/components/common/ui/JSONEditor.jsx | 18 +++++++++++++++++-
+ 1 file changed, 17 insertions(+), 1 deletion(-)
+
+diff --git a/web/classic/src/components/common/ui/JSONEditor.jsx b/web/classic/src/components/common/ui/JSONEditor.jsx
+--- a/web/classic/src/components/common/ui/JSONEditor.jsx
++++ b/web/classic/src/components/common/ui/JSONEditor.jsx
+@@ -60,5 +60,6 @@
+   rules = [],
+   formApi = null,
+   renderStringValueSuffix,
++  keyDescriptions = {},
+   ...props
+ }) => {
+@@ -442,6 +443,7 @@
+           const isLastDuplicate =
+             isDuplicate &&
+             keyValuePairs.slice(index + 1).every((p) => p.key !== pair.key);
++          const keyDescription = keyDescriptions?.[pair.key];
+ 
+-          return (
++          const row = (
+             <Row key={pair.id} gutter={8} align='middle'>
+@@ -486,4 +488,18 @@
+               </Col>
+             </Row>
+           );
++
++          if (!keyDescription) {
++            return row;
++          }
++          return (
++            <div key={pair.id}>
++              {row}
++              <div style={{ marginTop: 4, marginBottom: 10, paddingLeft: 4 }}>
++                <Text type='tertiary' size='small'>
++                  {keyDescription}
++                </Text>
++              </div>
++            </div>
++          );
+         })}

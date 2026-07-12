@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Relay Claude requests through CPA-derived Codex translation.
 package codex
 
 import (
@@ -25,7 +26,7 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo, request *dto.Clau
 	if err != nil {
 		return nil, types.NewError(err, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 	}
-	info.ClaudeConvertInfo.OriginalRequestRawJSON = requestRawJSON
+	info.ClaudeConvertInfo.ForkTranslator.OriginalRequestRawJSON = requestRawJSON
 	info.AppendRequestConversion(types.RelayFormatOpenAIResponses)
 
 	converted := ConvertClaudeRequestToCodex(info.UpstreamModelName, requestRawJSON, info.IsStream)
@@ -113,7 +114,7 @@ func convertClaudeCodexResponsesRequest(c *gin.Context, info *relaycommon.RelayI
 func codexClaudeStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.Response) (*dto.Usage, *types.NewAPIError) {
 	usage := &dto.Usage{UsageSemantic: "anthropic"}
 	var streamErr *types.NewAPIError
-	state := info.ClaudeConvertInfo.StreamTranslatorState
+	state := info.ClaudeConvertInfo.ForkTranslator.StreamState
 
 	helper.StreamScannerHandler(c, resp, info, func(data string, sr *helper.StreamResult) {
 		if streamErr != nil {
@@ -122,7 +123,7 @@ func codexClaudeStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp 
 		}
 
 		eventPayload := []byte("data:" + data)
-		for _, out := range ConvertCodexResponseToClaude(c.Request.Context(), info.UpstreamModelName, info.ClaudeConvertInfo.OriginalRequestRawJSON, nil, eventPayload, &state) {
+		for _, out := range ConvertCodexResponseToClaude(c.Request.Context(), info.UpstreamModelName, info.ClaudeConvertInfo.ForkTranslator.OriginalRequestRawJSON, nil, eventPayload, &state) {
 			if len(out) == 0 {
 				continue
 			}
@@ -148,7 +149,7 @@ func codexClaudeStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, resp 
 		}
 	})
 
-	info.ClaudeConvertInfo.StreamTranslatorState = state
+	info.ClaudeConvertInfo.ForkTranslator.StreamState = state
 	if streamErr != nil {
 		return nil, streamErr
 	}
@@ -183,7 +184,7 @@ func codexClaudeStreamToNonStreamHandler(c *gin.Context, info *relaycommon.Relay
 		return nil, types.NewOpenAIError(fmt.Errorf("missing completed response event"), types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 	}
 
-	claudeBody := ConvertCodexResponseToClaudeNonStream(c.Request.Context(), info.UpstreamModelName, info.ClaudeConvertInfo.OriginalRequestRawJSON, nil, completed, nil)
+	claudeBody := ConvertCodexResponseToClaudeNonStream(c.Request.Context(), info.UpstreamModelName, info.ClaudeConvertInfo.ForkTranslator.OriginalRequestRawJSON, nil, completed, nil)
 	if len(claudeBody) == 0 {
 		return nil, types.NewOpenAIError(fmt.Errorf("failed to convert codex response to claude"), types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 	}
@@ -213,7 +214,7 @@ func codexClaudeNonStreamHandler(c *gin.Context, info *relaycommon.RelayInfo, re
 		wrapped, _ = sjson.SetRawBytes(wrapped, "response", body)
 	}
 
-	claudeBody := ConvertCodexResponseToClaudeNonStream(c.Request.Context(), info.UpstreamModelName, info.ClaudeConvertInfo.OriginalRequestRawJSON, nil, wrapped, nil)
+	claudeBody := ConvertCodexResponseToClaudeNonStream(c.Request.Context(), info.UpstreamModelName, info.ClaudeConvertInfo.ForkTranslator.OriginalRequestRawJSON, nil, wrapped, nil)
 	if len(claudeBody) == 0 {
 		return nil, types.NewOpenAIError(fmt.Errorf("failed to convert codex response to claude"), types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
 	}

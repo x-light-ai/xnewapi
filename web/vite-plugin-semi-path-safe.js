@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+// FORK-CUSTOM: Work around Semi plugin path handling on Windows builds.
+
 import fs from 'fs';
 import path from 'path';
 import { createRequire } from 'module';

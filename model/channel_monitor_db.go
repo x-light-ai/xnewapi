@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Implement cross-database channel monitoring persistence.
 package model
 
 import (

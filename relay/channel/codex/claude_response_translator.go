@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Adapt the CPA Codex-to-Claude response translator.
 package codex
 
 import (

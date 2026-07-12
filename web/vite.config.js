@@ -21,6 +21,7 @@ import react from '@vitejs/plugin-react';
 import { defineConfig, transformWithEsbuild } from 'vite';
 import path from 'path';
 import { codeInspectorPlugin } from 'code-inspector-plugin';
+// FORK-CUSTOM: Use the fork-owned Windows-safe wrapper around the Semi plugin.
 import { vitePluginSemiPathSafe } from './vite-plugin-semi-path-safe';
 
 // https://vitejs.dev/config/
@@ -50,6 +51,7 @@ export default defineConfig({
       },
     },
     react(),
+    // FORK-CUSTOM: Keep the upstream plugin options while replacing only path handling.
     vitePluginSemiPathSafe({
       cssLayer: true,
     }),

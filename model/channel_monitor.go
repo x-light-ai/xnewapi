@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Define fork-owned channel monitoring data.
 package model
 
 import (

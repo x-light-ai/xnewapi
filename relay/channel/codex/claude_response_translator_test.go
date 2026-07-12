@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify the CPA-derived Codex response translator.
 package codex
 
 import (

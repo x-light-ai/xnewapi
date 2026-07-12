@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Adapt the CPA Claude-to-OpenAI request translator.
 package openai
 
 import (

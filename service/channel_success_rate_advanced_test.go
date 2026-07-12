@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify advanced SuccessRateSelector configuration.
 package service
 
 import (

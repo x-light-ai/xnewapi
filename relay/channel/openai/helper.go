@@ -42,7 +42,8 @@ func handleClaudeFormat(c *gin.Context, data string, info *relaycommon.RelayInfo
 	if streamResponse.Usage != nil {
 		info.ClaudeConvertInfo.Usage = streamResponse.Usage
 	}
-	claudeResponses, err := StreamResponseOpenAI2ClaudeWithTranslator(&streamResponse, info)
+	// FORK-CUSTOM: Preserve translator error semantics through the service boundary.
+	claudeResponses, err := service.OpenAIStreamResponseToClaude(&streamResponse, info)
 	if err != nil {
 		return err
 	}
@@ -219,7 +220,8 @@ func HandleFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, lastStream
 
 		info.ClaudeConvertInfo.Usage = usage
 
-		claudeResponses, err := StreamResponseOpenAI2ClaudeWithTranslator(&streamResponse, info)
+		// FORK-CUSTOM: Preserve translator error semantics through the service boundary.
+		claudeResponses, err := service.OpenAIStreamResponseToClaude(&streamResponse, info)
 		if err != nil {
 			common.SysLog("error converting stream response to claude: " + err.Error())
 			return

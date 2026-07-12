@@ -1,4 +1,5 @@
 @echo off
+REM FORK-CUSTOM: Provide a local Windows development launcher for the fork.
 echo Starting debug script...
 
 where go >nul 2>nul

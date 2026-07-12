@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify fork-owned Codex and channel-setting integration.
 package codex
 
 import (

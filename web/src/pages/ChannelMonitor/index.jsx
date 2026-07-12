@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+// FORK-CUSTOM: Compose the fork-owned channel monitoring workspace.
+
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Banner,

@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+// FORK-CUSTOM: Configure the fork-owned SuccessRateSelector policy.
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Banner,
@@ -45,7 +47,7 @@ import {
   CHANNEL_SUCCESS_RATE_KEYS,
   CHANNEL_SUCCESS_RATE_PRIORITY_WEIGHTS_TEMPLATE,
   getDefaultChannelSuccessRateOptions,
-} from '../../../constants';
+} from '../../../constants/channel-settings.constants';
 
 const KEY_ENABLED = CHANNEL_SUCCESS_RATE_KEYS.ENABLED;
 const KEY_HALF_LIFE = CHANNEL_SUCCESS_RATE_KEYS.HALF_LIFE;

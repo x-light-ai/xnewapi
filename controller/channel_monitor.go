@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Implement fork-owned channel monitoring APIs.
 package controller
 
 import (

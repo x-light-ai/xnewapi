@@ -1478,7 +1478,8 @@ func GeminiChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp *http.R
 			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
 		}
 	case types.RelayFormatClaude:
-		claudeResp, err := openai.ResponseOpenAI2ClaudeWithTranslator(fullTextResponse, info)
+		// FORK-CUSTOM: Preserve translator error semantics through the service boundary.
+		claudeResp, err := service.OpenAIResponseToClaude(fullTextResponse, info)
 		if err != nil {
 			return nil, types.NewError(err, types.ErrorCodeBadResponseBody)
 		}

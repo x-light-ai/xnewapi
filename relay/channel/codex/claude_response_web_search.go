@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Translate Codex web-search events to Claude blocks.
 package codex
 
 import (

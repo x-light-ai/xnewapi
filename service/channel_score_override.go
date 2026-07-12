@@ -17,6 +17,7 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+// FORK-CUSTOM: Apply administrator score overrides to fork channel selection.
 package service
 
 // SetChannelScoreOverride sets or clears a manual score override for a channel.

@@ -27,7 +27,16 @@ import {
   verifyJSON,
 } from '../../../../helpers';
 import { useIsMobile } from '../../../../hooks/common/useIsMobile';
-import { CHANNEL_OPTIONS, MODEL_FETCHABLE_CHANNEL_TYPES, getDefaultChannelFormInputs } from '../../../../constants';
+import { CHANNEL_OPTIONS, MODEL_FETCHABLE_CHANNEL_TYPES } from '../../../../constants';
+import { getDefaultChannelFormInputs } from '../../../../constants/channel-settings.constants';
+import {
+  applyXNewApiChannelSettings,
+  cleanupXNewApiChannelInputs,
+  hasXNewApiAdvancedSettings,
+  resetXNewApiChannelSettings,
+  saveXNewApiChannelSettings,
+  XNewApiUpstreamProtocolField,
+} from '../../../../extensions/xnewapi/channelSettings';
 import {
   SideSheet,
   Space,
@@ -847,8 +856,8 @@ const EditChannelModal = (props) => {
             parsedSettings.allow_inference_geo || false;
           data.allow_speed = parsedSettings.allow_speed || false;
           data.claude_beta_query = parsedSettings.claude_beta_query || false;
-          data.upstream_protocol =
-            parsedSettings.upstream_protocol || 'anthropic';
+          // FORK-CUSTOM: Load fork-owned channel settings through one extension.
+          applyXNewApiChannelSettings(data, parsedSettings);
           data.upstream_model_update_check_enabled =
             parsedSettings.upstream_model_update_check_enabled === true;
           data.upstream_model_update_auto_sync_enabled =
@@ -879,7 +888,7 @@ const EditChannelModal = (props) => {
           data.allow_inference_geo = false;
           data.allow_speed = false;
           data.claude_beta_query = false;
-          data.upstream_protocol = 'anthropic';
+          resetXNewApiChannelSettings(data);
           data.upstream_model_update_check_enabled = false;
           data.upstream_model_update_auto_sync_enabled = false;
           data.upstream_model_update_last_check_time = 0;
@@ -898,7 +907,7 @@ const EditChannelModal = (props) => {
         data.allow_inference_geo = false;
         data.allow_speed = false;
         data.claude_beta_query = false;
-        data.upstream_protocol = 'anthropic';
+        resetXNewApiChannelSettings(data);
         data.upstream_model_update_check_enabled = false;
         data.upstream_model_update_auto_sync_enabled = false;
         data.upstream_model_update_last_check_time = 0;
@@ -977,7 +986,7 @@ const EditChannelModal = (props) => {
         data.pass_through_body_enabled ||
         data.force_format ||
         data.claude_beta_query ||
-        data.upstream_protocol === 'codex' ||
+        hasXNewApiAdvancedSettings(data) ||
         data.system_prompt_override;
       if (hasAdvancedValues) {
         setAdvancedSettingsOpen(true);
@@ -1741,12 +1750,11 @@ const EditChannelModal = (props) => {
         settings.allow_inference_geo = localInputs.allow_inference_geo === true;
         settings.allow_speed = localInputs.allow_speed === true;
         settings.claude_beta_query = localInputs.claude_beta_query === true;
-        settings.upstream_protocol =
-          localInputs.upstream_protocol === 'codex' ? 'codex' : 'anthropic';
-      } else if ('upstream_protocol' in settings) {
-        delete settings.upstream_protocol;
       }
     }
+
+    // FORK-CUSTOM: Persist fork-owned channel settings through one extension.
+    saveXNewApiChannelSettings(settings, localInputs);
 
     settings.upstream_model_update_check_enabled =
       localInputs.upstream_model_update_check_enabled === true;
@@ -1793,7 +1801,7 @@ const EditChannelModal = (props) => {
     delete localInputs.allow_inference_geo;
     delete localInputs.allow_speed;
     delete localInputs.claude_beta_query;
-    delete localInputs.upstream_protocol;
+    cleanupXNewApiChannelInputs(localInputs);
     delete localInputs.upstream_model_update_check_enabled;
     delete localInputs.upstream_model_update_auto_sync_enabled;
     delete localInputs.upstream_model_update_last_check_time;
@@ -2465,8 +2473,9 @@ const EditChannelModal = (props) => {
                     <Form.Switch field='claude_beta_query' label={t('Claude 强制 beta=true')} checkedText={t('开')} uncheckedText={t('关')} onChange={(value) => handleChannelOtherSettingsChange('claude_beta_query', value)} extraText={t('开启后，该渠道请求 Claude 时将强制追加 ?beta=true（无需客户端手动传参）')} />
                   )}
 
+                  {/* FORK-CUSTOM: Render the fork-owned protocol field from its extension. */}
                   {inputs.type === 14 && (
-                    <Form.Select field='upstream_protocol' label={t('上游协议类型')} optionList={[{ label: t('Anthropic Claude'), value: 'anthropic' }, { label: t('Codex'), value: 'codex' }]} onChange={(value) => handleChannelOtherSettingsChange('upstream_protocol', value || 'anthropic')} extraText={t('客户端仍使用 Claude /v1/messages；当真实上游是 Codex 时选择 Codex 以启用 Codex 与 Claude 的直接转换')} />
+                    <XNewApiUpstreamProtocolField t={t} onChange={(value) => handleChannelOtherSettingsChange('upstream_protocol', value)} />
                   )}
 
                   {inputs.type === 1 && (

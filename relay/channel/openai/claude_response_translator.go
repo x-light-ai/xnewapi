@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Adapt the CPA OpenAI-to-Claude response translator.
 package openai
 
 import (
@@ -189,7 +190,7 @@ func ResponseOpenAI2ClaudeWithTranslator(openAIResponse *dto.OpenAITextResponse,
 	if err != nil {
 		return nil, err
 	}
-	converted := ConvertOpenAIResponseToClaudeNonStreamBytes(info.ClaudeConvertInfo.OriginalRequestRawJSON, responseBytes)
+	converted := ConvertOpenAIResponseToClaudeNonStreamBytes(info.ClaudeConvertInfo.ForkTranslator.OriginalRequestRawJSON, responseBytes)
 	var claudeResp dto.ClaudeResponse
 	if err = common.Unmarshal(converted, &claudeResp); err != nil {
 		return nil, err
@@ -212,9 +213,9 @@ func StreamResponseOpenAI2ClaudeWithTranslator(openAIResponse *dto.ChatCompletio
 	if err != nil {
 		return nil, err
 	}
-	param := info.ClaudeConvertInfo.StreamTranslatorState
-	resultBytes := convertOpenAIResponseToClaudeStreamBytes(info.ClaudeConvertInfo.OriginalRequestRawJSON, rawJSON, &param)
-	info.ClaudeConvertInfo.StreamTranslatorState = param
+	param := info.ClaudeConvertInfo.ForkTranslator.StreamState
+	resultBytes := convertOpenAIResponseToClaudeStreamBytes(info.ClaudeConvertInfo.ForkTranslator.OriginalRequestRawJSON, rawJSON, &param)
+	info.ClaudeConvertInfo.ForkTranslator.StreamState = param
 
 	responses := make([]*dto.ClaudeResponse, 0, len(resultBytes))
 	for _, item := range resultBytes {

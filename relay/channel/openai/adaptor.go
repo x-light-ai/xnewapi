@@ -60,12 +60,8 @@ func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayIn
 	//		println(fmt.Sprintf("failed to save request body to file: %v", err))
 	//	}
 	//}
-	requestRawJSON, err := common.Marshal(request)
-	if err != nil {
-		return nil, err
-	}
-	info.ClaudeConvertInfo.OriginalRequestRawJSON = requestRawJSON
-	aiRequest, err := ConvertClaudeRequestToOpenAIRequest(request, info.UpstreamModelName, info.IsStream)
+	// FORK-CUSTOM: Use the registered Claude translator through the upstream service facade.
+	aiRequest, err := service.TranslateClaudeRequest(*request, info)
 	if err != nil {
 		return nil, err
 	}

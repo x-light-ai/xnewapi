@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Implement fork-owned success-rate channel selection and circuit policy.
 package service
 
 import (

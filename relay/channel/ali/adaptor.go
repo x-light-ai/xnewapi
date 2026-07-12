@@ -14,6 +14,7 @@ import (
 	"github.com/QuantumNous/new-api/relay/channel/openai"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
 	"github.com/QuantumNous/new-api/relay/constant"
+	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/model_setting"
 	"github.com/QuantumNous/new-api/types"
 
@@ -56,18 +57,13 @@ func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayIn
 		return req, nil
 	}
 
-	requestRawJSON, err := common.Marshal(req)
-	if err != nil {
-		return nil, err
-	}
-	info.ClaudeConvertInfo.OriginalRequestRawJSON = requestRawJSON
-
-	oaiReq, err := openai.ConvertClaudeRequestToOpenAIRequest(req, info.UpstreamModelName, info.IsStream)
+	// FORK-CUSTOM: Use the registered Claude translator through the upstream service facade.
+	oaiReq, err := service.TranslateClaudeRequest(*req, info)
 	if err != nil {
 		return nil, err
 	}
 	if info.SupportStreamOptions && info.IsStream {
-		oaiReq.StreamOptions = &dto.StreamOptions{IncludeUsage: openai.BoolPtr(true)}
+		oaiReq.StreamOptions = &dto.StreamOptions{IncludeUsage: common.GetPointer(true)}
 	}
 	return a.ConvertOpenAIRequest(c, info, oaiReq)
 }

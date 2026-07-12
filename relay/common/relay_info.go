@@ -42,9 +42,13 @@ type ClaudeConvertInfo struct {
 
 	ToolCallBaseIndex      int
 	ToolCallMaxIndexOffset int
-	ToolNameMap            map[string]string
+	// FORK-CUSTOM: Keep CPA translator-only state behind one shared-state extension.
+	ForkTranslator ClaudeTranslatorState
+}
+
+type ClaudeTranslatorState struct {
 	OriginalRequestRawJSON []byte
-	StreamTranslatorState  any
+	StreamState            any
 }
 
 type RerankerInfo struct {

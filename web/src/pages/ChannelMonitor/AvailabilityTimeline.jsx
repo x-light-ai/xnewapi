@@ -17,6 +17,8 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 For commercial licensing, please contact support@quantumnous.com
 */
 
+// FORK-CUSTOM: Render fork-owned channel availability history.
+
 import React, { useMemo } from 'react';
 import { Card, Empty, Tag, Typography } from '@douyinfe/semi-ui';
 import {

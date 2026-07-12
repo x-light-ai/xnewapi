@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify the CPA-derived OpenAI translator integration.
 package openai
 
 import (
@@ -159,7 +160,7 @@ func TestConvertClaudeRequestToOpenAIRequest_StripsClaudeCodeAttribution(t *test
 func TestResponseOpenAI2ClaudeWithTranslator_RestoresToolNameAndUsage(t *testing.T) {
 	info := &relaycommon.RelayInfo{
 		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
-			OriginalRequestRawJSON: []byte(`{"tools":[{"name":"Get_Weather","description":"Look up weather","input_schema":{"type":"object"}}]}`),
+			ForkTranslator: relaycommon.ClaudeTranslatorState{OriginalRequestRawJSON: []byte(`{"tools":[{"name":"Get_Weather","description":"Look up weather","input_schema":{"type":"object"}}]}`)},
 		},
 	}
 	response := &dto.OpenAITextResponse{
@@ -218,7 +219,7 @@ func TestResponseOpenAI2ClaudeWithTranslator_RestoresToolNameAndUsage(t *testing
 func TestResponseOpenAI2ClaudeWithTranslator_RestoresSanitizedToolName(t *testing.T) {
 	info := &relaycommon.RelayInfo{
 		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
-			OriginalRequestRawJSON: []byte(`{"tools":[{"name":"mcp/server/read","description":"Read tool","input_schema":{"type":"object"}}]}`),
+			ForkTranslator: relaycommon.ClaudeTranslatorState{OriginalRequestRawJSON: []byte(`{"tools":[{"name":"mcp/server/read","description":"Read tool","input_schema":{"type":"object"}}]}`)},
 		},
 	}
 	response := &dto.OpenAITextResponse{
@@ -246,8 +247,8 @@ func TestResponseOpenAI2ClaudeWithTranslator_RestoresSanitizedToolName(t *testin
 func TestStreamResponseOpenAI2ClaudeWithTranslator_EmitsThinkingToolAndStop(t *testing.T) {
 	info := &relaycommon.RelayInfo{
 		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
-			LastMessagesType:       relaycommon.LastMessageTypeNone,
-			OriginalRequestRawJSON: []byte(`{"tools":[{"name":"Get_Weather"}]}`),
+			LastMessagesType: relaycommon.LastMessageTypeNone,
+			ForkTranslator:   relaycommon.ClaudeTranslatorState{OriginalRequestRawJSON: []byte(`{"tools":[{"name":"Get_Weather"}]}`)},
 		},
 	}
 

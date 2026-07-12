@@ -1,3 +1,4 @@
+# FORK-CUSTOM: Publish fork-owned xnewapi images independently from upstream.
 name: Publish Docker image - xnewapi
 
 on:

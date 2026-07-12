@@ -1,3 +1,4 @@
+// FORK-CUSTOM: Verify fork-owned channel monitoring persistence.
 package model
 
 import (

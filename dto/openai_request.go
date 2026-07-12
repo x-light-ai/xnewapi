@@ -241,6 +241,7 @@ type FunctionRequest struct {
 }
 
 type StreamOptions struct {
+	// FORK-CUSTOM: Optional booleans must preserve explicit false values upstream.
 	IncludeUsage *bool `json:"include_usage,omitempty"`
 	// IncludeObfuscation is only for /v1/responses stream payload.
 	// This field is filtered by default and can be enabled via channel setting allow_include_obfuscation.
