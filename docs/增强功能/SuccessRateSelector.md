@@ -536,9 +536,9 @@ SuccessRateSelector 使用统一配置前缀：`channel_success_rate_setting.*`
 相关页面与接口：
 
 - 管理端页面：`/console/channel-monitor`
-- 汇总接口：`/api/channel_monitor/summary`
-- 趋势接口：`/api/channel_monitor/health`
-- 渠道分页接口：`/api/channel_monitor/channels`
+- 汇总接口：`/api/xnewapi/channel-monitor/summary`
+- 趋势接口：`/api/xnewapi/channel-monitor/health`
+- 渠道分页接口：`/api/xnewapi/channel-monitor/channels`
 
 ## 一个简单的落地建议
 

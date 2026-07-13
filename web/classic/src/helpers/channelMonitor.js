@@ -21,8 +21,10 @@ For commercial licensing, please contact support@quantumnous.com
 
 import { API } from './api';
 
+const channelMonitorBasePath = '/api/xnewapi/channel-monitor';
+
 export async function fetchChannelMonitorSummary(days = 7) {
-  const response = await API.get('/api/channel_monitor/summary', {
+  const response = await API.get(`${channelMonitorBasePath}/summary`, {
     params: { days },
   });
   const { success, data, message } = response.data || {};
@@ -33,7 +35,7 @@ export async function fetchChannelMonitorSummary(days = 7) {
 }
 
 export async function fetchChannelMonitorHealth(days = 7) {
-  const response = await API.get('/api/channel_monitor/health', {
+  const response = await API.get(`${channelMonitorBasePath}/health`, {
     params: { days },
   });
   const { success, data, message } = response.data || {};
@@ -48,7 +50,7 @@ export async function fetchChannelMonitorChannels({
   all = false,
   group = '',
 } = {}) {
-  const response = await API.get('/api/channel_monitor/channels', {
+  const response = await API.get(`${channelMonitorBasePath}/channels`, {
     params: {
       days,
       all,
@@ -72,7 +74,7 @@ export async function fetchChannelMonitorTimeline({
   limit = 20,
   group = '',
 } = {}) {
-  const response = await API.get('/api/channel_monitor/timeline', {
+  const response = await API.get(`${channelMonitorBasePath}/timeline`, {
     params: {
       hours,
       bucket_minutes: bucketMinutes,
@@ -88,7 +90,7 @@ export async function fetchChannelMonitorTimeline({
 }
 
 export async function fetchChannelMonitorRankings({ days = 1, top = 10 } = {}) {
-  const response = await API.get('/api/channel_monitor/rankings', {
+  const response = await API.get(`${channelMonitorBasePath}/rankings`, {
     params: { days, top },
   });
   const { success, data, message } = response.data || {};
@@ -103,7 +105,7 @@ export async function fetchChannelMonitorRankings({ days = 1, top = 10 } = {}) {
 
 export async function setChannelScoreOverride(channelId, score) {
   const response = await API.post(
-    `/api/channel_monitor/channels/${channelId}/score_override`,
+    `${channelMonitorBasePath}/channels/${channelId}/score_override`,
     { score },
   );
   const { success, message } = response.data || {};
@@ -112,7 +114,7 @@ export async function setChannelScoreOverride(channelId, score) {
 
 export async function clearChannelTemporaryCircuit(channelId) {
   const response = await API.post(
-    `/api/channel_monitor/channels/${channelId}/clear_circuit`,
+    `${channelMonitorBasePath}/channels/${channelId}/clear_circuit`,
   );
   const { success, message } = response.data || {};
   if (!success)

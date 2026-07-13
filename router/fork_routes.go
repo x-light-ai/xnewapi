@@ -8,7 +8,7 @@ import (
 )
 
 func registerForkRoutes(apiRouter *gin.RouterGroup) {
-	channelMonitorRoute := apiRouter.Group("/channel_monitor")
+	channelMonitorRoute := apiRouter.Group("/xnewapi/channel-monitor")
 	channelMonitorRoute.Use(middleware.AdminAuth())
 	{
 		channelMonitorRoute.GET("/summary", controller.GetChannelMonitorSummary)

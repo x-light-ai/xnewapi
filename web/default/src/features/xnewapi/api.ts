@@ -20,6 +20,8 @@ import type {
   ChannelTimeline,
 } from './types'
 
+const channelMonitorBasePath = '/api/xnewapi/channel-monitor'
+
 function unwrap<T>(response: ApiResponse<T>): T {
   if (!response.success) {
     throw new Error(response.message || 'Request failed')
@@ -29,7 +31,7 @@ function unwrap<T>(response: ApiResponse<T>): T {
 
 export async function getChannelMonitorSummary(days: number) {
   const response = await api.get<ApiResponse<ChannelMonitorSummary>>(
-    '/api/channel_monitor/summary',
+    `${channelMonitorBasePath}/summary`,
     { params: { days } }
   )
   return unwrap(response.data)
@@ -37,7 +39,7 @@ export async function getChannelMonitorSummary(days: number) {
 
 export async function getChannelMonitorHealth(days: number) {
   const response = await api.get<ApiResponse<ChannelHealthPoint[]>>(
-    '/api/channel_monitor/health',
+    `${channelMonitorBasePath}/health`,
     { params: { days } }
   )
   return unwrap(response.data)
@@ -45,7 +47,7 @@ export async function getChannelMonitorHealth(days: number) {
 
 export async function getChannelMonitorChannels(days: number, group: string) {
   const response = await api.get<ApiResponse<ChannelMonitorPageData>>(
-    '/api/channel_monitor/channels',
+    `${channelMonitorBasePath}/channels`,
     { params: { days, group, all: true } }
   )
   return unwrap(response.data)
@@ -53,7 +55,7 @@ export async function getChannelMonitorChannels(days: number, group: string) {
 
 export async function getChannelMonitorTimeline(group: string) {
   const response = await api.get<ApiResponse<ChannelTimeline[]>>(
-    '/api/channel_monitor/timeline',
+    `${channelMonitorBasePath}/timeline`,
     { params: { hours: 24, bucket_minutes: 10, limit: 20, group } }
   )
   return unwrap(response.data)
@@ -61,7 +63,7 @@ export async function getChannelMonitorTimeline(group: string) {
 
 export async function getChannelMonitorRankings(days: number) {
   const response = await api.get<ApiResponse<ChannelRankings>>(
-    '/api/channel_monitor/rankings',
+    `${channelMonitorBasePath}/rankings`,
     { params: { days, top: 10 } }
   )
   return unwrap(response.data)
@@ -69,7 +71,7 @@ export async function getChannelMonitorRankings(days: number) {
 
 export async function setChannelScore(channelId: number, score: number | null) {
   const response = await api.post<ApiResponse<null>>(
-    `/api/channel_monitor/channels/${channelId}/score_override`,
+    `${channelMonitorBasePath}/channels/${channelId}/score_override`,
     { score }
   )
   return unwrap(response.data)
@@ -77,7 +79,7 @@ export async function setChannelScore(channelId: number, score: number | null) {
 
 export async function clearChannelCircuit(channelId: number) {
   const response = await api.post<ApiResponse<null>>(
-    `/api/channel_monitor/channels/${channelId}/clear_circuit`
+    `${channelMonitorBasePath}/channels/${channelId}/clear_circuit`
   )
   return unwrap(response.data)
 }

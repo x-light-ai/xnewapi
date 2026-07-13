@@ -70,6 +70,7 @@ Anthropic Claude 渠道新增 `upstream_protocol` 字段(`anthropic`/`codex`),�
 
 ### 5. 渠道监控系统
 渠道健康度监控:成功率/失败数/延迟汇总、可用性趋势、延迟/稳定性排名、临时熔断事件记录,前端独立页面。
+- **API 命名空间**:`/api/xnewapi/channel-monitor/*`,避免与上游 `/api/channel/` 集合路由共享前缀并干扰 Gin 尾斜杠重定向。
 - **A类核心**:`controller/channel_monitor.go`(+`_test.go`)、`model/channel_monitor.go`、`model/channel_monitor_db.go`(+`_test.go`)、`model/channel_circuit_event.go`、`web/classic/src/pages/ChannelMonitor/`、`web/default/src/features/xnewapi/channel-monitor.tsx`。
 - **A类组装**:`forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`、`router/fork_routes.go`、classic `extensions/xnewapi/`、default `features/xnewapi/` 与 `routes/_authenticated/channel-monitor/`。
 - **B类接入点**:`main.go` 仅调用 `forkcustom.Start()`;`model/main.go` 仅保留模型注册和迁移调用;`router/api-router.go` 仅调用 `registerForkRoutes`;classic App/Sidebar 与 default sidebar/section registry 只展开 fork extension。

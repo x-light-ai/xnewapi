@@ -181,7 +181,7 @@ func TestGetChannelMonitorSummaryHandlerReturnsAggregatedData(t *testing.T) {
 	channel := seedChannelMonitorControllerChannel(t, db, "alpha", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
 	seedChannelMonitorControllerStat(t, db, channel.Id, now.Add(-time.Hour).Truncate(time.Minute), 8, 6, 2, 120, 180, now.Add(-2*time.Minute))
 
-	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/channel_monitor/summary?days=7")
+	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/xnewapi/channel-monitor/summary?days=7")
 	GetChannelMonitorSummary(ctx)
 
 	response := decodeChannelMonitorResponse(t, recorder)
@@ -211,7 +211,7 @@ func TestGetChannelMonitorSummaryHandlerReturnsZeroValuesWhenEmpty(t *testing.T)
 	db := setupChannelMonitorControllerTestDB(t)
 	_ = seedChannelMonitorControllerChannel(t, db, "alpha", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
 
-	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/channel_monitor/summary?days=7")
+	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/xnewapi/channel-monitor/summary?days=7")
 	GetChannelMonitorSummary(ctx)
 
 	response := decodeChannelMonitorResponse(t, recorder)
@@ -245,7 +245,7 @@ func TestGetChannelMonitorHealthHandlerReturnsDailyHealthData(t *testing.T) {
 	seedChannelMonitorControllerStat(t, db, beta.Id, yesterday, 10, 4, 6, 300, 360, yesterday)
 	seedChannelMonitorControllerStat(t, db, alpha.Id, today, 4, 4, 0, 120, 140, today)
 
-	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/channel_monitor/health?days=2")
+	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/xnewapi/channel-monitor/health?days=2")
 	GetChannelMonitorHealth(ctx)
 
 	response := decodeChannelMonitorResponse(t, recorder)
@@ -284,7 +284,7 @@ func TestGetChannelMonitorHealthHandlerReturnsEmptyBucketsWhenNoData(t *testing.
 	db := setupChannelMonitorControllerTestDB(t)
 	_ = seedChannelMonitorControllerChannel(t, db, "Alpha", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
 
-	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/channel_monitor/health?days=2")
+	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/xnewapi/channel-monitor/health?days=2")
 	GetChannelMonitorHealth(ctx)
 
 	response := decodeChannelMonitorResponse(t, recorder)
@@ -313,7 +313,7 @@ func TestGetChannelMonitorChannelsHandlerReturnsEmptyMetricsWhenNoData(t *testin
 	db := setupChannelMonitorControllerTestDB(t)
 	channel := seedChannelMonitorControllerChannel(t, db, "Alpha", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
 
-	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/channel_monitor/channels?page=1&page_size=20&days=2&sort=request_count&order=desc")
+	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/xnewapi/channel-monitor/channels?page=1&page_size=20&days=2&sort=request_count&order=desc")
 	GetChannelMonitorChannels(ctx)
 
 	response := decodeChannelMonitorResponse(t, recorder)
@@ -368,7 +368,7 @@ func TestGetChannelMonitorChannelsHandlerShowsAutoDisabledChannelStatus(t *testi
 	common.SetContextKey(observeCtx, constant.ContextKeyOriginalModel, "gpt-4")
 	service.ObserveChannelRequestResult(observeCtx, false, types.NewErrorWithStatusCode(errors.New("upstream failed"), "", http.StatusInternalServerError))
 
-	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/channel_monitor/channels?page=1&page_size=20&days=2&sort=request_count&order=desc")
+	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/xnewapi/channel-monitor/channels?page=1&page_size=20&days=2&sort=request_count&order=desc")
 	GetChannelMonitorChannels(ctx)
 
 	response := decodeChannelMonitorResponse(t, recorder)
@@ -421,7 +421,7 @@ func TestGetChannelMonitorChannelsHandlerMergesRuntimeStateAndMetrics(t *testing
 	common.SetContextKey(observeCtx, constant.ContextKeyRequestStartTime, time.Now().Add(-150*time.Millisecond))
 	service.ObserveChannelRequestResult(observeCtx, false, types.NewErrorWithStatusCode(errors.New("upstream failed"), "", http.StatusInternalServerError))
 
-	ctx, pageRecorder := newChannelMonitorRequest(t, http.MethodGet, "/api/channel_monitor/channels?page=1&page_size=20&days=2&sort=request_count&order=desc")
+	ctx, pageRecorder := newChannelMonitorRequest(t, http.MethodGet, "/api/xnewapi/channel-monitor/channels?page=1&page_size=20&days=2&sort=request_count&order=desc")
 	GetChannelMonitorChannels(ctx)
 
 	response := decodeChannelMonitorResponse(t, pageRecorder)
@@ -761,7 +761,7 @@ func TestGetChannelMonitorChannelsHandlerFiltersByGroup(t *testing.T) {
 	seedChannelMonitorControllerStat(t, db, alpha.Id, yesterday, 10, 9, 1, 120, 180, yesterday)
 	seedChannelMonitorControllerStat(t, db, beta.Id, yesterday, 8, 7, 1, 140, 220, yesterday)
 
-	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/channel_monitor/channels?page=1&page_size=20&days=2&sort=request_count&order=desc&group=alpha")
+	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/xnewapi/channel-monitor/channels?page=1&page_size=20&days=2&sort=request_count&order=desc&group=alpha")
 	GetChannelMonitorChannels(ctx)
 
 	response := decodeChannelMonitorResponse(t, recorder)
@@ -795,7 +795,7 @@ func TestGetChannelMonitorChannelsHandlerNormalizesPagination(t *testing.T) {
 	seedChannelMonitorControllerStat(t, db, alpha.Id, yesterday, 10, 10, 0, 100, 120, yesterday)
 	seedChannelMonitorControllerStat(t, db, beta.Id, yesterday, 10, 4, 6, 300, 360, yesterday)
 
-	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/channel_monitor/channels?page=0&page_size=999&days=2&sort=name&order=asc")
+	ctx, recorder := newChannelMonitorRequest(t, http.MethodGet, "/api/xnewapi/channel-monitor/channels?page=0&page_size=999&days=2&sort=name&order=asc")
 	GetChannelMonitorChannels(ctx)
 
 	response := decodeChannelMonitorResponse(t, recorder)
