@@ -60,6 +60,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ env.GHCR_REPOSITORY }}:latest
+            ghcr.io/${{ env.GHCR_REPOSITORY }}:alpha
             ghcr.io/${{ env.GHCR_REPOSITORY }}:${{ steps.version.outputs.value }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -79,5 +80,9 @@ jobs:
           echo "### Docker Image Digest (amd64)" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "ghcr.io/${{ env.GHCR_REPOSITORY }}:latest" >> $GITHUB_STEP_SUMMARY
+          echo "ghcr.io/${{ env.GHCR_REPOSITORY }}:alpha" >> $GITHUB_STEP_SUMMARY
+          echo "ghcr.io/${{ env.GHCR_REPOSITORY }}:${{ steps.version.outputs.value }}" >> $GITHUB_STEP_SUMMARY
           echo "${{ steps.build.outputs.digest }}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> 回退时请使用版本号标签: \`ghcr.io/${{ env.GHCR_REPOSITORY }}:${{ steps.version.outputs.value }}\`" >> $GITHUB_STEP_SUMMARY
