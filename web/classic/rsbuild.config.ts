@@ -10,6 +10,10 @@ const semiUiDir = path.resolve(
   path.dirname(require.resolve('@douyinfe/semi-ui')),
   '../..',
 )
+// FORK-CUSTOM: Resolve Semi's date-fns v2 without assuming Bun's hoisting layout.
+const semiDateFnsDir = path.dirname(
+  require.resolve('date-fns/package.json', { paths: [semiUiDir] }),
+)
 
 export default defineConfig(({ envMode }) => {
   const env = loadEnv({ mode: envMode, prefixes: ['VITE_'] })
@@ -43,8 +47,7 @@ export default defineConfig(({ envMode }) => {
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        // FORK-CUSTOM: Keep Semi's date-fns-tz v1 on its compatible date-fns v2 copy.
-        'date-fns': path.resolve(semiUiDir, 'node_modules/date-fns'),
+        'date-fns': semiDateFnsDir,
         '@douyinfe/semi-ui/dist/css/semi.css': path.resolve(
           semiUiDir,
           'dist/css/semi.css',
