@@ -826,6 +826,7 @@
     "Choose the default charts, range, and time granularity for model analytics.": "選擇模型呼叫分析的預設圖表、範圍和時間粒度。",
     "Choose where to fetch upstream metadata.": "選擇從何處獲取上游元數據。",
     "Choose which charts are selected by default when opening model analytics.": "選擇打開模型呼叫分析時預設選中的圖表。",
+    "Circuit open": "臨時熔斷",
     "Circuit recovery policy": "熔断恢复策略",
     "Clamped to": "限制為",
     "Classic (Legacy Frontend)": "經典前端",

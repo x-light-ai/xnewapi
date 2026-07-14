@@ -826,6 +826,7 @@
     "Choose the default charts, range, and time granularity for model analytics.": "Choisissez les graphiques, la plage et la granularité temporelle par défaut pour l'analyse des modèles.",
     "Choose where to fetch upstream metadata.": "Choisissez où récupérer les métadonnées amont.",
     "Choose which charts are selected by default when opening model analytics.": "Choisissez les graphiques sélectionnés par défaut à l'ouverture de l'analyse des modèles.",
+    "Circuit open": "Circuit ouvert",
     "Circuit recovery policy": "Politique de récupération du circuit",
     "Clamped to": "Limité à",
     "Classic (Legacy Frontend)": "Classique (Ancien frontend)",

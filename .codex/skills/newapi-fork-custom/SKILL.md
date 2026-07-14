@@ -37,6 +37,7 @@ description: 维护 x-light-ai/xnewapi 相对官方 QuantumNous/new-api 的 fork
    4. 用集中式可见性策略包裹完整上游 UI 块。
    5. 只有无稳定边界时才修改上游函数，并先把 fork 实现抽离。
 5. **保持接口语义**：不得为了减少 diff 吞掉 translator 错误、改变 retry 边界、泄露密钥，或破坏显式 `0`/`false` 的透传。JSON 操作使用 `common.*`，数据库保持 SQLite、MySQL、PostgreSQL 兼容。
+   - fork 专属前端文案必须接入项目 i18n，但只需维护 `en` 和 `zh`；`fr`、`ru`、`ja`、`vi` 使用回退，不要求补充 fork 专属翻译。修改上游或共享文案时仍遵循项目的完整语言要求。
 6. **补充标记**：在最终落点补 `FORK-CUSTOM`，不要先给即将移动或删除的代码批量加标记。
 7. **更新清单**：功能、接入点或验证命令发生变化时更新现有 fork 功能清单，不创建第二份事实源。
 8. **验证**：运行格式检查、受影响包测试、`go build ./...`，前端变更使用 Bun 运行相关 lint/build。最后再次运行审计脚本并执行 `git diff --check`。

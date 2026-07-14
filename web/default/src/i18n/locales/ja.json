@@ -826,6 +826,7 @@
     "Choose the default charts, range, and time granularity for model analytics.": "モデル分析のデフォルトチャート、範囲、時間粒度を選択します。",
     "Choose where to fetch upstream metadata.": "アップストリームのメタデータをどこからフェッチするかを選択してください。",
     "Choose which charts are selected by default when opening model analytics.": "モデル分析を開いたときにデフォルトで選択されるチャートを選択します。",
+    "Circuit open": "サーキット開放中",
     "Circuit recovery policy": "サーキット復旧ポリシー",
     "Clamped to": "制限後の値",
     "Classic (Legacy Frontend)": "クラシック（旧フロントエンド）",

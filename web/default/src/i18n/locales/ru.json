@@ -826,6 +826,7 @@
     "Choose the default charts, range, and time granularity for model analytics.": "Выберите графики, диапазон и временную детализацию по умолчанию для аналитики моделей.",
     "Choose where to fetch upstream metadata.": "Выберите, откуда получать метаданные вышестоящего источника.",
     "Choose which charts are selected by default when opening model analytics.": "Выберите графики, которые будут выбраны по умолчанию при открытии аналитики моделей.",
+    "Circuit open": "Цепь разомкнута",
     "Circuit recovery policy": "Политика восстановления цепи",
     "Clamped to": "Ограничено до",
     "Classic (Legacy Frontend)": "Классический (Старый интерфейс)",

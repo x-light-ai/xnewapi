@@ -826,6 +826,7 @@
     "Choose the default charts, range, and time granularity for model analytics.": "Chọn biểu đồ, khoảng thời gian và độ chi tiết thời gian mặc định cho phân tích mô hình.",
     "Choose where to fetch upstream metadata.": "Chọn nơi để tìm nạp siêu dữ liệu thượng nguồn.",
     "Choose which charts are selected by default when opening model analytics.": "Chọn biểu đồ được chọn mặc định khi mở phân tích mô hình.",
+    "Circuit open": "Đang ngắt mạch tạm thời",
     "Circuit recovery policy": "Chính sách phục hồi ngắt mạch",
     "Clamped to": "Giới hạn thành",
     "Classic (Legacy Frontend)": "Cổ điển (Frontend cũ)",
