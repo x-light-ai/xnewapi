@@ -37,7 +37,7 @@ import {
 import type { Channel } from '../types'
 
 type UseChannelMutateFormParams = {
-  currentRow?: Channel | null
+  currentRow?: Pick<Channel, 'id'> | null
   isEditing: boolean
   isMultiKeyChannel: boolean
   onSuccess: () => void
