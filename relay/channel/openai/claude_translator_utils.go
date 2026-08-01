@@ -13,6 +13,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 var (
@@ -271,6 +272,56 @@ func appendSSEEventBytes(out []byte, event string, payload []byte, trailingNewli
 		out = append(out, '\n')
 	}
 	return out
+}
+
+// newRawArrayItems creates a raw item slice sized for the expected input.
+func newRawArrayItems(capacity int64) [][]byte {
+	if capacity <= 0 {
+		return nil
+	}
+	return make([][]byte, 0, int(capacity))
+}
+
+// joinRawArray concatenates pre-marshaled JSON items into a single JSON array
+// with a single allocation, avoiding repeated sjson array-append reparsing.
+func joinRawArray(items [][]byte) []byte {
+	if len(items) == 0 {
+		return []byte("[]")
+	}
+	size := len(items) + 1
+	for _, item := range items {
+		size += len(item)
+	}
+	out := make([]byte, 0, size)
+	out = append(out, '[')
+	for i, item := range items {
+		if i > 0 {
+			out = append(out, ',')
+		}
+		out = append(out, item...)
+	}
+	return append(out, ']')
+}
+
+// setRawArrayItems replaces an empty JSON array at path with raw items.
+// The single-item path avoids allocating an intermediate joined array.
+func setRawArrayItems(data []byte, path string, items [][]byte) []byte {
+	if len(items) == 0 {
+		return data
+	}
+	if len(items) == 1 {
+		array := gjson.GetBytes(data, path)
+		if array.Raw == "[]" && array.Index >= 0 && array.Index+len(array.Raw) <= len(data) {
+			out := make([]byte, 0, len(data)+len(items[0]))
+			out = append(out, data[:array.Index]...)
+			out = append(out, '[')
+			out = append(out, items[0]...)
+			out = append(out, ']')
+			return append(out, data[array.Index+len(array.Raw):]...)
+		}
+	}
+	data, _ = sjson.SetRawBytes(data, path, joinRawArray(items))
+	return data
 }
 
 func BoolPtr(v bool) *bool {

@@ -3,6 +3,7 @@ package codex
 
 import (
 	"context"
+	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -236,4 +237,63 @@ func TestConvertClaudeRequestToCodex_MessageSystemRoleWrapsAsUserReminder(t *tes
 	if got := inputs[4].Get("content.0.text").String(); got != "<system-reminder>\nUse the current repo\n</system-reminder>" {
 		t.Fatalf("unexpected second reminder text: %q", got)
 	}
+}
+
+func TestConvertClaudeRequestToCodexNormalizesNonStringToolName(t *testing.T) {
+	input := []byte(`{"messages":[],"tools":[{"name":123,"input_schema":{"type":"object"}}]}`)
+
+	output := ConvertClaudeRequestToCodex("gpt-test", input, false)
+
+	name := gjson.GetBytes(output, "tools.0.name")
+	require.Equal(t, gjson.String, name.Type)
+	require.Equal(t, "123", name.String())
+}
+
+func TestConvertClaudeRequestToCodex_PreservesContentOrderAcrossToolAndReasoningItems(t *testing.T) {
+	signature := validCodexReasoningSignature()
+	inputJSON := `{
+		"system": "system rules",
+		"messages": [
+			{"role":"assistant","content":[
+				{"type":"text","text":"before reasoning"},
+				{"type":"thinking","signature":"` + signature + `"},
+				{"type":"text","text":"before tool"},
+				{"type":"tool_use","id":"toolu_1","name":"lookup","input":{"query":"test"}},
+				{"type":"text","text":"after tool"}
+			]},
+			{"role":"user","content":[
+				{"type":"tool_result","tool_use_id":"toolu_1","content":[
+					{"type":"text","text":"tool output"},
+					{"type":"image","source":{"media_type":"image/png","data":"aW1hZ2U="}}
+				]},
+				{"type":"text","text":"continue"}
+			]}
+		],
+		"tools": [{"name":"lookup","input_schema":{"type":"object"}}]
+	}`
+
+	result := ConvertClaudeRequestToCodex("gpt-5.4", []byte(inputJSON), false)
+	inputs := gjson.GetBytes(result, "input").Array()
+	require.Len(t, inputs, 8, "output: %s", result)
+
+	wantTypes := []string{"message", "message", "reasoning", "message", "function_call", "message", "function_call_output", "message"}
+	for i := 0; i < len(wantTypes); i++ {
+		require.Equal(t, wantTypes[i], inputs[i].Get("type").String(), "input[%d] type; output: %s", i, result)
+	}
+
+	require.Equal(t, "before reasoning", inputs[1].Get("content.0.text").String())
+	require.Equal(t, "before tool", inputs[3].Get("content.0.text").String())
+	require.Equal(t, "after tool", inputs[5].Get("content.0.text").String())
+	require.Equal(t, "input_text", inputs[6].Get("output.0.type").String())
+	require.Equal(t, "data:image/png;base64,aW1hZ2U=", inputs[6].Get("output.1.image_url").String())
+	require.Equal(t, "continue", inputs[7].Get("content.0.text").String())
+}
+
+// validCodexReasoningSignature builds a minimal GPT-compatible encrypted reasoning
+// signature accepted by compatibleGPTSignature (0x80 prefix, 16-byte ciphertext).
+func validCodexReasoningSignature() string {
+	raw := make([]byte, 1+8+16+16+32)
+	raw[0] = 0x80
+	raw[8] = 1
+	return base64.URLEncoding.EncodeToString(raw)
 }
