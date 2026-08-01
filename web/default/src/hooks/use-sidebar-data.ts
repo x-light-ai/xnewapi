@@ -19,6 +19,7 @@ For commercial licensing, please contact support@quantumnous.com
 import {
   Activity,
   Box,
+  Building2,
   CreditCard,
   FileText,
   FlaskConical,
@@ -124,6 +125,12 @@ export function useSidebarData(): SidebarData {
             title: t('Channels'),
             url: '/channels',
             icon: Radio,
+          },
+          // FORK-CUSTOM: Expose the fork-owned model provider prototype from one sidebar hook.
+          {
+            title: t('Model Provider Management', { ns: 'xnewapi' }),
+            url: '/providers',
+            icon: Building2,
           },
           // FORK-CUSTOM: Expose channel monitoring from one default sidebar hook.
           {

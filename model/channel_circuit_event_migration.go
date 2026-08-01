@@ -1,7 +1,21 @@
-// FORK-CUSTOM: Isolate channel circuit-event SQLite migration from upstream model/main.go.
+// FORK-CUSTOM: Isolate channel-monitor migration from upstream model/main.go.
 package model
 
 import "github.com/QuantumNous/new-api/common"
+
+// migrateChannelMonitorTables owns every table behind channel monitoring. Keeping the
+// registration here instead of in the upstream AutoMigrate list avoids conflicting with
+// upstream whenever it appends models of its own.
+func migrateChannelMonitorTables() error {
+	if err := DB.AutoMigrate(&ChannelMonitorStat{}); err != nil {
+		return err
+	}
+	// Circuit events keep a hand-written SQLite path; other databases use AutoMigrate.
+	if !common.UsingMainDatabase(common.DatabaseTypeSQLite) {
+		return DB.AutoMigrate(&ChannelCircuitEvent{})
+	}
+	return ensureChannelCircuitEventTableSQLite()
+}
 
 func ensureChannelCircuitEventTableSQLite() error {
 	if !common.UsingMainDatabase(common.DatabaseTypeSQLite) {
@@ -57,6 +71,11 @@ func ensureChannelCircuitEventTableSQLite() error {
 				return err
 			}
 		}
+	}
+	// Legacy databases stored these indexes with a newline in the DDL header, which
+	// glebarez/sqlite v1.9.0 rejects as invalid DDL; IF NOT EXISTS alone cannot fix them.
+	if err := normalizeSQLiteIndexHeaders(tableName); err != nil {
+		return err
 	}
 	if err := DB.Exec("CREATE INDEX IF NOT EXISTS `idx_channel_circuit_events_channel_opened_at` ON `" + tableName + "`(`channel_id`,`opened_at`)").Error; err != nil {
 		return err

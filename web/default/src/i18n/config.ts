@@ -20,6 +20,9 @@ import i18n from 'i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
 import { initReactI18next } from 'react-i18next'
 
+// FORK-CUSTOM: Register the fork-owned namespace without extending upstream locale files.
+import xnewapiEn from '../features/xnewapi/locales/en.json'
+import xnewapiZh from '../features/xnewapi/locales/zh.json'
 import { convertDetectedLanguage } from './languages'
 import en from './locales/en.json'
 import fr from './locales/fr.json'
@@ -30,8 +33,8 @@ import zhCN from './locales/zh.json'
 import zhTW from './locales/zh-TW.json'
 
 export const resources = {
-  en,
-  zhCN,
+  en: { ...en, xnewapi: xnewapiEn.translation },
+  zhCN: { ...zhCN, xnewapi: xnewapiZh.translation },
   fr,
   ru,
   ja,
@@ -45,6 +48,7 @@ i18n
   .init({
     resources,
     fallbackLng: 'en',
+    fallbackNS: 'translation',
     supportedLngs: ['en', 'zhCN', 'fr', 'ru', 'ja', 'vi', 'zhTW'],
     load: 'currentOnly',
     nsSeparator: false, // Allow literal colons in keys (e.g., URLs, labels)

@@ -58,6 +58,7 @@ web/             — Frontend themes container
 
 ### Common Code Quality
 
+- Do not start, restart, or stop frontend or backend development services unless the user explicitly requests it. The user manages local services.
 - New code should stay direct and readable. Prefer early returns, clear branches, and well-named local variables to deep nesting or layered control flow.
 - Minimize nested function definitions. Use them only when required by a callback API or when keeping the closure local is clearly simpler than adding another symbol.
 - Avoid adding package-level or module-level helper functions that have only one caller and do not express a stable business concept. Inline that logic at the call site instead.
@@ -134,6 +135,12 @@ Do NOT directly import or call `encoding/json` in business code. `json.RawMessag
 - Frontend UI text must support i18n with `i18next`/`react-i18next`. Use flat JSON locale files in `web/default/src/i18n/locales/{lang}.json`, with English source strings as keys.
 - In React components, use `useTranslation()` and call `t('English key')` for user-facing text.
 - Follow `web/default/AGENTS.md` for detailed frontend conventions, including TypeScript, component structure, styling, accessibility, testing, and build checks.
+
+### Fork model provider synchronization UI
+
+- In the fork-owned `web/default/src/features/xnewapi` namespace, maintain UI translations in `locales/en.json` and `locales/zh.json` only; do not expand this fork namespace into the upstream locale files.
+- Synchronizing all provider accounts or an individual account is a state-changing action and MUST open a confirmation dialog before calling the sync API.
+- Provider and account `Sync failed` badges MUST expose their backend error message on hover through a tooltip.
 
 ### Project Governance
 

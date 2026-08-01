@@ -57,13 +57,59 @@ for service.ShouldContinueRelayRetry(retryParam); retryParam.IncreaseRetry() {
 
 把后台任务启动收敛为一次调用，例如 `service.StartForkServices()`。自有实现仍留在其所属 service/model 文件中。
 
-把 SQLite 建表、补列和索引逻辑移出 `model/main.go`，放入 fork 自有 migration 文件。`model/main.go` 只保留：
+### 4.1 fork 建表不进上游模型列表
 
-- 模型列表末尾的注册项；
-- 一次 fork migration 调用；
-- fast migration 必需的对应注册。
+**fork 模型不得写入上游 `DB.AutoMigrate(...)` 的模型列表。** 该列表是上游追加模型的高频改动区，在其中插入 fork 项等于长期占用冲突位。
+
+`model/main.go` 只允许一处 fork 痕迹：`migrateDB()` 与 `migrateDBFast()` 各插入一行 `migrateForkTables()` 调用。
+
+```go
+// FORK-CUSTOM: Migrate fork-owned tables outside the upstream AutoMigrate list.
+if err := migrateForkTables(); err != nil {
+    return err
+}
+```
+
+分层落点：
+
+- `model/fork_migration.go` —— `migrateForkTables()` 统一入口，只按功能依次调用，不含建表细节。
+- 每个功能一个自有 migration 文件持有自己的迁移函数（如 `migrateChannelMonitorTables()`、`migrateUpstreamProviderTables()`），同一功能的多张表在函数内部一起注册，包括其 SQLite 与 server 分支差异。
+
+**验收标准是纯新增。** `model/main.go` 相对上游必须只有插入行、没有修改行：
+
+```bash
+diff <(git show <上游ref>:model/main.go) model/main.go
+```
+
+输出只应出现 `a` 型（追加）差异块。出现 `c` 型（修改）说明还在改上游代码行。
+
+反面案例：曾把 fork 模型并入上游已有调用，写成 `DB.AutoMigrate(&ChannelCircuitEvent{}, &SubscriptionPlan{})`。这把一处纯新增变成了修改行，上游一旦调整 `SubscriptionPlan` 即语义冲突。正确做法是还原该行，fork 表在自有函数里单独注册。
+
+**顺序约束**：`migrateForkTables()` 必须在上游 `AutoMigrate` 之前执行，因为存量 DDL 修复必须先于驱动的任何 `ColumnTypes` 调用（见 4.2）。
+
+`migrateDBFast()` 当前无调用方（死代码），但仍需与 `migrateDB()` 保持同步，避免它被重新启用时行为分叉。
+
+### 4.2 SQLite 手写 DDL 的硬约束
 
 数据库逻辑必须同时兼容 SQLite、MySQL 和 PostgreSQL。优先 GORM；原始 SQL 必须按项目数据库规则分支。
+
+**手写 SQLite DDL 必须与 GORM 生成形态一致**，否则 `glebarez/sqlite` v1.9.0 无法回读，`AutoMigrate` 直接失败。该驱动用正则解析 `sqlite_master` 里存的原始 DDL，两条限制没有容错：
+
+| 约束 | 违反后果 |
+|------|---------|
+| 索引 DDL 的 `CREATE [UNIQUE] INDEX <name> ON` 头部只能用单个空格分隔 | 名字与 `ON` 之间有换行即 `invalid DDL`，该表的 `AutoMigrate` 整体失败 |
+| 建表列名必须反引号包裹 | 未加引号时 `AlterColumn` 的字段查找正则匹配不到，报 `failed to look up field <列名>` |
+
+配套注意点：
+
+- `CREATE INDEX IF NOT EXISTS` 会被 SQLite 在入库前剥掉，因此**它既不会引起问题、也无法修复已损坏的索引**；不要把它当作幂等保护。
+- `gorm:"bigint"` 是无效 tag（正确写法 `type:bigint`）。被忽略后模型期望 `integer` 而存量库是 `BIGINT`，凭空触发 `AlterColumn`，进而暴露上表第二条约束。为 `int64` 字段标类型时务必带 `type:`。
+- 存量库修复统一复用 `model/fork_sqlite_ddl.go`，不要在各功能文件里重复实现：
+  - `normalizeSQLiteIndexHeaders(table)` 只重写索引头部，保持 `WHERE` 谓词字节不变；
+  - `repairLegacySQLiteTableDDL(model)` 对未加引号的存量表重建为规范形态并搬运数据。
+- 重建表搬运数据时，新 schema 中 `NOT NULL` 且无默认值、而旧表没有的列必须按类型补零值，否则插入撞约束。空表不会暴露这个问题，必须用带数据的用例覆盖。
+
+改迁移后的最小验证：对真实库副本连续跑两次迁移，确认第二次是 no-op、行数不变、无残留备份表。
 
 把监控 API 路由放入 `router/fork_routes.go`，在 `api-router.go` 的稳定位置调用一次 `registerForkRoutes(...)`。认证中间件必须与原路由保持一致。
 

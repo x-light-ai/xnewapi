@@ -8,6 +8,23 @@ import (
 )
 
 func registerForkRoutes(apiRouter *gin.RouterGroup) {
+	providerRoute := apiRouter.Group("/xnewapi/providers")
+	providerRoute.Use(middleware.AdminAuth())
+	{
+		providerRoute.GET("", controller.GetUpstreamProviders)
+		providerRoute.PUT("/workspace", controller.SaveUpstreamProviderWorkspace)
+		providerRoute.GET("/channels", controller.GetUpstreamProviderChannelOptions)
+		providerRoute.GET("/profit-ranking", controller.GetUpstreamProviderProfitRanking)
+		providerRoute.POST("/profit/rebuild", controller.RebuildUpstreamProviderProfit)
+		providerRoute.GET("/sync-runs", controller.GetUpstreamProviderSyncRuns)
+		providerRoute.POST("/:id/sync", controller.SyncUpstreamProvider)
+		providerRoute.POST("/accounts/:account_id/sync", controller.SyncUpstreamProviderAccount)
+		providerRoute.POST("/accounts/:account_id/recharge-adjust", controller.AdjustUpstreamProviderAccountRecharge)
+		providerRoute.DELETE("/:id", controller.DeleteUpstreamProvider)
+		providerRoute.DELETE("/accounts/:account_id", controller.DeleteUpstreamProviderAccount)
+		providerRoute.DELETE("/groups/:group_id", controller.DeleteUpstreamProviderGroup)
+	}
+
 	channelMonitorRoute := apiRouter.Group("/xnewapi/channel-monitor")
 	channelMonitorRoute.Use(middleware.AdminAuth())
 	{

@@ -38,9 +38,10 @@ description: 维护 x-light-ai/xnewapi 相对官方 QuantumNous/new-api 的 fork
    5. 只有无稳定边界时才修改上游函数，并先把 fork 实现抽离。
 5. **保持接口语义**：不得为了减少 diff 吞掉 translator 错误、改变 retry 边界、泄露密钥，或破坏显式 `0`/`false` 的透传。JSON 操作使用 `common.*`，数据库保持 SQLite、MySQL、PostgreSQL 兼容。
    - fork 专属前端文案必须接入项目 i18n，但只需维护 `en` 和 `zh`；`fr`、`ru`、`ja`、`vi` 使用回退，不要求补充 fork 专属翻译。修改上游或共享文案时仍遵循项目的完整语言要求。
+   - fork 新增表不得写入上游 `AutoMigrate` 模型列表；`model/main.go` 只保留 `migrateForkTables()` 一行调用，且相对上游必须是纯新增、无修改行。手写 SQLite DDL 必须与 GORM 生成形态一致（索引头单空格、列名反引号），详见 [refactor-patterns.md](references/refactor-patterns.md) 第 4 节。
 6. **补充标记**：在最终落点补 `FORK-CUSTOM`，不要先给即将移动或删除的代码批量加标记。
 7. **更新清单**：功能、接入点或验证命令发生变化时更新现有 fork 功能清单，不创建第二份事实源。
-8. **验证**：运行格式检查、受影响包测试、`go build ./...`，前端变更使用 Bun 运行相关 lint/build。最后再次运行审计脚本并执行 `git diff --check`。
+8. **验证**：运行格式检查、受影响包测试、`go build ./...`，前端变更使用 Bun 运行相关 lint/build。改动迁移时对真实库副本连续跑两次迁移，确认第二次为 no-op 且行数不变。最后再次运行审计脚本并执行 `git diff --check`。
 
 ## 标记规则
 

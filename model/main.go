@@ -267,6 +267,10 @@ func migrateDB() error {
 	if err := migrateTokenModelLimitsToText(); err != nil {
 		return err
 	}
+	// FORK-CUSTOM: Migrate fork-owned tables outside the upstream AutoMigrate list.
+	if err := migrateForkTables(); err != nil {
+		return err
+	}
 
 	err := DB.AutoMigrate(
 		&Channel{},
@@ -293,8 +297,6 @@ func migrateDB() error {
 		&SubscriptionPreConsumeRecord{},
 		&CustomOAuthProvider{},
 		&UserOAuthBinding{},
-		// FORK-CUSTOM: Register channel-monitor persistence.
-		&ChannelMonitorStat{},
 		&PerfMetric{},
 		&SystemInstance{},
 		&SystemTask{},
@@ -306,16 +308,11 @@ func migrateDB() error {
 		return err
 	}
 	if common.UsingMainDatabase(common.DatabaseTypeSQLite) {
-		// FORK-CUSTOM: Apply the isolated channel circuit-event migration.
-		if err := ensureChannelCircuitEventTableSQLite(); err != nil {
-			return err
-		}
 		if err := ensureSubscriptionPlanTableSQLite(); err != nil {
 			return err
 		}
 	} else {
-		// FORK-CUSTOM: Register channel circuit-event persistence on server databases.
-		if err := DB.AutoMigrate(&ChannelCircuitEvent{}, &SubscriptionPlan{}); err != nil {
+		if err := DB.AutoMigrate(&SubscriptionPlan{}); err != nil {
 			return err
 		}
 	}
@@ -323,6 +320,10 @@ func migrateDB() error {
 }
 
 func migrateDBFast() error {
+	// FORK-CUSTOM: Migrate fork-owned tables outside the upstream AutoMigrate list.
+	if err := migrateForkTables(); err != nil {
+		return err
+	}
 
 	var wg sync.WaitGroup
 
@@ -354,9 +355,6 @@ func migrateDBFast() error {
 		{&SubscriptionPreConsumeRecord{}, "SubscriptionPreConsumeRecord"},
 		{&CustomOAuthProvider{}, "CustomOAuthProvider"},
 		{&UserOAuthBinding{}, "UserOAuthBinding"},
-		// FORK-CUSTOM: Register channel-monitor models for fast migration.
-		{&ChannelMonitorStat{}, "ChannelMonitorStat"},
-		{&ChannelCircuitEvent{}, "ChannelCircuitEvent"},
 		{&PerfMetric{}, "PerfMetric"},
 		{&SystemInstance{}, "SystemInstance"},
 		{&SystemTask{}, "SystemTask"},
@@ -386,16 +384,11 @@ func migrateDBFast() error {
 		}
 	}
 	if common.UsingMainDatabase(common.DatabaseTypeSQLite) {
-		// FORK-CUSTOM: Apply the isolated channel circuit-event migration.
-		if err := ensureChannelCircuitEventTableSQLite(); err != nil {
-			return err
-		}
 		if err := ensureSubscriptionPlanTableSQLite(); err != nil {
 			return err
 		}
 	} else {
-		// FORK-CUSTOM: Register channel circuit-event persistence on server databases.
-		if err := DB.AutoMigrate(&ChannelCircuitEvent{}, &SubscriptionPlan{}); err != nil {
+		if err := DB.AutoMigrate(&SubscriptionPlan{}); err != nil {
 			return err
 		}
 	}

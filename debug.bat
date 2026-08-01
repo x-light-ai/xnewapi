@@ -24,7 +24,7 @@ if errorlevel 1 (
 
 echo Frontend command: %FRONTEND_CMD%
 
-if not exist web\node_modules (
+if not exist web\default\node_modules (
     echo Installing frontend dependencies...
     pushd web\default
     %FRONTEND_CMD% install
