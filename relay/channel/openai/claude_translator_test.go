@@ -2,6 +2,7 @@
 package openai
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -408,6 +409,27 @@ func TestStreamResponseOpenAI2ClaudeWithTranslator_SuppressesEmptyToolName(t *te
 	require.NotNil(t, responses[0].Delta.StopReason)
 	require.NotEqual(t, "tool_use", *responses[0].Delta.StopReason)
 	require.Equal(t, "message_stop", responses[1].Type)
+}
+
+func TestConvertOpenAIResponseToClaudeStream_LateUsageDoesNotDuplicateTerminalEvents(t *testing.T) {
+	var param any
+	chunks := [][]byte{
+		[]byte(`{"id":"c1","model":"m","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}`),
+		[]byte(`{"id":"c1","model":"m","choices":[{"index":0,"delta":{"content":"hello"},"finish_reason":null}]}`),
+		[]byte(`{"id":"c1","model":"m","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}`),
+		[]byte(`{"id":"c1","model":"m","choices":[],"usage":{"prompt_tokens":1,"completion_tokens":1}}`),
+	}
+
+	var output []byte
+	for _, chunk := range chunks {
+		for _, event := range convertOpenAIResponseToClaudeStreamBytes([]byte(`{"stream":true}`), chunk, &param) {
+			output = append(output, event...)
+		}
+	}
+
+	require.Equal(t, 1, bytes.Count(output, []byte(`"type":"message_delta"`)))
+	require.Equal(t, 1, bytes.Count(output, []byte(`"type":"message_stop"`)))
+	require.True(t, bytes.HasSuffix(bytes.TrimSpace(output), []byte(`data: {"type":"message_stop"}`)))
 }
 
 func TestStreamResponseOpenAI2ClaudeWithTranslator_BelatedToolStartUsesSyntheticID(t *testing.T) {

@@ -172,7 +172,7 @@ func TestConvertCodexResponseToClaude_StreamThinkingWithoutReasoningItemStillInc
 	}
 }
 
-func TestConvertCodexResponseToClaude_StreamThinkingFinalizesPendingBlockBeforeNextSummaryPart(t *testing.T) {
+func TestConvertCodexResponseToClaude_StreamThinkingKeepsSingleBlockAcrossSummaryParts(t *testing.T) {
 	ctx := context.Background()
 	originalRequest := []byte(`{"messages":[]}`)
 	var param any
@@ -206,11 +206,11 @@ func TestConvertCodexResponseToClaude_StreamThinkingFinalizesPendingBlockBeforeN
 		}
 	}
 
-	if startCount != 2 {
-		t.Fatalf("expected 2 thinking block starts, got %d", startCount)
+	if startCount != 1 {
+		t.Fatalf("expected one thinking block start, got %d", startCount)
 	}
-	if stopCount != 1 {
-		t.Fatalf("expected pending thinking block to be finalized before second start, got %d stops", stopCount)
+	if stopCount != 0 {
+		t.Fatalf("thinking block must remain open until reasoning item completion, got %d stops", stopCount)
 	}
 }
 
@@ -251,8 +251,8 @@ func TestConvertCodexResponseToClaude_StreamThinkingRetainsSignatureAcrossMultip
 		}
 	}
 
-	if signatureDeltaCount != 2 {
-		t.Fatalf("expected signature_delta for both multipart thinking blocks, got %d", signatureDeltaCount)
+	if signatureDeltaCount != 1 {
+		t.Fatalf("expected one signature_delta for the multipart reasoning item, got %d", signatureDeltaCount)
 	}
 }
 
@@ -802,7 +802,7 @@ func TestConvertCodexResponseToClaude_StreamUnresolvedPendingFunctionCallDoesNot
 		t.Fatalf("stop_reason = %q, want end_turn. Outputs=%q", gotReason, outputs)
 	}
 	params, ok := param.(*ConvertCodexResponseToClaudeParams)
-	if !ok || len(params.PendingFunctionCalls) != 0 || params.LastPendingFunctionCallKey != "" {
+	if !ok || len(params.FunctionCalls) != 0 || len(params.FunctionCallQueue) != 0 || params.LastFunctionCall != nil {
 		t.Fatalf("pending function calls were not cleared: %#v", param)
 	}
 }

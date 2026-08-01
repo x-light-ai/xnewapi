@@ -279,7 +279,7 @@ func convertOpenAIResponseToClaudeStreamBytes(originalRequestRawJSON, rawJSON []
 	}
 
 	if len(root.Get("choices").Array()) == 0 {
-		if p.FinishReason != "" {
+		if p.FinishReason != "" && !p.MessageDeltaSent {
 			usage := root.Get("usage")
 			if usage.Exists() && usage.Type != gjson.Null {
 				inputTokens, outputTokens, cachedTokens := extractOpenAIUsage(usage)
@@ -291,6 +291,7 @@ func convertOpenAIResponseToClaudeStreamBytes(originalRequestRawJSON, rawJSON []
 					messageDeltaJSON, _ = sjson.SetBytes(messageDeltaJSON, "usage.cache_read_input_tokens", cachedTokens)
 				}
 				results = append(results, appendSSEEventBytes(nil, "message_delta", messageDeltaJSON, 2))
+				p.MessageDeltaSent = true
 				emitMessageStopIfNeeded(p, &results)
 			}
 		}
@@ -411,7 +412,7 @@ func convertOpenAIResponseToClaudeStreamBytes(originalRequestRawJSON, rawJSON []
 		}
 	}
 
-	if p.FinishReason != "" {
+	if p.FinishReason != "" && !p.MessageDeltaSent {
 		usage := root.Get("usage")
 		if usage.Exists() && usage.Type != gjson.Null {
 			inputTokens, outputTokens, cachedTokens := extractOpenAIUsage(usage)
@@ -423,6 +424,7 @@ func convertOpenAIResponseToClaudeStreamBytes(originalRequestRawJSON, rawJSON []
 				messageDeltaJSON, _ = sjson.SetBytes(messageDeltaJSON, "usage.cache_read_input_tokens", cachedTokens)
 			}
 			results = append(results, appendSSEEventBytes(nil, "message_delta", messageDeltaJSON, 2))
+			p.MessageDeltaSent = true
 			emitMessageStopIfNeeded(p, &results)
 		}
 	}

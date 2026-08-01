@@ -182,6 +182,27 @@ func TestConvertClaudeRequestToCodex_ServiceTier(t *testing.T) {
 	}
 }
 
+func TestConvertClaudeRequestToCodex_FastSpeedUsesPriorityTier(t *testing.T) {
+	result := ConvertClaudeRequestToCodex("gpt-5.4", []byte(`{
+		"model":"gpt-5.4",
+		"speed":"fast",
+		"service_tier":"default",
+		"messages":[{"role":"user","content":"Reply with OK"}]
+	}`), false)
+
+	require.Equal(t, "priority", gjson.GetBytes(result, "service_tier").String())
+}
+
+func TestConvertClaudeRequestToCodex_DoesNotForceReasoningSummary(t *testing.T) {
+	result := ConvertClaudeRequestToCodex("gpt-5.4", []byte(`{
+		"model":"gpt-5.4",
+		"thinking":{"type":"enabled","budget_tokens":1024},
+		"messages":[{"role":"user","content":"Reply with OK"}]
+	}`), false)
+
+	require.False(t, gjson.GetBytes(result, "reasoning.summary").Exists())
+}
+
 func TestConvertClaudeRequestToCodex_MessageSystemRoleWrapsAsUserReminder(t *testing.T) {
 	inputJSON := `{
 		"model": "claude-3-opus",
