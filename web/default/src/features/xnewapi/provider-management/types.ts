@@ -61,6 +61,31 @@ export type ProviderGroupProfit = {
   lastSyncedAt: number
 }
 
+export type ProviderProfitDailyDetail = {
+  date: string
+  groupId: number
+  groupName: string
+  providerId: number
+  providerName: string
+  accountId: number
+  accountName: string
+  revenueQuota: number
+  revenue: number
+  providerUsageQuota: number
+  cost: number | null
+  profit: number | null
+  grossMargin: number | null
+  costStatus: string
+  costObservedAt: number
+}
+
+export type ProviderProfitDetailsSearch = {
+  startDate?: string
+  endDate?: string
+  providerId?: string
+  groupId?: string
+}
+
 export type ProviderAccount = {
   id: string
   name: string

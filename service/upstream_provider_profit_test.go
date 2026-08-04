@@ -72,6 +72,56 @@ func TestProviderProfitRankingMergesKeysInTheSameGroup(t *testing.T) {
 	assert.True(t, profits[0].Cost.Equal(decimal.RequireFromString("0.023626")))
 }
 
+func TestProviderProfitDetailsFiltersGroupAndPreservesDailyQuota(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(
+		&model.UpstreamProvider{}, &model.UpstreamProviderAccount{},
+		&model.UpstreamProviderGroup{}, &model.UpstreamProviderGroupProfitDaily{},
+	))
+	originalDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = originalDB })
+
+	provider := model.UpstreamProvider{Name: "provider", Status: model.UpstreamProviderStatusEnabled}
+	require.NoError(t, db.Create(&provider).Error)
+	account := model.UpstreamProviderAccount{ProviderId: provider.Id, Name: "account", Status: model.UpstreamProviderStatusEnabled}
+	require.NoError(t, db.Create(&account).Error)
+	group := model.UpstreamProviderGroup{AccountId: account.Id, Name: "group-a"}
+	otherGroup := model.UpstreamProviderGroup{AccountId: account.Id, Name: "group-b"}
+	require.NoError(t, db.Create(&group).Error)
+	require.NoError(t, db.Create(&otherGroup).Error)
+	date := time.Now().In(time.Local).Format("2006-01-02")
+	require.NoError(t, db.Create([]model.UpstreamProviderGroupProfitDaily{
+		{
+			Date: date, ProviderGroupId: group.Id, RevenueQuota: 635979,
+			RevenueAmount: decimal.RequireFromString("1.271958"), ProviderUsageQuota: decimal.NewFromInt(635979),
+			ProviderCost: decimal.RequireFromString("9.412489"), CostStatus: "ready",
+		},
+		{
+			Date: date, ProviderGroupId: otherGroup.Id, RevenueQuota: 100,
+			RevenueAmount: decimal.RequireFromString("0.0002"), CostStatus: "unavailable",
+		},
+	}).Error)
+
+	items, err := GetProviderGroupProfitDetails(date, date, provider.Id, group.Id)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Equal(t, int64(635979), items[0].RevenueQuota)
+	assert.True(t, items[0].ProviderUsageQuota.Equal(decimal.NewFromInt(635979)))
+	require.NotNil(t, items[0].Cost)
+	assert.True(t, items[0].Cost.Equal(decimal.RequireFromString("9.412489")))
+	require.NotNil(t, items[0].Profit)
+	assert.True(t, items[0].Profit.Equal(decimal.RequireFromString("-8.140531")))
+
+	allItems, err := GetProviderGroupProfitDetails(date, date, provider.Id, 0)
+	require.NoError(t, err)
+	require.Len(t, allItems, 2)
+	assert.Equal(t, "unavailable", allItems[1].CostStatus)
+	assert.Nil(t, allItems[1].Cost)
+	assert.Nil(t, allItems[1].Profit)
+}
+
 func TestRefreshProviderProfitSumsAllMappedChannels(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	require.NoError(t, err)

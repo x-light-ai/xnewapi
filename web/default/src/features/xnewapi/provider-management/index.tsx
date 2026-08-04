@@ -10,7 +10,14 @@ License, or (at your option) any later version.
 // FORK-CUSTOM: Host provider management over fork-owned APIs in an isolated feature module.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, Plus, RefreshCw, Search } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
+import {
+  Building2,
+  ChartNoAxesCombined,
+  Plus,
+  RefreshCw,
+  Search,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -46,6 +53,7 @@ const EMPTY_PROVIDERS: UpstreamProvider[] = []
 
 export function ProviderManagement() {
   const { t, i18n } = useTranslation('xnewapi')
+  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const workspaceQuery = useQuery({
     queryKey: ['upstream-providers'],
@@ -204,6 +212,13 @@ export function ProviderManagement() {
                 className={workspaceQuery.isFetching ? 'animate-spin' : ''}
               />
             </Button>
+            <Button
+              variant='outline'
+              onClick={() => navigate({ to: '/providers/profit-details' })}
+            >
+              <ChartNoAxesCombined data-icon='inline-start' />
+              {t('Profit details')}
+            </Button>
             <Button onClick={openCreateSheet}>
               <Plus data-icon='inline-start' />
               {t('Add model provider')}
@@ -225,6 +240,12 @@ export function ProviderManagement() {
             <ChannelMarginRanking
               providers={providers}
               formatAmount={(value) => amountFormatter.format(value)}
+              onViewProfitDetails={(filter) =>
+                navigate({
+                  to: '/providers/profit-details',
+                  search: filter,
+                })
+              }
             />
 
             <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>

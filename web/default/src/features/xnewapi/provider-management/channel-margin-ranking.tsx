@@ -9,10 +9,11 @@ License, or (at your option) any later version.
 
 // FORK-CUSTOM: Present the channel profitability leaderboard from normalized provider API data.
 
-import { Trophy } from 'lucide-react'
+import { ArrowUpRight, Trophy } from 'lucide-react'
 import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
+import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Table,
@@ -29,11 +30,14 @@ import type { UpstreamProvider } from './types'
 type ChannelMarginRankingProps = {
   providers: UpstreamProvider[]
   formatAmount: (value: number) => string
+  onViewProfitDetails: (filter: { providerId: string; groupId: string }) => void
 }
 
 type ChannelMarginRankingItem = {
   groupKey: string
+  groupId: string
   groupName: string
+  providerId: string
   providerName: string
   lastSyncedAt: string
   revenue: number
@@ -62,7 +66,9 @@ export function ChannelMarginRanking(props: ChannelMarginRankingProps) {
           const profit = groupProfit.revenue - groupProfit.cost
           items.push({
             groupKey: groupProfit.groupKey,
+            groupId: String(groupProfit.groupId),
             groupName: groupProfit.groupName,
+            providerId: String(groupProfit.providerId),
             providerName: provider.name,
             lastSyncedAt: account.lastSyncedAt,
             revenue: groupProfit.revenue,
@@ -122,8 +128,25 @@ export function ChannelMarginRanking(props: ChannelMarginRankingProps) {
                         {index + 1}
                       </TableCell>
                       <TableCell>
-                        <div className='font-medium'>
-                          {item.groupName || '-'}
+                        <div className='flex min-w-0 items-center gap-1'>
+                          <div className='truncate font-medium'>
+                            {item.groupName || '-'}
+                          </div>
+                          <Button
+                            variant='ghost'
+                            size='icon-sm'
+                            className='shrink-0'
+                            onClick={() =>
+                              props.onViewProfitDetails({
+                                providerId: item.providerId,
+                                groupId: item.groupId,
+                              })
+                            }
+                            aria-label={t('View profit details')}
+                            title={t('View profit details')}
+                          >
+                            <ArrowUpRight />
+                          </Button>
                         </div>
                         <div className='text-muted-foreground mt-1 truncate text-xs'>
                           {item.providerName} / {item.lastSyncedAt}

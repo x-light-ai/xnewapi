@@ -29,6 +29,24 @@ type ProviderGroupProfit struct {
 	LastSyncedAt int64            `json:"last_synced_at"`
 }
 
+type ProviderGroupProfitDailyDetail struct {
+	Date               string           `json:"date"`
+	GroupID            int              `json:"group_id"`
+	GroupName          string           `json:"group_name"`
+	ProviderID         int              `json:"provider_id"`
+	ProviderName       string           `json:"provider_name"`
+	AccountID          int              `json:"account_id"`
+	AccountName        string           `json:"account_name"`
+	RevenueQuota       int64            `json:"revenue_quota"`
+	Revenue            decimal.Decimal  `json:"revenue"`
+	ProviderUsageQuota decimal.Decimal  `json:"provider_usage_quota"`
+	Cost               *decimal.Decimal `json:"cost"`
+	Profit             *decimal.Decimal `json:"profit"`
+	GrossMargin        *decimal.Decimal `json:"gross_margin"`
+	CostStatus         string           `json:"cost_status"`
+	CostObservedAt     int64            `json:"cost_observed_at"`
+}
+
 func GetProviderGroupProfitRanking(startDate string, endDate string) ([]ProviderGroupProfit, error) {
 	startAt, endAt, err := providerProfitRange(startDate, endDate)
 	if err != nil {
@@ -139,6 +157,67 @@ func GetProviderGroupProfitRanking(startDate string, endDate string) ([]Provider
 		return result[i].Revenue.GreaterThan(result[j].Revenue)
 	})
 	return result, nil
+}
+
+func GetProviderGroupProfitDetails(startDate string, endDate string, providerID int, groupID int) ([]ProviderGroupProfitDailyDetail, error) {
+	startAt, endAt, err := providerProfitRange(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	startDate = time.Unix(startAt, 0).In(time.Local).Format("2006-01-02")
+	endDate = time.Unix(endAt, 0).In(time.Local).Format("2006-01-02")
+	rows, err := model.GetUpstreamProviderGroupProfitDailyRange(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	groupIDs := make([]int, 0, len(rows))
+	for _, row := range rows {
+		groupIDs = append(groupIDs, row.ProviderGroupId)
+	}
+	contexts, err := model.GetUpstreamProviderGroupContexts(groupIDs)
+	if err != nil {
+		return nil, err
+	}
+	contextByGroup := make(map[int]model.UpstreamProviderGroupContext, len(contexts))
+	for _, context := range contexts {
+		contextByGroup[context.GroupID] = context
+	}
+	items := make([]ProviderGroupProfitDailyDetail, 0, len(rows))
+	for _, row := range rows {
+		context, ok := contextByGroup[row.ProviderGroupId]
+		if !ok || (providerID > 0 && context.ProviderID != providerID) || (groupID > 0 && context.GroupID != groupID) {
+			continue
+		}
+		item := ProviderGroupProfitDailyDetail{
+			Date: row.Date, GroupID: context.GroupID, GroupName: context.GroupName,
+			ProviderID: context.ProviderID, ProviderName: context.ProviderName,
+			AccountID: context.AccountID, AccountName: context.AccountName,
+			RevenueQuota: row.RevenueQuota, Revenue: row.RevenueAmount,
+			ProviderUsageQuota: row.ProviderUsageQuota, CostStatus: row.CostStatus,
+			CostObservedAt: row.CostObservedAt,
+		}
+		if row.CostStatus == "ready" {
+			cost := row.ProviderCost
+			profit := row.RevenueAmount.Sub(cost)
+			item.Cost = &cost
+			item.Profit = &profit
+			if row.RevenueAmount.IsPositive() {
+				margin := profit.Div(row.RevenueAmount).Mul(decimal.NewFromInt(100))
+				item.GrossMargin = &margin
+			}
+		}
+		items = append(items, item)
+	}
+	sort.Slice(items, func(i, j int) bool {
+		if items[i].Date != items[j].Date {
+			return items[i].Date > items[j].Date
+		}
+		if items[i].ProviderName != items[j].ProviderName {
+			return items[i].ProviderName < items[j].ProviderName
+		}
+		return items[i].GroupName < items[j].GroupName
+	})
+	return items, nil
 }
 
 func RebuildProviderProfitDaily(startDate string, endDate string) ([]ProviderGroupProfit, error) {

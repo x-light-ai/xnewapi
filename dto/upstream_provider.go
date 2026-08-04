@@ -48,8 +48,10 @@ type UpstreamProviderWorkspaceGroupRequest struct {
 }
 
 type UpstreamProviderProfitQuery struct {
-	StartDate string `form:"start_date"`
-	EndDate   string `form:"end_date"`
+	StartDate  string `form:"start_date"`
+	EndDate    string `form:"end_date"`
+	ProviderID int    `form:"provider_id"`
+	GroupID    int    `form:"group_id"`
 }
 
 type UpstreamProviderResponse struct {

@@ -15,6 +15,7 @@ import { api } from '@/lib/api'
 
 import type {
   ProviderChannel,
+  ProviderProfitDailyDetail,
   ProviderGroupProfit,
   UpstreamProvider,
 } from './types'
@@ -90,6 +91,24 @@ export type ProviderProfitItem = {
   gross_margin: string | number | null
   cost_status: string
   last_synced_at: number
+}
+
+type RawProviderProfitDailyDetail = {
+  date: string
+  group_id: number
+  group_name: string
+  provider_id: number
+  provider_name: string
+  account_id: number
+  account_name: string
+  revenue_quota: number
+  revenue: string | number
+  provider_usage_quota: string | number
+  cost: string | number | null
+  profit: string | number | null
+  gross_margin: string | number | null
+  cost_status: string
+  cost_observed_at: number
 }
 
 function unwrap<T>(response: ApiResponse<T>): T {
@@ -212,6 +231,42 @@ export async function getProviderWorkspace() {
     })),
   }))
   return { providers, channelOptions, profits }
+}
+
+export async function getProviderProfitDetails(params: {
+  startDate: string
+  endDate: string
+  providerId?: string
+  groupId?: string
+}): Promise<ProviderProfitDailyDetail[]> {
+  const response = await api.get<ApiResponse<RawProviderProfitDailyDetail[]>>(
+    '/api/xnewapi/providers/profit-details',
+    {
+      params: {
+        start_date: params.startDate,
+        end_date: params.endDate,
+        provider_id: params.providerId,
+        group_id: params.groupId,
+      },
+    }
+  )
+  return unwrap(response.data).map((item) => ({
+    date: item.date,
+    groupId: item.group_id,
+    groupName: item.group_name,
+    providerId: item.provider_id,
+    providerName: item.provider_name,
+    accountId: item.account_id,
+    accountName: item.account_name,
+    revenueQuota: Number(item.revenue_quota),
+    revenue: Number(item.revenue),
+    providerUsageQuota: Number(item.provider_usage_quota),
+    cost: item.cost == null ? null : Number(item.cost),
+    profit: item.profit == null ? null : Number(item.profit),
+    grossMargin: item.gross_margin == null ? null : Number(item.gross_margin),
+    costStatus: item.cost_status,
+    costObservedAt: item.cost_observed_at,
+  }))
 }
 
 export async function saveProvider(provider: UpstreamProvider) {
