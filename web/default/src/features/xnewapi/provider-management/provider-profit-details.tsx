@@ -20,6 +20,14 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
+import {
   Table,
   TableBody,
   TableCell,
@@ -31,6 +39,7 @@ import {
 import { getProviderProfitDetails, getProviderWorkspace } from './api'
 import { createProviderAmountFormatter } from './provider-amount'
 import type {
+  ProviderChannel,
   ProviderProfitDailyDetail,
   ProviderProfitDetailsSearch,
   UpstreamProvider,
@@ -51,6 +60,8 @@ export function ProviderProfitDetails(props: ProviderProfitDetailsProps) {
   const endDate = props.search.endDate ?? dayjs().format('YYYY-MM-DD')
   const providerId = props.search.providerId ?? ''
   const groupId = props.search.groupId ?? ''
+  const page = props.search.page ?? 1
+  const pageSize = props.search.pageSize ?? 20
   const dateRangeIsValid = startDate <= endDate
   const workspaceQuery = useQuery({
     queryKey: ['upstream-providers'],
@@ -62,6 +73,22 @@ export function ProviderProfitDetails(props: ProviderProfitDetailsProps) {
     const provider = providers.find((item) => item.id === providerId)
     return provider?.accounts.flatMap((account) => account.groups) ?? []
   }, [providerId, providers])
+  const groupChannelsByID = useMemo(() => {
+    const channelsByID = new Map<string, ProviderChannel[]>()
+    for (const provider of providers) {
+      for (const account of provider.accounts) {
+        for (const group of account.groups) {
+          channelsByID.set(group.id, group.channels)
+        }
+      }
+    }
+    return channelsByID
+  }, [providers])
+  const providerEndpointByID = useMemo(
+    () =>
+      new Map(providers.map((provider) => [provider.id, provider.endpoint])),
+    [providers]
+  )
   const detailsQuery = useQuery({
     queryKey: [
       'upstream-provider-profit-details',
@@ -76,28 +103,44 @@ export function ProviderProfitDetails(props: ProviderProfitDetailsProps) {
         endDate,
         providerId: providerId || undefined,
         groupId: groupId || undefined,
+        page,
+        pageSize,
       }),
     enabled: dateRangeIsValid,
   })
-  const details = detailsQuery.data ?? EMPTY_PROFIT_DETAILS
+  const detailsPage = detailsQuery.data
+  const details = detailsPage?.items ?? EMPTY_PROFIT_DETAILS
   const amountFormatter = useMemo(
     () => createProviderAmountFormatter(i18n.resolvedLanguage || i18n.language),
     [i18n.language, i18n.resolvedLanguage]
   )
-  const totals = useMemo(() => {
-    const revenue = details.reduce((sum, item) => sum + item.revenue, 0)
-    const costComplete = details.every((item) => item.cost !== null)
-    const cost = costComplete
-      ? details.reduce((sum, item) => sum + (item.cost ?? 0), 0)
-      : null
-    const profit = cost === null ? null : revenue - cost
-    const margin =
-      profit !== null && revenue > 0 ? (profit / revenue) * 100 : null
-    return { revenue, cost, profit, margin }
-  }, [details])
+  const totals = useMemo(
+    () => ({
+      revenue: detailsPage?.revenue ?? 0,
+      cost: detailsPage?.cost ?? null,
+      profit: detailsPage?.profit ?? null,
+      margin: detailsPage?.grossMargin ?? null,
+    }),
+    [detailsPage]
+  )
 
-  const updateSearch = (changes: Partial<ProviderProfitDetailsSearch>) => {
-    props.onSearchChange({ ...props.search, ...changes })
+  const updateSearch = (
+    changes: Partial<ProviderProfitDetailsSearch>,
+    resetPage = true
+  ) => {
+    props.onSearchChange({
+      ...props.search,
+      ...changes,
+      ...(resetPage ? { page: 1 } : {}),
+    })
+  }
+  const total = detailsPage?.total ?? 0
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const displayFrom = total === 0 ? 0 : (page - 1) * pageSize + 1
+  const displayTo = Math.min(page * pageSize, total)
+  const setPage = (nextPage: number) => {
+    if (nextPage < 1 || nextPage > totalPages || nextPage === page) return
+    updateSearch({ page: nextPage }, false)
   }
 
   return (
@@ -216,17 +259,12 @@ export function ProviderProfitDetails(props: ProviderProfitDetailsProps) {
           </div>
 
           <div className='overflow-x-auto border'>
-            <Table className='min-w-[1120px]'>
+            <Table className='min-w-[1080px]'>
               <TableHeader className='bg-muted/40'>
                 <TableRow>
                   <TableHead className='pl-4'>{t('Date')}</TableHead>
                   <TableHead>{t('Provider and group')}</TableHead>
-                  <TableHead className='text-right'>
-                    {t('Revenue quota')}
-                  </TableHead>
-                  <TableHead className='text-right'>
-                    {t('Upstream quota')}
-                  </TableHead>
+                  <TableHead>{t('Channel mappings')}</TableHead>
                   <TableHead className='text-right'>
                     {t('Revenue / cost')}
                   </TableHead>
@@ -243,7 +281,7 @@ export function ProviderProfitDetails(props: ProviderProfitDetailsProps) {
                 {detailsQuery.isLoading && (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={7}
                       className='text-muted-foreground py-12 text-center'
                     >
                       {t('Loading...')}
@@ -253,7 +291,7 @@ export function ProviderProfitDetails(props: ProviderProfitDetailsProps) {
                 {!detailsQuery.isLoading && detailsQuery.error && (
                   <TableRow>
                     <TableCell
-                      colSpan={8}
+                      colSpan={7}
                       className='text-destructive py-12 text-center'
                     >
                       {detailsQuery.error.message}
@@ -265,7 +303,7 @@ export function ProviderProfitDetails(props: ProviderProfitDetailsProps) {
                   details.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={7}
                         className='text-muted-foreground py-12 text-center'
                       >
                         {t('No profit details found')}
@@ -275,63 +313,168 @@ export function ProviderProfitDetails(props: ProviderProfitDetailsProps) {
                 {!detailsQuery.isLoading &&
                   !detailsQuery.error &&
                   details.length > 0 &&
-                  details.map((item) => (
-                    <TableRow key={`${item.date}:${item.groupId}`}>
-                      <TableCell className='pl-4 font-medium tabular-nums'>
-                        {item.date}
-                      </TableCell>
-                      <TableCell>
-                        <div className='font-medium'>{item.groupName}</div>
-                        <div className='text-muted-foreground mt-1 text-xs'>
-                          {item.providerName} / {item.accountName}
-                        </div>
-                      </TableCell>
-                      <TableCell className='text-right tabular-nums'>
-                        {item.revenueQuota.toLocaleString()}
-                      </TableCell>
-                      <TableCell className='text-right tabular-nums'>
-                        {item.providerUsageQuota.toLocaleString()}
-                      </TableCell>
-                      <TableCell className='text-right font-medium tabular-nums'>
-                        {amountFormatter.format(item.revenue)} /{' '}
-                        {item.cost === null
-                          ? '-'
-                          : amountFormatter.format(item.cost)}
-                      </TableCell>
-                      <TableCell className='text-right font-medium tabular-nums'>
-                        {item.profit === null
-                          ? '-'
-                          : amountFormatter.format(item.profit)}
-                      </TableCell>
-                      <TableCell className='text-right tabular-nums'>
-                        {item.grossMargin === null
-                          ? '-'
-                          : `${item.grossMargin.toFixed(1)}%`}
-                      </TableCell>
-                      <TableCell className='pr-4'>
-                        <Badge
-                          variant={
-                            item.costStatus === 'ready'
-                              ? 'outline'
-                              : 'secondary'
-                          }
-                        >
-                          {item.costStatus === 'ready'
-                            ? t('Synced')
-                            : t('Cost unavailable')}
-                        </Badge>
-                        {item.costObservedAt > 0 && (
-                          <div className='text-muted-foreground mt-1 text-xs tabular-nums'>
-                            {dayjs
-                              .unix(item.costObservedAt)
-                              .format('YYYY-MM-DD HH:mm')}
+                  details.map((item) => {
+                    const channels =
+                      groupChannelsByID.get(String(item.groupId)) ?? []
+                    const endpoint = providerEndpointByID.get(
+                      String(item.providerId)
+                    )
+                    return (
+                      <TableRow key={`${item.date}:${item.groupId}`}>
+                        <TableCell className='pl-4 font-medium tabular-nums'>
+                          {item.date}
+                        </TableCell>
+                        <TableCell>
+                          <div className='font-medium'>{item.groupName}</div>
+                          <div className='text-muted-foreground mt-1 text-xs'>
+                            {endpoint ? (
+                              <a
+                                href={endpoint}
+                                target='_blank'
+                                rel='noreferrer'
+                                className='hover:text-foreground hover:underline'
+                                title={t('API endpoint')}
+                              >
+                                {item.providerName}
+                              </a>
+                            ) : (
+                              item.providerName
+                            )}{' '}
+                            / {item.accountName}
                           </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                        </TableCell>
+                        <TableCell>
+                          <div className='flex flex-wrap gap-1.5'>
+                            {channels.length > 0 ? (
+                              channels.map((channel) => (
+                                <Badge
+                                  key={channel.id}
+                                  variant={
+                                    channel.status === 'available'
+                                      ? 'outline'
+                                      : 'secondary'
+                                  }
+                                >
+                                  #{channel.id} {channel.name}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className='text-muted-foreground'>-</span>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className='text-right font-medium tabular-nums'>
+                          {amountFormatter.format(item.revenue)} /{' '}
+                          {item.cost === null
+                            ? '-'
+                            : amountFormatter.format(item.cost)}
+                        </TableCell>
+                        <TableCell className='text-right font-medium tabular-nums'>
+                          {item.profit === null
+                            ? '-'
+                            : amountFormatter.format(item.profit)}
+                        </TableCell>
+                        <TableCell className='text-right tabular-nums'>
+                          {item.grossMargin === null
+                            ? '-'
+                            : `${item.grossMargin.toFixed(1)}%`}
+                        </TableCell>
+                        <TableCell className='pr-4'>
+                          <Badge
+                            variant={
+                              item.costStatus === 'ready'
+                                ? 'outline'
+                                : 'secondary'
+                            }
+                          >
+                            {item.costStatus === 'ready'
+                              ? t('Synced')
+                              : t('Cost unavailable')}
+                          </Badge>
+                          {item.costObservedAt > 0 && (
+                            <div className='text-muted-foreground mt-1 text-xs tabular-nums'>
+                              {dayjs
+                                .unix(item.costObservedAt)
+                                .format('YYYY-MM-DD HH:mm')}
+                            </div>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
               </TableBody>
             </Table>
+          </div>
+          <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+            <div className='text-muted-foreground text-sm tabular-nums'>
+              {t('Showing {{from}}-{{to}} of {{total}}', {
+                from: displayFrom,
+                to: displayTo,
+                total,
+              })}
+            </div>
+            <div className='flex items-center gap-3'>
+              <label className='flex items-center gap-2 text-sm whitespace-nowrap'>
+                {t('Rows per page')}
+                <NativeSelect
+                  className='w-20'
+                  value={String(pageSize)}
+                  onChange={(event) =>
+                    updateSearch(
+                      { pageSize: Number(event.target.value), page: 1 },
+                      false
+                    )
+                  }
+                >
+                  <NativeSelectOption value='20'>20</NativeSelectOption>
+                  <NativeSelectOption value='50'>50</NativeSelectOption>
+                  <NativeSelectOption value='100'>100</NativeSelectOption>
+                </NativeSelect>
+              </label>
+              {totalPages > 1 && (
+                <Pagination className='mx-0 w-auto'>
+                  <PaginationContent>
+                    <PaginationItem>
+                      <PaginationPrevious
+                        href='#previous'
+                        text={t('Previous')}
+                        aria-disabled={page === 1}
+                        className={
+                          page === 1
+                            ? 'pointer-events-none opacity-50'
+                            : undefined
+                        }
+                        onClick={(event) => {
+                          event.preventDefault()
+                          setPage(page - 1)
+                        }}
+                      />
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationLink href='#current' isActive>
+                        {page}
+                      </PaginationLink>
+                    </PaginationItem>
+                    <PaginationItem>
+                      <PaginationNext
+                        href='#next'
+                        text={t('Next')}
+                        aria-disabled={page === totalPages}
+                        className={
+                          page === totalPages
+                            ? 'pointer-events-none opacity-50'
+                            : undefined
+                        }
+                        onClick={(event) => {
+                          event.preventDefault()
+                          setPage(page + 1)
+                        }}
+                      />
+                    </PaginationItem>
+                  </PaginationContent>
+                </Pagination>
+              )}
+            </div>
           </div>
         </div>
       </SectionPageLayout.Content>

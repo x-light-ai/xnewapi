@@ -47,6 +47,17 @@ type ProviderGroupProfitDailyDetail struct {
 	CostObservedAt     int64            `json:"cost_observed_at"`
 }
 
+type ProviderGroupProfitDailyDetailPage struct {
+	Items       []ProviderGroupProfitDailyDetail `json:"items"`
+	Total       int64                            `json:"total"`
+	Page        int                              `json:"page"`
+	PageSize    int                              `json:"page_size"`
+	Revenue     decimal.Decimal                  `json:"revenue"`
+	Cost        *decimal.Decimal                 `json:"cost"`
+	Profit      *decimal.Decimal                 `json:"profit"`
+	GrossMargin *decimal.Decimal                 `json:"gross_margin"`
+}
+
 func GetProviderGroupProfitRanking(startDate string, endDate string) ([]ProviderGroupProfit, error) {
 	startAt, endAt, err := providerProfitRange(startDate, endDate)
 	if err != nil {
@@ -218,6 +229,58 @@ func GetProviderGroupProfitDetails(startDate string, endDate string, providerID 
 		return items[i].GroupName < items[j].GroupName
 	})
 	return items, nil
+}
+
+func GetProviderGroupProfitDetailsPage(startDate string, endDate string, providerID int, groupID int, page int, pageSize int) (ProviderGroupProfitDailyDetailPage, error) {
+	items, err := GetProviderGroupProfitDetails(startDate, endDate, providerID, groupID)
+	if err != nil {
+		return ProviderGroupProfitDailyDetailPage{}, err
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	total := int64(len(items))
+	revenue := decimal.Zero
+	costTotal := decimal.Zero
+	costComplete := true
+	for _, item := range items {
+		revenue = revenue.Add(item.Revenue)
+		if item.Cost == nil {
+			costComplete = false
+			continue
+		}
+		costTotal = costTotal.Add(*item.Cost)
+	}
+	var cost *decimal.Decimal
+	var profit *decimal.Decimal
+	var margin *decimal.Decimal
+	if costComplete {
+		cost = &costTotal
+		profitValue := revenue.Sub(costTotal)
+		profit = &profitValue
+		if revenue.IsPositive() {
+			marginValue := profitValue.Div(revenue).Mul(decimal.NewFromInt(100))
+			margin = &marginValue
+		}
+	}
+	result := ProviderGroupProfitDailyDetailPage{
+		Items: items, Total: total, Page: page, PageSize: pageSize,
+		Revenue: revenue, Cost: cost, Profit: profit, GrossMargin: margin,
+	}
+	offset := (int64(page) - 1) * int64(pageSize)
+	if offset >= total {
+		result.Items = []ProviderGroupProfitDailyDetail{}
+		return result, nil
+	}
+	end := offset + int64(pageSize)
+	if end > total {
+		end = total
+	}
+	result.Items = items[int(offset):int(end)]
+	return result, nil
 }
 
 func RebuildProviderProfitDaily(startDate string, endDate string) ([]ProviderGroupProfit, error) {

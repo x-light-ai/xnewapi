@@ -120,6 +120,16 @@ func TestProviderProfitDetailsFiltersGroupAndPreservesDailyQuota(t *testing.T) {
 	assert.Equal(t, "unavailable", allItems[1].CostStatus)
 	assert.Nil(t, allItems[1].Cost)
 	assert.Nil(t, allItems[1].Profit)
+
+	paged, err := GetProviderGroupProfitDetailsPage(date, date, provider.Id, 0, 2, 1)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), paged.Total)
+	assert.Equal(t, 2, paged.Page)
+	assert.Equal(t, 1, paged.PageSize)
+	require.Len(t, paged.Items, 1)
+	assert.True(t, paged.Revenue.Equal(decimal.RequireFromString("1.272158")))
+	assert.True(t, paged.Items[0].Revenue.Equal(decimal.RequireFromString("0.0002")))
+	assert.Nil(t, paged.Cost)
 }
 
 func TestRefreshProviderProfitSumsAllMappedChannels(t *testing.T) {

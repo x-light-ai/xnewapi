@@ -79,11 +79,24 @@ export type ProviderProfitDailyDetail = {
   costObservedAt: number
 }
 
+export type ProviderProfitDailyDetailPage = {
+  items: ProviderProfitDailyDetail[]
+  total: number
+  page: number
+  pageSize: number
+  revenue: number
+  cost: number | null
+  profit: number | null
+  grossMargin: number | null
+}
+
 export type ProviderProfitDetailsSearch = {
   startDate?: string
   endDate?: string
   providerId?: string
   groupId?: string
+  page?: number
+  pageSize?: number
 }
 
 export type ProviderAccount = {

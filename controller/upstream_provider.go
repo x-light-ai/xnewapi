@@ -185,12 +185,25 @@ func GetUpstreamProviderProfitDetails(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	items, err := service.GetProviderGroupProfitDetails(query.StartDate, query.EndDate, query.ProviderID, query.GroupID)
+	page := query.Page
+	if page < 1 {
+		page = 1
+	}
+	pageSize := query.PageSize
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	details, err := service.GetProviderGroupProfitDetailsPage(
+		query.StartDate, query.EndDate, query.ProviderID, query.GroupID, page, pageSize,
+	)
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
-	common.ApiSuccess(c, items)
+	common.ApiSuccess(c, details)
 }
 
 func RebuildUpstreamProviderProfit(c *gin.Context) {

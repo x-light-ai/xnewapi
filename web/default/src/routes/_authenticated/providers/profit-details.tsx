@@ -21,6 +21,8 @@ const providerProfitDetailsSearchSchema = z.object({
   endDate: z.string().optional().catch(undefined),
   providerId: z.string().optional().catch(undefined),
   groupId: z.string().optional().catch(undefined),
+  page: z.coerce.number().int().positive().optional().catch(1),
+  pageSize: z.coerce.number().int().min(1).max(100).optional().catch(20),
 })
 
 export const Route = createFileRoute(

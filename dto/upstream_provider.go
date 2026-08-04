@@ -52,6 +52,8 @@ type UpstreamProviderProfitQuery struct {
 	EndDate    string `form:"end_date"`
 	ProviderID int    `form:"provider_id"`
 	GroupID    int    `form:"group_id"`
+	Page       int    `form:"page"`
+	PageSize   int    `form:"page_size"`
 }
 
 type UpstreamProviderResponse struct {

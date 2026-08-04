@@ -15,7 +15,7 @@ import { api } from '@/lib/api'
 
 import type {
   ProviderChannel,
-  ProviderProfitDailyDetail,
+  ProviderProfitDailyDetailPage,
   ProviderGroupProfit,
   UpstreamProvider,
 } from './types'
@@ -109,6 +109,17 @@ type RawProviderProfitDailyDetail = {
   gross_margin: string | number | null
   cost_status: string
   cost_observed_at: number
+}
+
+type RawProviderProfitDailyDetailPage = {
+  items: RawProviderProfitDailyDetail[]
+  total: number
+  page: number
+  page_size: number
+  revenue: string | number
+  cost: string | number | null
+  profit: string | number | null
+  gross_margin: string | number | null
 }
 
 function unwrap<T>(response: ApiResponse<T>): T {
@@ -240,8 +251,10 @@ export async function getProviderProfitDetails(params: {
   endDate: string
   providerId?: string
   groupId?: string
-}): Promise<ProviderProfitDailyDetail[]> {
-  const response = await api.get<ApiResponse<RawProviderProfitDailyDetail[]>>(
+  page: number
+  pageSize: number
+}): Promise<ProviderProfitDailyDetailPage> {
+  const response = await api.get<ApiResponse<RawProviderProfitDailyDetailPage>>(
     '/api/xnewapi/providers/profit-details',
     {
       params: {
@@ -249,26 +262,38 @@ export async function getProviderProfitDetails(params: {
         end_date: params.endDate,
         provider_id: params.providerId,
         group_id: params.groupId,
+        page: params.page,
+        page_size: params.pageSize,
       },
     }
   )
-  return unwrap(response.data).map((item) => ({
-    date: item.date,
-    groupId: item.group_id,
-    groupName: item.group_name,
-    providerId: item.provider_id,
-    providerName: item.provider_name,
-    accountId: item.account_id,
-    accountName: item.account_name,
-    revenueQuota: Number(item.revenue_quota),
-    revenue: Number(item.revenue),
-    providerUsageQuota: Number(item.provider_usage_quota),
-    cost: item.cost == null ? null : Number(item.cost),
-    profit: item.profit == null ? null : Number(item.profit),
-    grossMargin: item.gross_margin == null ? null : Number(item.gross_margin),
-    costStatus: item.cost_status,
-    costObservedAt: item.cost_observed_at,
-  }))
+  const data = unwrap(response.data)
+  return {
+    items: data.items.map((item) => ({
+      date: item.date,
+      groupId: item.group_id,
+      groupName: item.group_name,
+      providerId: item.provider_id,
+      providerName: item.provider_name,
+      accountId: item.account_id,
+      accountName: item.account_name,
+      revenueQuota: Number(item.revenue_quota),
+      revenue: Number(item.revenue),
+      providerUsageQuota: Number(item.provider_usage_quota),
+      cost: item.cost == null ? null : Number(item.cost),
+      profit: item.profit == null ? null : Number(item.profit),
+      grossMargin: item.gross_margin == null ? null : Number(item.gross_margin),
+      costStatus: item.cost_status,
+      costObservedAt: item.cost_observed_at,
+    })),
+    total: Number(data.total),
+    page: data.page,
+    pageSize: data.page_size,
+    revenue: Number(data.revenue),
+    cost: data.cost == null ? null : Number(data.cost),
+    profit: data.profit == null ? null : Number(data.profit),
+    grossMargin: data.gross_margin == null ? null : Number(data.gross_margin),
+  }
 }
 
 export async function saveProvider(provider: UpstreamProvider) {
