@@ -218,13 +218,15 @@ export async function getProviderWorkspace() {
             const channel = channelMap.get(channelId)
             return channel ? [channel] : []
           }),
-          keys: (group.keys ?? []).map((key) => ({
-            id: String(key.id),
-            externalId: key.external_id,
-            name: key.name,
-            maskedKey: key.key_masked,
-            status: key.status,
-          })),
+          keys: (group.keys ?? [])
+            .filter((key) => key.status === 'active')
+            .map((key) => ({
+              id: String(key.id),
+              externalId: key.external_id,
+              name: key.name,
+              maskedKey: key.key_masked,
+              status: key.status,
+            })),
           profit: groupProfit,
         }
       }),

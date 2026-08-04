@@ -46,7 +46,22 @@ function channel(
 }
 
 describe('channel monitor table helpers', () => {
-  test('sorts stability from highest success rate to lowest by default', () => {
+  test('sorts higher-priority channels first by default', () => {
+    const items = [
+      channel({ id: 1, name: 'fallback', priority: 0 }),
+      channel({ id: 2, name: 'primary', priority: 10 }),
+      channel({ id: 3, name: 'secondary', priority: 5 }),
+    ]
+
+    assert.deepEqual(
+      sortChannelMonitorItems(items, 'priority', 'desc').map(
+        (item) => item.name
+      ),
+      ['primary', 'secondary', 'fallback']
+    )
+  })
+
+  test('sorts stability from highest success rate to lowest', () => {
     const items = [
       channel({ id: 1, name: 'unstable', success_rate: 0.5 }),
       channel({ id: 2, name: 'stable', success_rate: 0.99 }),
@@ -57,6 +72,20 @@ describe('channel monitor table helpers', () => {
         (item) => item.name
       ),
       ['stable', 'unstable']
+    )
+  })
+
+  test('sorts routing score from highest to lowest', () => {
+    const items = [
+      channel({ id: 1, name: 'low-score', current_weighted_score: 0.4 }),
+      channel({ id: 2, name: 'high-score', current_weighted_score: 0.9 }),
+    ]
+
+    assert.deepEqual(
+      sortChannelMonitorItems(items, 'routing_score', 'desc').map(
+        (item) => item.name
+      ),
+      ['high-score', 'low-score']
     )
   })
 

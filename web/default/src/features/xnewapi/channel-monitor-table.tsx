@@ -14,6 +14,7 @@ import {
   ArrowDown01Icon,
   ArrowUp01Icon,
   RotateIcon,
+  UnfoldMoreIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
@@ -93,6 +94,8 @@ const ALL_GROUPS = '__all__'
 
 const SORT_OPTIONS: Array<{ labelKey: string; value: ChannelMonitorSortKey }> =
   [
+    { labelKey: 'Priority', value: 'priority' },
+    { labelKey: 'Routing score', value: 'routing_score' },
     { labelKey: 'Stability', value: 'success_rate' },
     { labelKey: 'Average latency', value: 'avg_latency' },
     { labelKey: 'P95 latency', value: 'p95_latency' },
@@ -110,6 +113,41 @@ const STATUS_OPTIONS = [
   { labelKey: 'Disabled', value: '2' },
   { labelKey: 'Automatically disabled', value: '3' },
 ] as const
+
+function SortableTableHead(props: {
+  label: string
+  sortKey: ChannelMonitorSortKey
+  activeSortKey: ChannelMonitorSortKey
+  sortOrder: ChannelMonitorSortOrder
+  className?: string
+  onSort: (sortKey: ChannelMonitorSortKey) => void
+}) {
+  const active = props.sortKey === props.activeSortKey
+  let ariaSort: 'ascending' | 'descending' | 'none' = 'none'
+  if (active) ariaSort = props.sortOrder === 'asc' ? 'ascending' : 'descending'
+  let sortIcon = UnfoldMoreIcon
+  if (active) {
+    sortIcon = props.sortOrder === 'asc' ? ArrowUp01Icon : ArrowDown01Icon
+  }
+
+  return (
+    <TableHead className={props.className} aria-sort={ariaSort}>
+      <Button
+        variant='ghost'
+        size='sm'
+        className='-ml-3 h-8 px-3'
+        onClick={() => props.onSort(props.sortKey)}
+      >
+        {props.label}
+        <HugeiconsIcon
+          icon={sortIcon}
+          strokeWidth={2}
+          data-icon='inline-end'
+        />
+      </Button>
+    </TableHead>
+  )
+}
 
 function ChannelStatus(props: { status: number }) {
   const { t } = useTranslation()
@@ -250,7 +288,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('1')
   const [groupFilter, setGroupFilter] = useState(ALL_GROUPS)
-  const [sortKey, setSortKey] = useState<ChannelMonitorSortKey>('success_rate')
+  const [sortKey, setSortKey] = useState<ChannelMonitorSortKey>('priority')
   const [sortOrder, setSortOrder] = useState<ChannelMonitorSortOrder>('desc')
   const [grouped, setGrouped] = useState(false)
   const [scoreItem, setScoreItem] = useState<ChannelMonitorItem | null>(null)
@@ -357,6 +395,15 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
     }
     if (priority === item.priority) return
     priorityMutation.mutate({ channelId: item.id, priority })
+  }
+
+  const sortByColumn = (nextSortKey: ChannelMonitorSortKey) => {
+    if (sortKey === nextSortKey) {
+      setSortOrder((current) => (current === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortKey(nextSortKey)
+    setSortOrder('desc')
   }
 
   const openScoreDialog = (item: ChannelMonitorItem) => {
@@ -495,9 +542,29 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
           <TableHeader>
             <TableRow>
               <TableHead className='w-72'>{t('Channel')}</TableHead>
-              <TableHead className='w-32'>{t('Priority')}</TableHead>
-              <TableHead className='w-44'>{t('Routing score')}</TableHead>
-              <TableHead>{t('Availability trend')}</TableHead>
+              <SortableTableHead
+                label={t('Priority')}
+                sortKey='priority'
+                activeSortKey={sortKey}
+                sortOrder={sortOrder}
+                className='w-32'
+                onSort={sortByColumn}
+              />
+              <SortableTableHead
+                label={t('Routing score')}
+                sortKey='routing_score'
+                activeSortKey={sortKey}
+                sortOrder={sortOrder}
+                className='w-44'
+                onSort={sortByColumn}
+              />
+              <SortableTableHead
+                label={t('Availability trend')}
+                sortKey='success_rate'
+                activeSortKey={sortKey}
+                sortOrder={sortOrder}
+                onSort={sortByColumn}
+              />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -626,16 +693,20 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                       onClick={() => openScoreDialog(item)}
                     >
                       <span className='flex items-center gap-2'>
-                        <span className='text-muted-foreground text-xs'>
+                        <span className='text-muted-foreground w-16 text-right text-xs'>
                           {t('Current:')}
                         </span>
-                        <ScoreBadge score={item.current_weighted_score} />
+                        <span className='tabular-nums'>
+                          <ScoreBadge score={item.current_weighted_score} />
+                        </span>
                       </span>
                       <span className='flex items-center gap-2'>
-                        <span className='text-muted-foreground text-xs'>
+                        <span className='text-muted-foreground w-16 text-right text-xs'>
                           {t('Suggested')}
                         </span>
-                        <ScoreBadge score={suggestedScore} />
+                        <span className='tabular-nums'>
+                          <ScoreBadge score={suggestedScore} />
+                        </span>
                       </span>
                     </Button>
                   </TableCell>

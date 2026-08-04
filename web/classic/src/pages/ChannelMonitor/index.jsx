@@ -68,6 +68,7 @@ const DAY_OPTIONS = [
 ];
 
 const SORT_OPTIONS = [
+  { label: '优先级', value: 'priority' },
   { label: '稳定性', value: 'success_rate' },
   { label: '平均延迟', value: 'avg_latency' },
   { label: 'P95 延迟', value: 'p95_latency' },
@@ -522,6 +523,17 @@ const buildGroupedChannels = (
 
 const isChannelMonitorItemLess = (left, right, sortBy) => {
   switch (sortBy) {
+    case 'priority':
+      if (left.priority !== right.priority) {
+        return left.priority < right.priority;
+      }
+      if (left.success_rate !== right.success_rate) {
+        return left.success_rate < right.success_rate;
+      }
+      return (
+        String(left.name || '').toLowerCase() <
+        String(right.name || '').toLowerCase()
+      );
     case 'success_rate':
       if (left.success_rate !== right.success_rate) {
         return left.success_rate < right.success_rate;
@@ -687,7 +699,7 @@ const sortChannelMonitorItems = (items, sortBy, order) => {
 
 const ChannelMonitorPage = () => {
   const [days, setDays] = useState(1);
-  const [sortBy, setSortBy] = useState('success_rate');
+  const [sortBy, setSortBy] = useState('priority');
   const [order, setOrder] = useState('desc');
   const [groupMode, setGroupMode] = useState('none');
   const [statusFilter, setStatusFilter] = useState('1');

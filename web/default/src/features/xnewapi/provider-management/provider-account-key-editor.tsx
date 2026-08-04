@@ -498,8 +498,8 @@ export function ProviderAccountKeyEditor(props: ProviderAccountKeyEditorProps) {
                       </Button>
                     </div>
                   )}
-                  {props.onSyncAccount && (
-                    <div className='flex justify-end sm:col-span-2'>
+                  <div className='flex justify-end gap-2 sm:col-span-2'>
+                    {props.onSyncAccount && (
                       <Button
                         type='button'
                         variant='outline'
@@ -513,9 +513,7 @@ export function ProviderAccountKeyEditor(props: ProviderAccountKeyEditorProps) {
                       >
                         {t('Sync this account')}
                       </Button>
-                    </div>
-                  )}
-                  <div className='flex justify-end sm:col-span-2'>
+                    )}
                     <Button
                       type='button'
                       variant='destructive'

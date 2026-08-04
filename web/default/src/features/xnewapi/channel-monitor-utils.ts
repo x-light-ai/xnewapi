@@ -12,6 +12,8 @@ License, or (at your option) any later version.
 import type { ChannelMonitorItem } from './types'
 
 export type ChannelMonitorSortKey =
+  | 'priority'
+  | 'routing_score'
   | 'success_rate'
   | 'avg_latency'
   | 'p95_latency'
@@ -85,6 +87,19 @@ function compareChannels(
   sortKey: ChannelMonitorSortKey
 ): number {
   switch (sortKey) {
+    case 'priority':
+      return (
+        compareNumber(left.priority, right.priority) ||
+        compareNumber(left.success_rate, right.success_rate) ||
+        left.name.localeCompare(right.name)
+      )
+    case 'routing_score':
+      return (
+        compareNumber(
+          left.current_weighted_score,
+          right.current_weighted_score
+        ) || compareNumber(left.success_rate, right.success_rate)
+      )
     case 'success_rate':
       return (
         compareNumber(left.success_rate, right.success_rate) ||
