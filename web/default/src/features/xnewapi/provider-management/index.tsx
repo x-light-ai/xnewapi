@@ -11,6 +11,7 @@ License, or (at your option) any later version.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
+import dayjs from 'dayjs'
 import {
   Building2,
   ChartNoAxesCombined,
@@ -18,7 +19,7 @@ import {
   RefreshCw,
   Search,
 } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -37,27 +38,69 @@ import {
   deleteProviderAccount,
   deleteProviderGroup,
   getProviderWorkspace,
+  getProviderProfitTrend,
   saveProvider,
   syncProvider,
   syncProviderAccount,
 } from './api'
-import { ChannelMarginRanking } from './channel-margin-ranking'
 import { createProviderAmountFormatter } from './provider-amount'
+import { ProviderDateRangePicker } from './provider-date-range'
 import { ProviderDetailSheet } from './provider-detail-sheet'
 import { ProviderMetrics } from './provider-metrics'
+import { ProviderProfitTrend } from './provider-profit-trend'
 import { ProviderTable } from './provider-table'
-import type { UpstreamProvider, UpstreamProviderStatus } from './types'
+import type {
+  ProviderProfitDateRange,
+  UpstreamProvider,
+  UpstreamProviderStatus,
+} from './types'
 
 type StatusFilter = UpstreamProviderStatus | 'all'
 const EMPTY_PROVIDERS: UpstreamProvider[] = []
+const MINIMUM_TREND_DAYS = 7
 
-export function ProviderManagement() {
+function getProfitTrendDateRange(
+  selectedRange: ProviderProfitDateRange
+): ProviderProfitDateRange {
+  const selectedDays =
+    dayjs(selectedRange.endDate).diff(selectedRange.startDate, 'day') + 1
+  if (selectedDays >= MINIMUM_TREND_DAYS) return selectedRange
+
+  return {
+    startDate: dayjs(selectedRange.endDate)
+      .subtract(MINIMUM_TREND_DAYS - 1, 'day')
+      .format('YYYY-MM-DD'),
+    endDate: selectedRange.endDate,
+  }
+}
+
+function formatProfitDateRange(range: ProviderProfitDateRange): string {
+  if (range.startDate === range.endDate) return range.startDate
+  return `${range.startDate} — ${range.endDate}`
+}
+
+export function ProviderManagement(): ReactElement {
   const { t, i18n } = useTranslation('xnewapi')
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const [dateRange, setDateRange] = useState<ProviderProfitDateRange>(() => {
+    const today = dayjs().format('YYYY-MM-DD')
+    return { startDate: today, endDate: today }
+  })
+  const trendDateRange = getProfitTrendDateRange(dateRange)
+  const dateRangeLabel = formatProfitDateRange(dateRange)
+  const trendDateRangeLabel = formatProfitDateRange(trendDateRange)
   const workspaceQuery = useQuery({
-    queryKey: ['upstream-providers'],
-    queryFn: getProviderWorkspace,
+    queryKey: ['upstream-providers', dateRange.startDate, dateRange.endDate],
+    queryFn: () => getProviderWorkspace(dateRange),
+  })
+  const trendQuery = useQuery({
+    queryKey: [
+      'upstream-provider-profit-trend',
+      trendDateRange.startDate,
+      trendDateRange.endDate,
+    ],
+    queryFn: () => getProviderProfitTrend(trendDateRange),
   })
   const providers = workspaceQuery.data?.providers ?? EMPTY_PROVIDERS
   const [query, setQuery] = useState('')
@@ -97,6 +140,10 @@ export function ProviderManagement() {
   const amountFormatter = useMemo(
     () => createProviderAmountFormatter(i18n.resolvedLanguage || i18n.language),
     [i18n.language, i18n.resolvedLanguage]
+  )
+  const formatAmount = useCallback(
+    (value: number) => amountFormatter.format(value),
+    [amountFormatter]
   )
 
   const openCreateSheet = () => {
@@ -204,7 +251,12 @@ export function ProviderManagement() {
             <Button
               variant='outline'
               size='icon'
-              onClick={() => workspaceQuery.refetch()}
+              onClick={() => {
+                void Promise.all([
+                  workspaceQuery.refetch(),
+                  trendQuery.refetch(),
+                ])
+              }}
               aria-label={t('Refresh')}
               title={t('Refresh')}
             >
@@ -214,7 +266,15 @@ export function ProviderManagement() {
             </Button>
             <Button
               variant='outline'
-              onClick={() => navigate({ to: '/providers/profit-details' })}
+              onClick={() =>
+                navigate({
+                  to: '/providers/profit-details',
+                  search: {
+                    startDate: dateRange.startDate,
+                    endDate: dateRange.endDate,
+                  },
+                })
+              }
             >
               <ChartNoAxesCombined data-icon='inline-start' />
               {t('Profit details')}
@@ -232,20 +292,21 @@ export function ProviderManagement() {
                 {workspaceQuery.error.message}
               </div>
             )}
+            <ProviderDateRangePicker
+              value={dateRange}
+              onChange={setDateRange}
+            />
             <ProviderMetrics
               providers={providers}
-              formatAmount={(value) => amountFormatter.format(value)}
+              formatAmount={formatAmount}
+              dateRangeLabel={dateRangeLabel}
             />
 
-            <ChannelMarginRanking
-              providers={providers}
-              formatAmount={(value) => amountFormatter.format(value)}
-              onViewProfitDetails={(filter) =>
-                navigate({
-                  to: '/providers/profit-details',
-                  search: filter,
-                })
-              }
+            <ProviderProfitTrend
+              points={trendQuery.data ?? []}
+              isLoading={trendQuery.isLoading}
+              dateRangeLabel={trendDateRangeLabel}
+              formatAmount={formatAmount}
             />
 
             <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
@@ -285,7 +346,7 @@ export function ProviderManagement() {
             <ProviderTable
               providers={visibleProviders}
               expandedIds={expandedIds}
-              formatAmount={(value) => amountFormatter.format(value)}
+              formatAmount={formatAmount}
               onToggle={toggleProvider}
               onEdit={openEditSheet}
             />
@@ -300,7 +361,7 @@ export function ProviderManagement() {
           provider={selectedProvider}
           channels={workspaceQuery.data?.channelOptions ?? []}
           saving={saveMutation.isPending}
-          formatAmount={(value) => amountFormatter.format(value)}
+          formatAmount={formatAmount}
           onOpenChange={setSheetOpen}
           onSave={(provider) => saveMutation.mutate(provider)}
           onSync={(provider) => syncMutation.mutate(provider)}

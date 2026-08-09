@@ -206,6 +206,20 @@ func GetUpstreamProviderProfitDetails(c *gin.Context) {
 	common.ApiSuccess(c, details)
 }
 
+func GetUpstreamProviderProfitTrend(c *gin.Context) {
+	var query dto.UpstreamProviderProfitQuery
+	if err := c.ShouldBindQuery(&query); err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	trend, err := service.GetProviderProfitDailyTrend(query.StartDate, query.EndDate)
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, trend)
+}
+
 func RebuildUpstreamProviderProfit(c *gin.Context) {
 	var request dto.UpstreamProviderProfitQuery
 	if err := common.DecodeJson(c.Request.Body, &request); err != nil {

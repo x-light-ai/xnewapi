@@ -16,6 +16,7 @@ func registerForkRoutes(apiRouter *gin.RouterGroup) {
 		providerRoute.GET("/channels", controller.GetUpstreamProviderChannelOptions)
 		providerRoute.GET("/profit-ranking", controller.GetUpstreamProviderProfitRanking)
 		providerRoute.GET("/profit-details", controller.GetUpstreamProviderProfitDetails)
+		providerRoute.GET("/profit-trend", controller.GetUpstreamProviderProfitTrend)
 		providerRoute.POST("/profit/rebuild", controller.RebuildUpstreamProviderProfit)
 		providerRoute.GET("/sync-runs", controller.GetUpstreamProviderSyncRuns)
 		providerRoute.POST("/:id/sync", controller.SyncUpstreamProvider)

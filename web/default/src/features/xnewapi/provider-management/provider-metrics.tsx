@@ -20,6 +20,7 @@ import type { UpstreamProvider } from './types'
 type ProviderMetricsProps = {
   providers: UpstreamProvider[]
   formatAmount: (value: number) => string
+  dateRangeLabel: string
 }
 
 export function ProviderMetrics(props: ProviderMetricsProps) {
@@ -31,17 +32,18 @@ export function ProviderMetrics(props: ProviderMetricsProps) {
     ? totals.reduce((sum, item) => sum + (item.cost ?? 0), 0)
     : null
   const profit = cost === null ? null : revenue - cost
-  const margin = profit !== null && revenue > 0 ? (profit / revenue) * 100 : null
+  const margin =
+    profit !== null && revenue > 0 ? (profit / revenue) * 100 : null
   const groupCount = totals.reduce((sum, item) => sum + item.groupCount, 0)
   const metrics = [
     {
-      label: t('Monthly provider group revenue'),
+      label: t('Total revenue'),
       value: props.formatAmount(revenue),
-      detail: t('Current month'),
+      detail: props.dateRangeLabel,
       icon: ChartNoAxesCombined,
     },
     {
-      label: t('Provider group cost'),
+      label: t('Total cost'),
       value: cost === null ? '-' : props.formatAmount(cost),
       detail: t('{{count}} provider groups', { count: groupCount }),
       icon: ReceiptText,

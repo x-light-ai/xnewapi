@@ -16,6 +16,8 @@ import { api } from '@/lib/api'
 import type {
   ProviderChannel,
   ProviderProfitDailyDetailPage,
+  ProviderProfitDailyTrendPoint,
+  ProviderProfitDateRange,
   ProviderGroupProfit,
   UpstreamProvider,
 } from './types'
@@ -122,6 +124,20 @@ type RawProviderProfitDailyDetailPage = {
   gross_margin: string | number | null
 }
 
+type RawProviderProfitDailyTrendPoint = {
+  date: string
+  revenue: string | number
+  cost: string | number | null
+  profit: string | number | null
+  cost_status: string
+}
+
+type ProviderWorkspace = {
+  providers: UpstreamProvider[]
+  channelOptions: ProviderChannel[]
+  profits: ProviderProfitItem[]
+}
+
 function unwrap<T>(response: ApiResponse<T>): T {
   if (!response.success) throw new Error(response.message || 'Request failed')
   return response.data
@@ -132,7 +148,9 @@ function timestampLabel(value: number): string {
   return new Date(value * 1000).toLocaleString()
 }
 
-export async function getProviderWorkspace() {
+export async function getProviderWorkspace(
+  params?: ProviderProfitDateRange
+): Promise<ProviderWorkspace> {
   const channelOptionsPromise = api
     .get<ApiResponse<Array<{ id: number; name: string; status: number }>>>(
       '/api/xnewapi/providers/channels'
@@ -143,7 +161,11 @@ export async function getProviderWorkspace() {
     .get<ApiResponse<ProviderProfitItem[]>>(
       '/api/xnewapi/providers/profit-ranking',
       {
-        params: { start_date: dayjs().startOf('month').format('YYYY-MM-DD') },
+        params: {
+          start_date:
+            params?.startDate ?? dayjs().startOf('month').format('YYYY-MM-DD'),
+          end_date: params?.endDate,
+        },
       }
     )
     .then((response) => unwrap(response.data))
@@ -244,6 +266,26 @@ export async function getProviderWorkspace() {
     })),
   }))
   return { providers, channelOptions, profits }
+}
+
+export async function getProviderProfitTrend(
+  params: ProviderProfitDateRange
+): Promise<ProviderProfitDailyTrendPoint[]> {
+  const response = await api.get<
+    ApiResponse<RawProviderProfitDailyTrendPoint[]>
+  >('/api/xnewapi/providers/profit-trend', {
+    params: {
+      start_date: params.startDate,
+      end_date: params.endDate,
+    },
+  })
+  return unwrap(response.data).map((item) => ({
+    date: item.date,
+    revenue: Number(item.revenue),
+    cost: item.cost == null ? null : Number(item.cost),
+    profit: item.profit == null ? null : Number(item.profit),
+    costStatus: item.cost_status,
+  }))
 }
 
 export async function getProviderProfitDetails(params: {

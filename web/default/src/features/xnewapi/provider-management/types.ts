@@ -90,6 +90,19 @@ export type ProviderProfitDailyDetailPage = {
   grossMargin: number | null
 }
 
+export type ProviderProfitDailyTrendPoint = {
+  date: string
+  revenue: number
+  cost: number | null
+  profit: number | null
+  costStatus: string
+}
+
+export type ProviderProfitDateRange = {
+  startDate: string
+  endDate: string
+}
+
 export type ProviderProfitDetailsSearch = {
   startDate?: string
   endDate?: string

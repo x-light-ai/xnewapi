@@ -58,14 +58,16 @@ type ProviderGroupProfitDailyDetailPage struct {
 	GrossMargin *decimal.Decimal                 `json:"gross_margin"`
 }
 
+type ProviderProfitDailyTrendPoint struct {
+	Date       string           `json:"date"`
+	Revenue    decimal.Decimal  `json:"revenue"`
+	Cost       *decimal.Decimal `json:"cost"`
+	Profit     *decimal.Decimal `json:"profit"`
+	CostStatus string           `json:"cost_status"`
+}
+
 func GetProviderGroupProfitRanking(startDate string, endDate string) ([]ProviderGroupProfit, error) {
-	startAt, endAt, err := providerProfitRange(startDate, endDate)
-	if err != nil {
-		return nil, err
-	}
-	startDate = time.Unix(startAt, 0).In(time.Local).Format("2006-01-02")
-	endDate = time.Unix(endAt, 0).In(time.Local).Format("2006-01-02")
-	rows, err := model.GetUpstreamProviderGroupProfitDailyRange(startDate, endDate)
+	rows, err := getProviderProfitDailyRows(startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
@@ -171,13 +173,7 @@ func GetProviderGroupProfitRanking(startDate string, endDate string) ([]Provider
 }
 
 func GetProviderGroupProfitDetails(startDate string, endDate string, providerID int, groupID int) ([]ProviderGroupProfitDailyDetail, error) {
-	startAt, endAt, err := providerProfitRange(startDate, endDate)
-	if err != nil {
-		return nil, err
-	}
-	startDate = time.Unix(startAt, 0).In(time.Local).Format("2006-01-02")
-	endDate = time.Unix(endAt, 0).In(time.Local).Format("2006-01-02")
-	rows, err := model.GetUpstreamProviderGroupProfitDailyRange(startDate, endDate)
+	rows, err := getProviderProfitDailyRows(startDate, endDate)
 	if err != nil {
 		return nil, err
 	}
@@ -281,6 +277,70 @@ func GetProviderGroupProfitDetailsPage(startDate string, endDate string, provide
 	}
 	result.Items = items[int(offset):int(end)]
 	return result, nil
+}
+
+func GetProviderProfitDailyTrend(startDate string, endDate string) ([]ProviderProfitDailyTrendPoint, error) {
+	rows, err := getProviderProfitDailyRows(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+
+	type dailyTotal struct {
+		revenue      decimal.Decimal
+		cost         decimal.Decimal
+		costComplete bool
+		costStatus   string
+	}
+	totals := make(map[string]*dailyTotal)
+	for _, row := range rows {
+		total := totals[row.Date]
+		if total == nil {
+			total = &dailyTotal{costComplete: true, costStatus: "ready"}
+			totals[row.Date] = total
+		}
+		total.revenue = total.revenue.Add(row.RevenueAmount)
+		if row.CostStatus == "ready" {
+			total.cost = total.cost.Add(row.ProviderCost)
+			continue
+		}
+		total.costComplete = false
+		if row.CostStatus == "error" || total.costStatus == "ready" {
+			total.costStatus = row.CostStatus
+		}
+	}
+
+	dates := make([]string, 0, len(totals))
+	for date := range totals {
+		dates = append(dates, date)
+	}
+	sort.Strings(dates)
+	result := make([]ProviderProfitDailyTrendPoint, 0, len(dates))
+	for _, date := range dates {
+		total := totals[date]
+		point := ProviderProfitDailyTrendPoint{
+			Date:       date,
+			Revenue:    total.revenue,
+			CostStatus: total.costStatus,
+		}
+		if total.costComplete {
+			cost := total.cost
+			profit := total.revenue.Sub(cost)
+			point.Cost = &cost
+			point.Profit = &profit
+		}
+		result = append(result, point)
+	}
+	return result, nil
+}
+
+func getProviderProfitDailyRows(startDate string, endDate string) ([]model.UpstreamProviderGroupProfitDaily, error) {
+	startAt, endAt, err := providerProfitRange(startDate, endDate)
+	if err != nil {
+		return nil, err
+	}
+	startDate = time.Unix(startAt, 0).In(time.Local).Format("2006-01-02")
+	endDate = time.Unix(endAt, 0).In(time.Local).Format("2006-01-02")
+	return model.GetUpstreamProviderGroupProfitDailyRange(startDate, endDate)
 }
 
 func RebuildProviderProfitDaily(startDate string, endDate string) ([]ProviderGroupProfit, error) {

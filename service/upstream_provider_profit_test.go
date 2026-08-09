@@ -132,6 +132,46 @@ func TestProviderProfitDetailsFiltersGroupAndPreservesDailyQuota(t *testing.T) {
 	assert.Nil(t, paged.Cost)
 }
 
+func TestProviderProfitDailyTrendAggregatesGroupsAndMarksIncompleteCosts(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.AutoMigrate(&model.UpstreamProviderGroupProfitDaily{}))
+	originalDB := model.DB
+	model.DB = db
+	t.Cleanup(func() { model.DB = originalDB })
+
+	day := time.Now().In(time.Local)
+	firstDate := day.AddDate(0, 0, -1).Format("2006-01-02")
+	secondDate := day.Format("2006-01-02")
+	require.NoError(t, db.Create([]model.UpstreamProviderGroupProfitDaily{
+		{
+			Date: firstDate, ProviderGroupId: 1, RevenueAmount: decimal.NewFromInt(10),
+			ProviderCost: decimal.NewFromInt(4), CostStatus: "ready",
+		},
+		{
+			Date: firstDate, ProviderGroupId: 2, RevenueAmount: decimal.NewFromInt(5),
+			ProviderCost: decimal.NewFromInt(2), CostStatus: "ready",
+		},
+		{
+			Date: secondDate, ProviderGroupId: 1,
+			RevenueAmount: decimal.NewFromInt(8), CostStatus: "unavailable",
+		},
+	}).Error)
+
+	trend, err := GetProviderProfitDailyTrend(firstDate, secondDate)
+	require.NoError(t, err)
+	require.Len(t, trend, 2)
+	assert.Equal(t, firstDate, trend[0].Date)
+	assert.True(t, trend[0].Revenue.Equal(decimal.NewFromInt(15)))
+	require.NotNil(t, trend[0].Cost)
+	assert.True(t, trend[0].Cost.Equal(decimal.NewFromInt(6)))
+	require.NotNil(t, trend[0].Profit)
+	assert.True(t, trend[0].Profit.Equal(decimal.NewFromInt(9)))
+	assert.Equal(t, "unavailable", trend[1].CostStatus)
+	assert.Nil(t, trend[1].Cost)
+	assert.Nil(t, trend[1].Profit)
+}
+
 func TestRefreshProviderProfitSumsAllMappedChannels(t *testing.T) {
 	db, err := gorm.Open(sqlite.Open("file:"+t.Name()+"?mode=memory&cache=shared"), &gorm.Config{})
 	require.NoError(t, err)

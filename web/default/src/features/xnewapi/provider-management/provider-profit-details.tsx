@@ -65,7 +65,7 @@ export function ProviderProfitDetails(props: ProviderProfitDetailsProps) {
   const dateRangeIsValid = startDate <= endDate
   const workspaceQuery = useQuery({
     queryKey: ['upstream-providers'],
-    queryFn: getProviderWorkspace,
+    queryFn: () => getProviderWorkspace(),
   })
   const providers = workspaceQuery.data?.providers ?? EMPTY_PROVIDERS
   const groups = useMemo(() => {
