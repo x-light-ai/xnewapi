@@ -121,7 +121,7 @@ diff <(git show <上游ref>:model/main.go) model/main.go
 - `SiderBar.jsx`：在上游菜单块末尾展开 fork 菜单项，不复制菜单生成逻辑。
 - `useSidebar.js`：保留上游 `mergeAdminConfig`，只追加 fork 默认 key；不得为两个 key 删除并内联重写上游 merge。
 - `EditChannelModal.jsx`：把 `upstream_protocol` 的默认值、解析、序列化和字段 UI 抽到 helper/component，Modal 只保留少量调用。
-- fork 专属文案仍使用项目 i18n 流程，不写死可见文案。
+- 完全位于 `web/src/features/xnewapi/` 的 fork 自有 UI 可直接写中文可见文案，无需 i18n；不要把 fork 专属 key 写入上游 locale。共享或上游组件中的文案仍使用完整 i18n 流程。
 
 不要手工修改 `bun.lock`。依赖变化后用 Bun 生成并验证。
 
@@ -137,4 +137,3 @@ fork 发布 workflow 使用独立新增文件，避免改写上游 workflow。�
 - Sidebar 配置深合并 bug。
 
 在上游接受前，将其标为临时兼容修正并保留定向测试；接受后删除 fork 补丁，不长期双重维护。
-

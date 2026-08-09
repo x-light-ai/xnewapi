@@ -188,15 +188,6 @@ export type ContentSettings = {
 }
 
 export type ModelSettings = {
-  // FORK-CUSTOM: Expose SuccessRateSelector options to the default frontend.
-  'channel_success_rate_setting.enabled': boolean
-  'channel_success_rate_setting.half_life_seconds': number
-  'channel_success_rate_setting.explore_rate': number
-  'channel_success_rate_setting.quick_downgrade': boolean
-  'channel_success_rate_setting.consecutive_fail_threshold': number
-  'channel_success_rate_setting.priority_weights': string
-  'channel_success_rate_setting.immediate_disable': string
-  'channel_success_rate_setting.health_manager': string
   'global.pass_through_request_enabled': boolean
   'global.thinking_model_blacklist': string
   'global.chat_completions_to_responses_policy': string

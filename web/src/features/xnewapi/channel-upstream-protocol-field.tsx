@@ -38,7 +38,7 @@ type ChannelUpstreamProtocolFieldProps = {
 export function ChannelUpstreamProtocolField(
   props: ChannelUpstreamProtocolFieldProps
 ) {
-  const { t } = useTranslation()
+  const { t } = useTranslation('xnewapi')
   if (props.channelType !== 14) return null
 
   return (

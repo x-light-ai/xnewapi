@@ -41,6 +41,7 @@ type SettingsPageProps<
   ) => ReactNode
   getSectionMeta: (sectionId: TSectionId) => {
     titleKey: string
+    titleNamespace?: string
   }
   extraArgs?: TExtraArgs
   loadingMessage?: string
@@ -129,7 +130,9 @@ export function SettingsPage<
 
   if (isLoading) {
     return (
-      <SettingsPageFrame title={t(sectionMeta.titleKey)}>
+      <SettingsPageFrame
+        title={t(sectionMeta.titleKey, { ns: sectionMeta.titleNamespace })}
+      >
         <div className='text-muted-foreground flex min-h-40 items-center justify-center text-sm'>
           {t(loadingMessage)}
         </div>
@@ -144,7 +147,9 @@ export function SettingsPage<
   )
 
   return (
-    <SettingsPageFrame title={t(sectionMeta.titleKey)}>
+    <SettingsPageFrame
+      title={t(sectionMeta.titleKey, { ns: sectionMeta.titleNamespace })}
+    >
       {sectionContent}
     </SettingsPageFrame>
   )

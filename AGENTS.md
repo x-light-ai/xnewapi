@@ -139,9 +139,10 @@ Do NOT directly import or call `encoding/json` in business code. `json.RawMessag
 - In React components, use `useTranslation()` and call `t('English key')` for user-facing text.
 - Follow `web/AGENTS.md` for detailed frontend conventions, including TypeScript, component structure, styling, accessibility, testing, and build checks.
 
-### Fork model provider synchronization UI
+### Fork-owned frontend UI
 
-- In the fork-owned `web/default/src/features/xnewapi` namespace, maintain UI translations in `locales/en.json` and `locales/zh.json` only; do not expand this fork namespace into the upstream locale files.
+- UI implemented entirely under the fork-owned `web/src/features/xnewapi/` namespace may use hardcoded Chinese user-facing text. It does not need `useTranslation()`, locale keys, or translated locale entries.
+- Do not add fork-only UI text to the upstream `web/src/i18n/locales/*.json` files. UI added to shared or upstream frontend files and components must still follow the full frontend i18n rules above.
 - Synchronizing all provider accounts or an individual account is a state-changing action and MUST open a confirmation dialog before calling the sync API.
 - Provider and account `Sync failed` badges MUST expose their backend error message on hover through a tooltip.
 

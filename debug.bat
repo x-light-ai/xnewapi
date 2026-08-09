@@ -24,20 +24,28 @@ if errorlevel 1 (
 
 echo Frontend command: %FRONTEND_CMD%
 
-if not exist web\default\node_modules (
+if not exist web\node_modules (
     echo Installing frontend dependencies...
-    pushd web\default
+    pushd web
     %FRONTEND_CMD% install
     popd
 )
 
+echo Building backend...
+go build -o new-api.exe .
+if errorlevel 1 (
+    echo Backend build failed
+    pause
+    exit /b 1
+)
+
 echo Starting backend...
-start "Backend" cmd /k "set PORT=%BACKEND_PORT%&& go run main.go"
+start "Backend" cmd /k "set PORT=%BACKEND_PORT%&& new-api.exe"
 
 timeout /t 3 /nobreak >nul
 
 echo Starting frontend...
-pushd web\default
+pushd web
 start "Frontend" cmd /k "set VITE_REACT_APP_SERVER_URL=http://localhost:%BACKEND_PORT%&& %FRONTEND_CMD% run dev -- --port %FRONTEND_PORT% --strict-port"
 popd
 

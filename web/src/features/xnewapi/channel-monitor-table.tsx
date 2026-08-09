@@ -146,7 +146,7 @@ function SortableTableHead(props: {
 }
 
 function ChannelStatus(props: { status: number }) {
-  const { t } = useTranslation()
+  const { t } = useTranslation('xnewapi')
   if (props.status === 1) {
     return (
       <StatusBadge label={t('Enabled')} variant='success' copyable={false} />
@@ -196,7 +196,7 @@ function AvailabilityTrend(props: {
   timeline?: ChannelTimeline
   locale: string
 }) {
-  const { t } = useTranslation()
+  const { t } = useTranslation('xnewapi')
   const points = props.timeline?.points ?? []
   let maxRequests = 0
   for (const point of points) {
@@ -279,7 +279,7 @@ type ChannelMonitorTableProps = {
 }
 
 export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
-  const { t, i18n } = useTranslation()
+  const { t, i18n } = useTranslation('xnewapi')
   const queryClient = useQueryClient()
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('1')

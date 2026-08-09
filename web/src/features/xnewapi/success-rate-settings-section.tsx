@@ -37,6 +37,10 @@ import {
 import { SettingsPageFormActions } from '@/features/system-settings/components/settings-page-context'
 import { SettingsSection } from '@/features/system-settings/components/settings-section'
 import { useResetForm } from '@/features/system-settings/hooks/use-reset-form'
+import {
+  getOptionValue,
+  useSystemOptions,
+} from '@/features/system-settings/hooks/use-system-options'
 import { useUpdateOption } from '@/features/system-settings/hooks/use-update-option'
 import { safeNumberFieldProps } from '@/features/system-settings/utils/numeric-field'
 
@@ -65,7 +69,7 @@ const successRateSchema = z.object({
 type SuccessRateFormInput = z.input<typeof successRateSchema>
 type SuccessRateFormValues = z.output<typeof successRateSchema>
 
-export type SuccessRateSettingsDefaults = {
+type SuccessRateSettingsValues = {
   'channel_success_rate_setting.enabled': boolean
   'channel_success_rate_setting.half_life_seconds': number
   'channel_success_rate_setting.explore_rate': number
@@ -76,8 +80,17 @@ export type SuccessRateSettingsDefaults = {
   'channel_success_rate_setting.health_manager': string
 }
 
-type SuccessRateSettingsSectionProps = {
-  defaultValues: SuccessRateSettingsDefaults
+const DEFAULT_SUCCESS_RATE_SETTINGS: SuccessRateSettingsValues = {
+  'channel_success_rate_setting.enabled': false,
+  'channel_success_rate_setting.half_life_seconds': 1800,
+  'channel_success_rate_setting.explore_rate': 0.02,
+  'channel_success_rate_setting.quick_downgrade': true,
+  'channel_success_rate_setting.consecutive_fail_threshold': 3,
+  'channel_success_rate_setting.priority_weights': '{"0":-0.1,"5":0,"10":0.2}',
+  'channel_success_rate_setting.immediate_disable':
+    '{"enabled":true,"status_codes":[400,401,403,404,500,502],"error_codes":[],"error_types":[]}',
+  'channel_success_rate_setting.health_manager':
+    '{"circuit_scope":"model","disable_threshold":0.2,"enable_threshold":0.7,"min_sample_size":10,"recovery_check_interval":600,"half_open_success_threshold":2}',
 }
 
 const PRIORITY_TEMPLATE = { 10: 0.2, 5: 0, 0: -0.1 }
@@ -96,7 +109,11 @@ const HEALTH_MANAGER_TEMPLATE = {
   half_open_success_threshold: 2,
 }
 
-function formatJson(value: string, fallback: Record<string, unknown>): string {
+function formatJson(
+  value: string | undefined,
+  fallback: Record<string, unknown>
+): string {
+  if (!value) return JSON.stringify(fallback, null, 2)
   try {
     const parsed: unknown = JSON.parse(value)
     if (
@@ -113,7 +130,7 @@ function formatJson(value: string, fallback: Record<string, unknown>): string {
 }
 
 function buildDefaults(
-  defaults: SuccessRateSettingsDefaults
+  defaults: SuccessRateSettingsValues
 ): SuccessRateFormInput {
   return {
     enabled: defaults['channel_success_rate_setting.enabled'] ?? false,
@@ -139,7 +156,7 @@ function buildDefaults(
   }
 }
 
-function normalize(values: SuccessRateFormValues): SuccessRateSettingsDefaults {
+function normalize(values: SuccessRateFormValues): SuccessRateSettingsValues {
   return {
     'channel_success_rate_setting.enabled': values.enabled,
     'channel_success_rate_setting.half_life_seconds': values.half_life_seconds,
@@ -159,16 +176,16 @@ function normalize(values: SuccessRateFormValues): SuccessRateSettingsDefaults {
   }
 }
 
-export function SuccessRateSettingsSection(
-  props: SuccessRateSettingsSectionProps
-) {
-  const { t } = useTranslation()
+export function SuccessRateSettingsSection() {
+  const { t } = useTranslation('xnewapi')
   const updateOption = useUpdateOption()
-  const formDefaults = useMemo(
-    () => buildDefaults(props.defaultValues),
-    [props.defaultValues]
+  const { data } = useSystemOptions()
+  const settings = useMemo(
+    () => getOptionValue(data?.data, DEFAULT_SUCCESS_RATE_SETTINGS),
+    [data?.data]
   )
-  const baselineRef = useRef<SuccessRateSettingsDefaults>(
+  const formDefaults = useMemo(() => buildDefaults(settings), [settings])
+  const baselineRef = useRef<SuccessRateSettingsValues>(
     normalize(successRateSchema.parse(formDefaults))
   )
   const form = useForm<SuccessRateFormInput, unknown, SuccessRateFormValues>({
@@ -185,7 +202,7 @@ export function SuccessRateSettingsSection(
   const onSubmit = async (values: SuccessRateFormValues) => {
     const normalized = normalize(values)
     const keys = Object.keys(normalized) as Array<
-      keyof SuccessRateSettingsDefaults
+      keyof SuccessRateSettingsValues
     >
     const changed = keys.filter(
       (key) => normalized[key] !== baselineRef.current[key]

@@ -134,7 +134,7 @@ export function useSidebarData(): SidebarData {
           },
           // FORK-CUSTOM: Expose channel monitoring from one default sidebar hook.
           {
-            title: t('Channel Monitor'),
+            title: t('Channel Monitor', { ns: 'xnewapi' }),
             url: '/channel-monitor',
             icon: HeartPulse,
           },

@@ -287,18 +287,6 @@ export function ModelMutateDrawer({
   const modelSettings = useMemo(() => {
     if (!systemOptionsData?.data) return null
     const defaultModelSettings: ModelSettings = {
-      // FORK-CUSTOM: Keep model drawer settings compatible with selector options.
-      'channel_success_rate_setting.enabled': false,
-      'channel_success_rate_setting.half_life_seconds': 1800,
-      'channel_success_rate_setting.explore_rate': 0.02,
-      'channel_success_rate_setting.quick_downgrade': true,
-      'channel_success_rate_setting.consecutive_fail_threshold': 3,
-      'channel_success_rate_setting.priority_weights':
-        '{"0":-0.1,"5":0,"10":0.2}',
-      'channel_success_rate_setting.immediate_disable':
-        '{"enabled":true,"status_codes":[400,401,403,404,500,502],"error_codes":[],"error_types":[]}',
-      'channel_success_rate_setting.health_manager':
-        '{"circuit_scope":"model","disable_threshold":0.2,"enable_threshold":0.7,"min_sample_size":10,"recovery_check_interval":600,"half_open_success_threshold":2}',
       'global.pass_through_request_enabled': false,
       'global.thinking_model_blacklist': '[]',
       'global.chat_completions_to_responses_policy': '{}',

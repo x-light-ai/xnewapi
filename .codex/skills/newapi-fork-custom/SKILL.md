@@ -37,7 +37,7 @@ description: 维护 x-light-ai/xnewapi 相对官方 QuantumNous/new-api 的 fork
    4. 用集中式可见性策略包裹完整上游 UI 块。
    5. 只有无稳定边界时才修改上游函数，并先把 fork 实现抽离。
 5. **保持接口语义**：不得为了减少 diff 吞掉 translator 错误、改变 retry 边界、泄露密钥，或破坏显式 `0`/`false` 的透传。JSON 操作使用 `common.*`，数据库保持 SQLite、MySQL、PostgreSQL 兼容。
-   - fork 专属前端文案必须接入项目 i18n，但只需维护 `en` 和 `zh`；`fr`、`ru`、`ja`、`vi` 使用回退，不要求补充 fork 专属翻译。修改上游或共享文案时仍遵循项目的完整语言要求。
+   - 完全位于 `web/src/features/xnewapi/` 的 fork 自有 UI 可直接使用中文可见文案，无需 `useTranslation()`、locale key 或翻译文件；不得把 fork 专属文案写入上游 `web/src/i18n/locales/*.json`。修改共享或上游前端文件、组件中的文案时仍遵循项目的完整 i18n 要求。
    - fork 新增表不得写入上游 `AutoMigrate` 模型列表；`model/main.go` 只保留 `migrateForkTables()` 一行调用，且相对上游必须是纯新增、无修改行。手写 SQLite DDL 必须与 GORM 生成形态一致（索引头单空格、列名反引号），详见 [refactor-patterns.md](references/refactor-patterns.md) 第 4 节。
 6. **补充标记**：在最终落点补 `FORK-CUSTOM`，不要先给即将移动或删除的代码批量加标记。
 7. **更新清单**：功能、接入点或验证命令发生变化时更新现有 fork 功能清单，不创建第二份事实源。

@@ -1,6 +1,3 @@
-// FORK-CUSTOM: Register the fork-owned selector settings through one section hook.
-import { SuccessRateSettingsSection } from '@/features/xnewapi/success-rate-settings-section'
-
 /*
 Copyright (C) 2023-2026 QuantumNous
 
@@ -19,6 +16,9 @@ along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 For commercial licensing, please contact support@quantumnous.com
 */
+// FORK-CUSTOM: Register the fork-owned selector settings through one section hook.
+import { SuccessRateSettingsSection } from '@/features/xnewapi/success-rate-settings-section'
+
 import { ChannelAffinitySection } from '../general/channel-affinity'
 import { IoNetDeploymentSettingsSection } from '../integrations/ionet-deployment-settings-section'
 import type { ModelSettings } from '../types'
@@ -95,28 +95,8 @@ const MODELS_SECTIONS = [
   {
     id: 'success-rate-selection',
     titleKey: 'Success rate selection',
-    build: (settings: ModelSettings) => (
-      <SuccessRateSettingsSection
-        defaultValues={{
-          'channel_success_rate_setting.enabled':
-            settings['channel_success_rate_setting.enabled'],
-          'channel_success_rate_setting.half_life_seconds':
-            settings['channel_success_rate_setting.half_life_seconds'],
-          'channel_success_rate_setting.explore_rate':
-            settings['channel_success_rate_setting.explore_rate'],
-          'channel_success_rate_setting.quick_downgrade':
-            settings['channel_success_rate_setting.quick_downgrade'],
-          'channel_success_rate_setting.consecutive_fail_threshold':
-            settings['channel_success_rate_setting.consecutive_fail_threshold'],
-          'channel_success_rate_setting.priority_weights':
-            settings['channel_success_rate_setting.priority_weights'],
-          'channel_success_rate_setting.immediate_disable':
-            settings['channel_success_rate_setting.immediate_disable'],
-          'channel_success_rate_setting.health_manager':
-            settings['channel_success_rate_setting.health_manager'],
-        }}
-      />
-    ),
+    titleNamespace: 'xnewapi',
+    build: () => <SuccessRateSettingsSection />,
   },
   {
     id: 'gemini',

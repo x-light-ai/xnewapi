@@ -25,6 +25,7 @@ import type { ReactNode } from 'react'
 export type SectionDefinition<TSettings, TExtraArgs extends unknown[] = []> = {
   id: string
   titleKey: string
+  titleNamespace?: string
   build: (settings: TSettings, ...extraArgs: TExtraArgs) => ReactNode
 }
 
@@ -65,7 +66,7 @@ export function createSectionRegistry<
    */
   function getSectionNavItems(t: TFunction) {
     return sections.map((section) => ({
-      title: t(section.titleKey),
+      title: t(section.titleKey, { ns: section.titleNamespace }),
       url:
         urlStyle === 'path'
           ? `${basePath}/${section.id}`

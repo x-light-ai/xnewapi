@@ -55,7 +55,7 @@ export function ChannelMonitor() {
 }
 
 function ChannelMonitorContent() {
-  const { t } = useTranslation()
+  const { t } = useTranslation('xnewapi')
   const queryClient = useQueryClient()
   const [days, setDays] = useState<number>(1)
   const [editingChannelId, setEditingChannelId] = useState<number | null>(null)
