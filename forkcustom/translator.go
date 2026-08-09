@@ -3,9 +3,9 @@ package forkcustom
 
 import (
 	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/relay/channel/openai"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/service"
 )
 
@@ -18,7 +18,7 @@ func buildClaudeTranslator() service.ClaudeTranslator {
 			if err != nil {
 				return nil, err
 			}
-			info.ClaudeConvertInfo.ForkTranslator.OriginalRequestRawJSON = requestRawJSON
+			info.ForkTranslator.OriginalRequestRawJSON = requestRawJSON
 			return openai.ConvertClaudeRequestToOpenAIRequest(&request, info.UpstreamModelName, info.IsStream)
 		},
 		Response: openai.ResponseOpenAI2ClaudeWithTranslator,

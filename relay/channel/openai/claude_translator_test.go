@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
 )
@@ -161,9 +161,8 @@ func TestConvertClaudeRequestToOpenAIRequest_StripsClaudeCodeAttribution(t *test
 
 func TestResponseOpenAI2ClaudeWithTranslator_RestoresToolNameAndUsage(t *testing.T) {
 	info := &relaycommon.RelayInfo{
-		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
-			ForkTranslator: relaycommon.ClaudeTranslatorState{OriginalRequestRawJSON: []byte(`{"tools":[{"name":"Get_Weather","description":"Look up weather","input_schema":{"type":"object"}}]}`)},
-		},
+		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{},
+		ForkTranslator:    relaycommon.ClaudeTranslatorState{OriginalRequestRawJSON: []byte(`{"tools":[{"name":"Get_Weather","description":"Look up weather","input_schema":{"type":"object"}}]}`)},
 	}
 	response := &dto.OpenAITextResponse{
 		Id:     "chatcmpl_123",
@@ -220,9 +219,8 @@ func TestResponseOpenAI2ClaudeWithTranslator_RestoresToolNameAndUsage(t *testing
 
 func TestResponseOpenAI2ClaudeWithTranslator_RestoresSanitizedToolName(t *testing.T) {
 	info := &relaycommon.RelayInfo{
-		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
-			ForkTranslator: relaycommon.ClaudeTranslatorState{OriginalRequestRawJSON: []byte(`{"tools":[{"name":"mcp/server/read","description":"Read tool","input_schema":{"type":"object"}}]}`)},
-		},
+		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{},
+		ForkTranslator:    relaycommon.ClaudeTranslatorState{OriginalRequestRawJSON: []byte(`{"tools":[{"name":"mcp/server/read","description":"Read tool","input_schema":{"type":"object"}}]}`)},
 	}
 	response := &dto.OpenAITextResponse{
 		Id:     "chatcmpl_sanitized",
@@ -250,8 +248,8 @@ func TestStreamResponseOpenAI2ClaudeWithTranslator_EmitsThinkingToolAndStop(t *t
 	info := &relaycommon.RelayInfo{
 		ClaudeConvertInfo: &relaycommon.ClaudeConvertInfo{
 			LastMessagesType: relaycommon.LastMessageTypeNone,
-			ForkTranslator:   relaycommon.ClaudeTranslatorState{OriginalRequestRawJSON: []byte(`{"tools":[{"name":"Get_Weather"}]}`)},
 		},
+		ForkTranslator: relaycommon.ClaudeTranslatorState{OriginalRequestRawJSON: []byte(`{"tools":[{"name":"Get_Weather"}]}`)},
 	}
 
 	responses, err := StreamResponseOpenAI2ClaudeWithTranslator(&dto.ChatCompletionsStreamResponse{

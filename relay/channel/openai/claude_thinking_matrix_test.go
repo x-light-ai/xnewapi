@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,9 +43,9 @@ func TestMapReasoningEffort(t *testing.T) {
 // ConvertClaudeRequestToOpenAIRequest: thinking -> reasoning_effort
 func TestConvertClaudeRequest_ThinkingToReasoningEffort(t *testing.T) {
 	cases := []struct {
-		name    string
+		name     string
 		thinking *dto.Thinking
-		want    string
+		want     string
 	}{
 		{"enabled budget=4096 -> medium", &dto.Thinking{Type: "enabled", BudgetTokens: common.GetPointer(4096)}, "medium"},
 		{"enabled budget=16384 -> high", &dto.Thinking{Type: "enabled", BudgetTokens: common.GetPointer(16384)}, "high"},

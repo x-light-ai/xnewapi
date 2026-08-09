@@ -10,7 +10,7 @@
 > ```
 > 判断某文件是否 fork 自定义的黄金标准:出现在 `git diff $BASE..dev` 里才算;文件"存在"不代表是 fork 改的(可能是上游功能)。核实归属用 `git log --diff-filter=A -- <file>` 看引入者,官方作者(如 `i@caion.me`、`seefs001`)引入且 dev 无改动的即上游功能。
 >
-> 本清单需随 fork 演进维护:新增 fork 功能时补充,重构时更新路径。上次全量核对:2026-07-12(BASE=`f2f3410`;已执行 fork 缩面并补齐 `FORK-CUSTOM` 标记)。
+> 本清单需随 fork 演进维护:新增 fork 功能时补充,重构时更新路径。上次全量核对:2026-08-09(BASE=`bde9b2f`,目标=`v1.0.0-rc.24`;已审计 relaykit/Advanced Custom 重叠能力并迁移 default 前端到 `web/`)。
 
 ## 风险等级说明
 
@@ -23,19 +23,20 @@
 - **A 类(fork 新增文件)**:上游没有的文件,merge 时 git 原样保留,**不会冲突**。确认未被误删即可。
 - **B 类(fork 修改的上游文件)**:双方都可能改,**冲突真正发生处**,合并时必须逐一审查。这是清单的重点。
 
-## 功能概览(真正的 fork 自定义,共 9 项)
+## 功能概览(活动 fork 自定义共 8 项;保留历史编号)
 
 | # | 功能 | A类新增文件 | B类改上游文件 | 风险 |
 |---|------|-----------|-------------|------|
-| 1 | OpenAI↔Claude 转换器(cpaopenai) | `relay/channel/openai/claude_*.go`、`service/fork_claude_translator.go`、`forkcustom/translator.go` | 各 request/response 边界的一行 service facade hook、`relay/common/relay_info.go`、`dto/openai_request.go` | 高 |
+| 1 | OpenAI↔Claude 转换器(cpaopenai) | `relay/channel/openai/claude_*.go`、`service/fork_claude_translator.go`、`forkcustom/translator.go` | 各 request/response 边界的一行 service facade hook、`relay/common/relay_info.go`、`relaykit/dto/openai_request.go` | 高 |
 | 2 | Codex↔Claude 转换器(codex2claude) | `relay/channel/codex/claude_*.go` | `relay/channel/codex/adaptor.go` | 高 |
-| 3 | 第三方 Codex 供应商支持 | `relay/fork_claude_upstream.go`、`relay/channel/codex/fork_upstream_policy.go`、classic/default 的 `features/xnewapi` 渠道扩展 | `dto/channel_settings.go`、`relay/claude_handler.go`、两套前端渠道表单的单点 hook | 中 |
-| 4 | 渠道成功率选择器(SuccessRateSelector) | `service/channel_success_rate*.go`、`service/fork_retry_policy.go`、classic/default 的 SuccessRateSelector 设置组件 | `service/channel_select.go`、`controller/relay.go` 的单点 policy/observe hook、default 模型设置 section registry | 中 |
-| 5 | 渠道监控系统 | 原有监控文件 + `forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`、`model/fork_migration.go`、`router/fork_routes.go`、classic/default 的 `features/xnewapi/` | `main.go`、`model/main.go`、`router/api-router.go`、两套前端 shell 的单点扩展 | 中 |
+| 3 | 第三方 Codex 供应商支持 | `relay/fork_claude_upstream.go`、`relay/channel/codex/fork_upstream_policy.go`、`web/src/features/xnewapi/channel-upstream-protocol-field.tsx` | `relaykit/dto/channel_settings.go`、`relay/claude_handler.go`、default 渠道表单的单点 hook | 中 |
+| 4 | 渠道成功率选择器(SuccessRateSelector) | `service/channel_success_rate*.go`、`service/fork_retry_policy.go`、`web/src/features/xnewapi/success-rate-settings-section.tsx` | `service/channel_select.go`、`controller/relay.go` 的单点 policy/observe hook、default 模型设置 section registry | 中 |
+| 5 | 渠道监控系统 | 原有监控文件 + `forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`、`model/fork_migration.go`、`router/fork_routes.go`、`web/src/features/xnewapi/` | `main.go`、`model/main.go`、`router/api-router.go`、default sidebar 的单点扩展 | 中 |
 | 6 | 渠道成功率高级配置 | `setting/operation_setting/channel_success_rate_setting.go` | — | 低 |
 | 7 | 渠道权重管理 | `service/channel_score_override.go` | (复用 #5 的 controller/router) | 低 |
-| 8 | 渠道测试与自动禁用 | — | `controller/channel-test.go` | 低 |
-| 9 | 模型供应商管理 | `model/upstream_provider.go`、`model/upstream_provider_migration.go`、`model/fork_sqlite_ddl.go`、`service/upstream_provider*.go`、`controller/upstream_provider.go`、default 的 `features/xnewapi/provider-management/` | `model/main.go`、`router/fork_routes.go`、`forkcustom/bootstrap.go`、default 侧栏入口 | 中 |
+| 9 | 模型供应商管理 | `model/upstream_provider.go`、`model/upstream_provider_migration.go`、`model/fork_sqlite_ddl.go`、`service/upstream_provider*.go`、`controller/upstream_provider.go`、`web/src/features/xnewapi/provider-management/` | `model/main.go`、`router/fork_routes.go`、`forkcustom/bootstrap.go`、default 侧栏入口 | 中 |
+
+`v1.0.0-rc.24` 新增 relaykit 与 Advanced Custom,已覆盖通用 Claude/OpenAI/Responses 转换和可配置路由鉴权,但尚未覆盖 CPA translator 的工具名恢复、精细 SSE 状态、Codex web search/签名/pending tool call 语义,也不兼容存量 `upstream_protocol=codex` 配置。因此 #1-#3 仍保留,后续只在定向 parity tests 证明等价后缩面。
 
 ---
 
@@ -44,7 +45,7 @@
 ### 1. OpenAI↔Claude 转换器(cpaopenai)
 Claude 请求→OpenAI、OpenAI 响应→Claude SSE 的协议转换(Claude 客户端对接 OpenAI Chat 上游)。
 - **A类核心**:`relay/channel/openai/claude_request_translator.go`、`claude_response_translator.go`、`claude_translator_utils.go`、`claude_sse_bytes.go`;`service/fork_claude_translator.go` 提供显式 registry;`forkcustom/translator.go` 在应用组装边界注册 CPA 实现。
-- **B类接入点**(合并重点审查):请求和响应边界统一调用 `service.TranslateClaudeRequest` / `OpenAIResponseToClaude` / `OpenAIStreamResponseToClaude`;`relay/common/relay_info.go` 只增加一个 `ForkTranslator` 状态对象;`dto/openai_request.go` 保留 StreamOptions 指针化(Rule 6)。不得恢复跨 channel 直接调用或隐藏 `init()` 注册。
+- **B类接入点**(合并重点审查):请求和响应边界统一调用 `service.TranslateClaudeRequest` / `OpenAIResponseToClaude` / `OpenAIStreamResponseToClaude`;`relay/common/relay_info.go` 在宿主 `RelayInfo` 上增加一个独立 `ForkTranslator` 状态字段,不修改 relaykit 的 `convmeta.ClaudeConvertInfo`;`relaykit/dto/openai_request.go` 保留 StreamOptions 指针化(Rule 6)。不得恢复跨 channel 直接调用或隐藏 `init()` 注册。
 - **上游来源特殊**:此转换器同步自参考仓库 **CLIProxyAPI**(非官方 new-api),用 [[cliproxyapi-translator-sync]] 技能维护,不随官方 merge 更新。官方 merge 时只需保证这些文件不被误删/误改。
 
 ### 2. Codex↔Claude 转换器(codex2claude)
@@ -59,22 +60,22 @@ Claude 请求→Codex Responses、Codex 响应→Claude SSE 的协议转换,含 
 
 ### 3. 第三方 Codex 供应商支持
 Anthropic Claude 渠道新增 `upstream_protocol` 字段(`anthropic`/`codex`),按 key 形态自动分流 URL 与鉴权,使主渠道可指向第三方兼容 Codex 上游。
-- **A类实现**:`relay/fork_claude_upstream.go`、`relay/channel/codex/fork_upstream_policy.go`、`web/classic/src/extensions/xnewapi/channelSettings.jsx`、`web/default/src/features/xnewapi/channel-upstream-protocol-field.tsx`。
-- **B类接入点**:`dto/channel_settings.go`、`relay/claude_handler.go` 的单点 dispatch hook、classic `EditChannelModal.jsx` 的 extension 调用，以及 default `channel-form.ts` / `channel-mutate-drawer.tsx` 的窄字段 hook。
+- **A类实现**:`relay/fork_claude_upstream.go`、`relay/channel/codex/fork_upstream_policy.go`、`web/src/features/xnewapi/channel-upstream-protocol-field.tsx`。
+- **B类接入点**:`relaykit/dto/channel_settings.go`、`relay/claude_handler.go` 的单点 dispatch hook,以及 default `channel-form.ts` / `channel-mutate-drawer.tsx` 的窄字段 hook。
 - 合并注意:上游改 `claude_handler.go` 分支或渠道设置 DTO 时验证分流逻辑。
 
 ### 4. 渠道成功率选择器(SuccessRateSelector)
 基于真实请求结果的运行时渠道择优:Laplace 平滑、半衰期衰减、连续失败惩罚、探索机制、临时熔断/半开、跨优先级切换。
-- **A类核心**:`service/channel_success_rate.go`(+ `channel_success_rate_*_test.go` 多个)、classic `SettingsSuccessRateSelector.jsx`、default `features/xnewapi/success-rate-settings-section.tsx`。
+- **A类核心**:`service/channel_success_rate.go`(+ `channel_success_rate_*_test.go` 多个)、`web/src/features/xnewapi/success-rate-settings-section.tsx`。
 - **B类接入点**:`service/channel_select.go` 的两处 selection hook;`controller/relay.go` 通过 `service/fork_retry_policy.go` 的单一循环条件和结果 observe hook 接入，不在 controller 展开 fork 策略。
 - 合并注意:上游重构 `channel_select.go` 或重试主流程时逐文件审查。
 
 ### 5. 渠道监控系统
 渠道健康度监控:成功率/失败数/延迟汇总、可用性趋势、延迟/稳定性排名、临时熔断事件记录,前端独立页面。
 - **API 命名空间**:`/api/xnewapi/channel-monitor/*`,避免与上游 `/api/channel/` 集合路由共享前缀并干扰 Gin 尾斜杠重定向。
-- **A类核心**:`controller/channel_monitor.go`(+`_test.go`)、`model/channel_monitor.go`、`model/channel_monitor_db.go`(+`_test.go`)、`model/channel_circuit_event.go`、`web/classic/src/pages/ChannelMonitor/`、`web/default/src/features/xnewapi/channel-monitor.tsx`。
-- **A类组装**:`forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`(内含 `migrateChannelMonitorTables()`,同时注册 `ChannelMonitorStat` 与 `ChannelCircuitEvent`;索引 DDL 修复共用 `model/fork_sqlite_ddl.go`)、`model/fork_migration.go`、`router/fork_routes.go`、classic `extensions/xnewapi/`、default `features/xnewapi/` 与 `routes/_authenticated/channel-monitor/`。
-- **B类接入点**:`main.go` 仅调用 `forkcustom.Start()`;`model/main.go` 仅在 `migrateDB()`/`migrateDBFast()` 各插入一行 `migrateForkTables()`,**模型不进上游 `AutoMigrate` 列表、不改上游 SQLite 分支**(该文件对上游只有纯新增、无修改行);`router/api-router.go` 仅调用 `registerForkRoutes`;classic App/Sidebar 与 default sidebar/section registry 只展开 fork extension。
+- **A类核心**:`controller/channel_monitor.go`(+`_test.go`)、`model/channel_monitor.go`、`model/channel_monitor_db.go`(+`_test.go`)、`model/channel_circuit_event.go`、`web/src/features/xnewapi/channel-monitor.tsx`。
+- **A类组装**:`forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`(内含 `migrateChannelMonitorTables()`,同时注册 `ChannelMonitorStat` 与 `ChannelCircuitEvent`;索引 DDL 修复共用 `model/fork_sqlite_ddl.go`)、`model/fork_migration.go`、`router/fork_routes.go`、default `features/xnewapi/` 与 `routes/_authenticated/channel-monitor/`。
+- **B类接入点**:`main.go` 仅调用 `forkcustom.Start()`;`model/main.go` 仅在 `migrateDB()`/`migrateDBFast()` 各插入一行 `migrateForkTables()`,**模型不进上游 `AutoMigrate` 列表、不改上游 SQLite 分支**(该文件对上游只有纯新增、无修改行);`router/api-router.go` 仅调用 `registerForkRoutes`;default sidebar/section registry 只展开 fork extension。
 - 合并注意:DB 聚合查询需保持三库兼容(Rule 2);上游改路由注册或 `model/main.go` 迁移时确认监控注册未被覆盖。
 
 ---
@@ -85,8 +86,7 @@ Anthropic Claude 渠道新增 `upstream_protocol` 字段(`anthropic`/`codex`),�
 |---|------|--------------|
 | 6 | 渠道成功率高级配置 | SuccessRateSelector 细粒度参数(半衰期、探索率、连续失败阈值、熔断/恢复)。`setting/operation_setting/channel_success_rate_setting.go` |
 | 7 | 渠道权重管理 | 后台手动设渠道初始权重/优先级,影响择优。`service/channel_score_override.go`,复用 #5 的 controller/router |
-| 8 | 渠道测试与自动禁用 | 手动/批量渠道测试 + 失败触发临时熔断。`controller/channel-test.go` + SuccessRateSelector 熔断逻辑 |
-| 9 | 模型供应商管理 | 建表迁移收敛在 `model/upstream_provider_migration.go`,经 `model/fork_migration.go` 的 `migrateForkTables()` 统一入口调用,**不进上游 `AutoMigrate` 列表**(上游最常改动处,避免冲突)。模型结构为供应商、账户、成本归集单元和 Key；一个归集单元可映射多个 new-api 渠道，一个渠道只能归属一个归集单元。NewAPI 以其上游分组为归集单元，通过 `/api/user/self`、分页 `/api/token/`、`/api/log/self/stat` 采集，并按 Quota 换算基数和充值比例还原金额；Sub2API 登录后通过 `/api/v1/auth/me`、分页 `/api/v1/keys`、按 `api_key_id` 查询 `/api/v1/usage/dashboard/snapshot-v2`，每个 Key 独立成归集单元，余额、累计充值和成本均直接使用金额字段，只取 `actual_cost`，不做 Quota 换算。映射变更只重算当天并影响未来，历史日利润冻结。`xnewapi_` 表保存主数据、账户同步密钥、归集单元渠道关系、日利润和同步记录，调度器在 fork bootstrap 注册。default 页面通过 `/api/xnewapi/providers` 真实 API 读写，列表只展示供应商与归集单元两层，多 Key 通过弹出列表查看。领域代码使用 `UpstreamProvider`，不改 relay 渠道执行密钥或选择逻辑。 |
+| 9 | 模型供应商管理 | 建表迁移收敛在 `model/upstream_provider_migration.go`,经 `model/fork_migration.go` 的 `migrateForkTables()` 统一入口调用,**不进上游 `AutoMigrate` 列表**(上游最常改动处,避免冲突)。模型结构为供应商、账户、成本归集单元和 Key；一个归集单元可映射多个 new-api 渠道，一个渠道只能归属一个归集单元。NewAPI 以其上游分组为归集单元，通过 `/api/user/self`、分页 `/api/token/`、`/api/log/self/stat` 采集，并按 Quota 换算基数和充值比例还原金额；Sub2API 登录后通过 `/api/v1/auth/me`、分页 `/api/v1/keys`、按 `api_key_id` 查询 `/api/v1/usage/dashboard/snapshot-v2`，每个 Key 独立成归集单元，余额、累计充值和成本均直接使用金额字段，只取 `actual_cost`，不做 Quota 换算。映射变更只重算当天并影响未来，历史日利润冻结。`xnewapi_` 表保存主数据、账户同步密钥、归集单元渠道关系、日利润和同步记录，调度器在 fork bootstrap 注册。`web/` 页面通过 `/api/xnewapi/providers` 真实 API 读写，列表只展示供应商与归集单元两层，多 Key 通过弹出列表查看。领域代码使用 `UpstreamProvider`，不改 relay 渠道执行密钥或选择逻辑。 |
 
 ---
 
@@ -102,14 +102,15 @@ Anthropic Claude 渠道新增 `upstream_protocol` 字段(`anthropic`/`codex`),�
 | 渠道监控设置(运行参数) | `setting/operation_setting/monitor_setting.go` | CaIon(官方) |
 | Codex 凭证刷新任务 | `service/codex_credential_refresh.go`、`codex_credential_refresh_task.go` | seefs001(官方) |
 | 性能监控 | `controller/performance.go`、`common/system_monitor{,_unix,_windows}.go` | CaIon(官方) |
+| 渠道测试与自动禁用 | `controller/channel-test.go` | 官方;`rc.24` 审计确认 fork 无独立策略实现 |
 
 > 注:项目 CLAUDE.md **Rule 7**(改分层计费前读 `pkg/billingexpr/expr.md`)描述的是**上游功能**的规范 —— 读文档仍然正确,但它不代表 billingexpr 是 fork 自研。
 
 ## 通用修复反哺状态
 
-- StreamOptions 指针化:上游补丁见 `docs/upstream-pr-stream-options-pointer.patch`,目标基线 `upstream/main@4e570389`,含显式 `false` 测试。
-- JSONEditor key description:上游补丁见 `docs/upstream-pr-jsoneditor-key-descriptions.patch`,已适配当前上游 `web/classic/` 路径。
-- Semi Windows path:当前上游已迁移到 Rsbuild并显式解析 Semi 路径,无需提交旧 Vite 补丁;结论见 `docs/upstream-review-semi-windows-path.md`。fork 合并 Rsbuild 前继续保留本地 wrapper。
+- StreamOptions 指针化:`rc.24` 已将外层 `StreamOptions` 指针化,但内部 `include_usage` / `include_obfuscation` 仍是非指针并会丢失显式 `false`;fork 在 `relaykit/dto/openai_request.go` 继续保留 `*bool` 与定向测试。
+- JSONEditor key description:`rc.24` 删除 classic 前端,旧 `web/classic` 补丁随目录删除;default 的结构化编辑器由上游维护。
+- Semi Windows path:`rc.24` 删除 classic 前端及其 Rsbuild wrapper,不再保留 fork 补丁;历史结论见 `docs/upstream-review-semi-windows-path.md`。
 
 ---
 
@@ -117,7 +118,7 @@ Anthropic Claude 渠道新增 `upstream_protocol` 字段(`anthropic`/`codex`),�
 
 - **高风险 #1-#2(转换器)**:逐文件审查(workflow.md 第 9 节)。上游是 CLIProxyAPI,官方 merge 时只保证 A 类文件不被误删/误改;其功能更新走 cliproxyapi-translator-sync 技能。**重点看 B 类接入点**(各渠道 adaptor、`relay_info.go`、`compatible_handler.go`)是否被上游 relay 主流程改动波及。
 - **中风险 #3-#5**:Git 自动合并后必做语义冲突审查(workflow.md 第 6.5 节),重点 B 类接入点:`channel_select.go`/`controller/relay.go`(#4)、`claude_handler.go`/`channel_settings.go`(#3)、`router/api-router.go`/`main.go`/`model/main.go`(#5)。
-- **低风险 #6-#8**:确认独立文件未被覆盖,通常 Git 自动合并即可。
+- **低风险 #6-#7、#9**:确认独立文件未被覆盖,通常 Git 自动合并即可。
 - **上游功能区(⚠️ 节)**:不做任何保护,直接跟随上游。
 
 ## 清单核对方式

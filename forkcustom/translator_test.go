@@ -4,8 +4,8 @@ package forkcustom
 import (
 	"testing"
 
-	"github.com/QuantumNous/new-api/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relaykit/dto"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/stretchr/testify/require"
 )
@@ -33,5 +33,5 @@ func TestRegisterClaudeTranslator(t *testing.T) {
 	converted, err := translator.Request(request, info)
 	require.NoError(t, err)
 	require.Equal(t, "gpt-4.1", converted.Model)
-	require.NotEmpty(t, info.ClaudeConvertInfo.ForkTranslator.OriginalRequestRawJSON)
+	require.NotEmpty(t, info.ForkTranslator.OriginalRequestRawJSON)
 }

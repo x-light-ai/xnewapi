@@ -6,8 +6,6 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -15,7 +13,6 @@ import (
 func TestRegisterForkRoutes(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
-	engine.Use(sessions.Sessions("session", cookie.NewStore([]byte("fork-route-test"))))
 	apiRouter := engine.Group("/api")
 	registerChannelRoutes(apiRouter)
 	registerForkRoutes(apiRouter)

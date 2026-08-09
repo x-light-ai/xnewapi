@@ -15,9 +15,10 @@ import (
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
+	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/service"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
-	"github.com/QuantumNous/new-api/types"
+	hosttypes "github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
@@ -535,7 +536,7 @@ func TestRelaySelectionFlowSamePriorityFailoverAndPriorityFallback(t *testing.T)
 		UserGroup:       group,
 		OriginModelName: modelName,
 		RelayFormat:     types.RelayFormatOpenAI,
-		PriceData:       types.PriceData{},
+		PriceData:       hosttypes.PriceData{},
 		ChannelMeta:     &relaycommon.ChannelMeta{},
 	}
 	retryParam := &service.RetryParam{Ctx: ctx, TokenGroup: group, ModelName: modelName, Retry: common.GetPointer(0)}
@@ -663,7 +664,7 @@ func TestRelaySelectionFlowHalfOpenRecoveryReentersSelection(t *testing.T) {
 		UserGroup:       group,
 		OriginModelName: modelName,
 		RelayFormat:     types.RelayFormatOpenAI,
-		PriceData:       types.PriceData{},
+		PriceData:       hosttypes.PriceData{},
 		ChannelMeta:     &relaycommon.ChannelMeta{},
 	}
 	retryParam := &service.RetryParam{Ctx: ctx, TokenGroup: group, ModelName: modelName, Retry: common.GetPointer(0)}

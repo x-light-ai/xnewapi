@@ -11,8 +11,8 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
-	"github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
@@ -290,7 +290,6 @@ func TestChannelSuccessRateSelectorChannelScopeSharesCircuitAcrossModels(t *test
 	require.Equal(t, 5, selector.state[selector.scoreKey(successRateGroupKey("default"), successRateModelKey("gpt-4o"), 7)].observed)
 	require.Equal(t, 1, selector.state[selector.scoreKey(successRateGroupKey("default"), successRateModelKey("claude-3-7-sonnet"), 7)].observed)
 }
-
 
 func TestChannelSuccessRateSelectorHalfOpenTimeoutReopensTemporaryCircuit(t *testing.T) {
 	now := time.Unix(1710000000, 0)

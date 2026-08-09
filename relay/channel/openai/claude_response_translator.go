@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
-	"github.com/QuantumNous/new-api/dto"
 	relaycommon "github.com/QuantumNous/new-api/relay/common"
-	"github.com/QuantumNous/new-api/relay/reasonmap"
+	"github.com/QuantumNous/new-api/relaykit/dto"
+	"github.com/QuantumNous/new-api/relaykit/reasonmap"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
@@ -190,7 +190,7 @@ func ResponseOpenAI2ClaudeWithTranslator(openAIResponse *dto.OpenAITextResponse,
 	if err != nil {
 		return nil, err
 	}
-	converted := ConvertOpenAIResponseToClaudeNonStreamBytes(info.ClaudeConvertInfo.ForkTranslator.OriginalRequestRawJSON, responseBytes)
+	converted := ConvertOpenAIResponseToClaudeNonStreamBytes(info.ForkTranslator.OriginalRequestRawJSON, responseBytes)
 	var claudeResp dto.ClaudeResponse
 	if err = common.Unmarshal(converted, &claudeResp); err != nil {
 		return nil, err
@@ -213,9 +213,9 @@ func StreamResponseOpenAI2ClaudeWithTranslator(openAIResponse *dto.ChatCompletio
 	if err != nil {
 		return nil, err
 	}
-	param := info.ClaudeConvertInfo.ForkTranslator.StreamState
-	resultBytes := convertOpenAIResponseToClaudeStreamBytes(info.ClaudeConvertInfo.ForkTranslator.OriginalRequestRawJSON, rawJSON, &param)
-	info.ClaudeConvertInfo.ForkTranslator.StreamState = param
+	param := info.ForkTranslator.StreamState
+	resultBytes := convertOpenAIResponseToClaudeStreamBytes(info.ForkTranslator.OriginalRequestRawJSON, rawJSON, &param)
+	info.ForkTranslator.StreamState = param
 
 	responses := make([]*dto.ClaudeResponse, 0, len(resultBytes))
 	for _, item := range resultBytes {

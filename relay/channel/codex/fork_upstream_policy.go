@@ -10,7 +10,8 @@ import (
 )
 
 func thirdPartyRequestURL(info *relaycommon.RelayInfo) (string, bool) {
-	if isOfficialCodexOAuthKey(info.ApiKey) {
+	key := strings.TrimSpace(info.ApiKey)
+	if key == "" || isOfficialCodexOAuthKey(key) {
 		return "", false
 	}
 	return relaycommon.GetFullRequestURL(info.ChannelBaseUrl, info.RequestURLPath, info.ChannelType), true
