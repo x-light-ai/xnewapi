@@ -17,7 +17,7 @@ import {
   UnfoldMoreIcon,
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -50,6 +50,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet'
 import { Switch } from '@/components/ui/switch'
 import {
   Table,
@@ -66,7 +73,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip'
-import { formatRelativeTime, getChannelTypeIcon } from '@/features/channels/lib'
+import { getChannelTypeIcon } from '@/features/channels/lib'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
@@ -77,13 +84,15 @@ import {
 } from './api'
 import {
   buildChannelMonitorRows,
+  formatBeijingDateTime,
   formatLatency,
   formatRate,
-  getSuggestedWeightScore,
+  getTrendPointSize,
   normalizeGroupName,
   type ChannelMonitorSortKey,
   type ChannelMonitorSortOrder,
 } from './channel-monitor-utils'
+import { getProviderWorkspace } from './provider-management/api'
 import type {
   ChannelMonitorItem,
   ChannelTimeline,
@@ -96,6 +105,7 @@ const SORT_OPTIONS: Array<{ labelKey: string; value: ChannelMonitorSortKey }> =
   [
     { labelKey: 'Priority', value: 'priority' },
     { labelKey: 'Routing score', value: 'routing_score' },
+    { labelKey: 'Gross margin', value: 'gross_margin' },
     { labelKey: 'Stability', value: 'success_rate' },
     { labelKey: 'Average latency', value: 'avg_latency' },
     { labelKey: 'P95 latency', value: 'p95_latency' },
@@ -178,23 +188,16 @@ function ScoreBadge(props: { score: number }) {
   )
 }
 
-function getTrendPointClassName(
-  point: ChannelTimelinePoint,
-  maxRequests: number
-): string {
-  if (point.request_count <= 0) return 'bg-muted-foreground/30 size-1'
-  const ratio = maxRequests > 0 ? point.request_count / maxRequests : 0
-  let sizeClass = 'size-1'
-  if (ratio >= 0.66) sizeClass = 'size-2'
-  else if (ratio >= 0.33) sizeClass = 'size-1.5'
+function getTrendPointClassName(point: ChannelTimelinePoint): string {
+  if (point.request_count <= 0) return 'bg-muted-foreground/30'
   const stateClass = point.failure_count > 0 ? 'bg-destructive' : 'bg-success'
-  return cn('shrink-0 rounded-full', sizeClass, stateClass)
+  return cn('shrink-0 rounded-full', stateClass)
 }
 
 function AvailabilityTrend(props: {
   item: ChannelMonitorItem
   timeline?: ChannelTimeline
-  locale: string
+  onSelectPoint: (point: ChannelTimelinePoint) => void
 }) {
   const { t } = useTranslation('xnewapi')
   const points = props.timeline?.points ?? []
@@ -203,17 +206,7 @@ function AvailabilityTrend(props: {
     maxRequests = Math.max(maxRequests, point.request_count)
   }
   const hasData = maxRequests > 0
-  const lastActiveMs = Date.parse(props.item.last_active)
-  let lastActive = '-'
-  if (Number.isFinite(lastActiveMs) && lastActiveMs > 0) {
-    const formattedLastActive = formatRelativeTime(
-      Math.floor(lastActiveMs / 1000),
-      props.locale
-    )
-    if (formattedLastActive !== 'Unknown' && formattedLastActive !== 'Never') {
-      lastActive = formattedLastActive
-    }
-  }
+  const lastActive = formatBeijingDateTime(props.item.last_active)
 
   return (
     <div className='flex min-w-72 flex-col gap-2'>
@@ -224,14 +217,25 @@ function AvailabilityTrend(props: {
               <Tooltip key={point.time_bucket}>
                 <TooltipTrigger
                   render={
-                    <span
-                      className={getTrendPointClassName(point, maxRequests)}
-                    />
+                    <button
+                      type='button'
+                      className='flex size-4 shrink-0 items-center justify-center'
+                      onClick={() => props.onSelectPoint(point)}
+                      aria-label={`${formatBeijingDateTime(point.time_bucket)} ${t('Failure details')}`}
+                    >
+                      <span
+                        className={getTrendPointClassName(point)}
+                        style={{
+                          width: getTrendPointSize(point.request_count),
+                          height: getTrendPointSize(point.request_count),
+                        }}
+                      />
+                    </button>
                   }
                 />
                 <TooltipContent>
                   <div className='flex flex-col gap-1 tabular-nums'>
-                    <span>{point.time_bucket}</span>
+                    <span>{formatBeijingDateTime(point.time_bucket)}</span>
                     <span>
                       {t('Success rate')}:{' '}
                       {formatRate(
@@ -247,6 +251,11 @@ function AvailabilityTrend(props: {
                       {t('Failure count')}:{' '}
                       {point.failure_count.toLocaleString()}
                     </span>
+                    {(point.failure_reasons ?? []).slice(0, 3).map((reason) => (
+                      <span key={`${reason.reason}-${reason.status_code}`}>
+                        {reason.reason}: {reason.count.toLocaleString()}
+                      </span>
+                    ))}
                   </div>
                 </TooltipContent>
               </Tooltip>
@@ -279,8 +288,25 @@ type ChannelMonitorTableProps = {
 }
 
 export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
-  const { t, i18n } = useTranslation('xnewapi')
+  const { t } = useTranslation('xnewapi')
   const queryClient = useQueryClient()
+  const providerWorkspaceQuery = useQuery({
+    queryKey: ['upstream-providers'],
+    queryFn: () => getProviderWorkspace(),
+  })
+  const grossMarginByChannel = useMemo(() => {
+    const margins = new Map<number, number | null>()
+    for (const provider of providerWorkspaceQuery.data?.providers ?? []) {
+      for (const account of provider.accounts) {
+        for (const group of account.groups) {
+          for (const channel of group.channels) {
+            margins.set(channel.id, group.profit?.grossMargin ?? null)
+          }
+        }
+      }
+    }
+    return margins
+  }, [providerWorkspaceQuery.data])
   const [keyword, setKeyword] = useState('')
   const [statusFilter, setStatusFilter] = useState('1')
   const [groupFilter, setGroupFilter] = useState(ALL_GROUPS)
@@ -292,6 +318,10 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
   const [circuitItem, setCircuitItem] = useState<ChannelMonitorItem | null>(
     null
   )
+  const [trendDetail, setTrendDetail] = useState<{
+    item: ChannelMonitorItem
+    point: ChannelTimelinePoint
+  } | null>(null)
 
   const refreshMonitor = () =>
     queryClient.invalidateQueries({ queryKey: ['channel-monitor'] })
@@ -367,13 +397,17 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
       ) {
         continue
       }
-      filteredItems.push(item)
+      filteredItems.push({
+        ...item,
+        gross_margin: grossMarginByChannel.get(item.id) ?? item.gross_margin,
+      })
     }
     const groupRows =
       grouped || sortKey === 'group_name' || sortKey === 'group_success_rate'
     return buildChannelMonitorRows(filteredItems, sortKey, sortOrder, groupRows)
   }, [
     effectiveGroupFilter,
+    grossMarginByChannel,
     grouped,
     keyword,
     props.items,
@@ -404,7 +438,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
 
   const openScoreDialog = (item: ChannelMonitorItem) => {
     setScoreItem(item)
-    setScoreDraft(getSuggestedWeightScore(item).toFixed(2))
+    setScoreDraft(item.current_weighted_score.toFixed(2))
   }
 
   const saveScore = () => {
@@ -534,7 +568,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
       </header>
 
       <div className='overflow-x-auto'>
-        <Table className='min-w-[980px]'>
+        <Table className='min-w-[1120px]'>
           <TableHeader>
             <TableRow>
               <TableHead className='w-72'>{t('Channel')}</TableHead>
@@ -551,7 +585,15 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                 sortKey='routing_score'
                 activeSortKey={sortKey}
                 sortOrder={sortOrder}
-                className='w-44'
+                className='w-36 text-left'
+                onSort={sortByColumn}
+              />
+              <SortableTableHead
+                label={t('Gross margin')}
+                sortKey='gross_margin'
+                activeSortKey={sortKey}
+                sortOrder={sortOrder}
+                className='w-32'
                 onSort={sortByColumn}
               />
               <SortableTableHead
@@ -589,6 +631,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                     </TableCell>
                     <TableCell>-</TableCell>
                     <TableCell>-</TableCell>
+                    <TableCell>-</TableCell>
                     <TableCell>
                       <div className='text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums'>
                         <span>{formatRate(row.success_rate)}</span>
@@ -606,7 +649,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
               }
 
               const item = row.item
-              const suggestedScore = getSuggestedWeightScore(item)
+              const grossMargin = item.gross_margin
               return (
                 <TableRow key={item.id}>
                   <TableCell>
@@ -643,8 +686,17 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                                 }
                               />
                               <TooltipContent>
-                                {item.temporary_circuit_reason ||
-                                  t('Circuit open')}
+                                <div className='flex flex-col gap-1'>
+                                  <span>
+                                    {item.temporary_circuit_reason ||
+                                      t('Circuit open')}
+                                  </span>
+                                  <span className='tabular-nums'>
+                                    {formatBeijingDateTime(
+                                      item.temporary_circuit_until
+                                    )}
+                                  </span>
+                                </div>
                               </TooltipContent>
                             </Tooltip>
                             <Button
@@ -685,32 +737,20 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                   <TableCell>
                     <Button
                       variant='ghost'
-                      className='h-auto flex-col items-start gap-1.5 px-2 py-1.5'
+                      className='h-auto justify-start px-2 py-1.5'
                       onClick={() => openScoreDialog(item)}
                     >
-                      <span className='flex items-center gap-2'>
-                        <span className='text-muted-foreground w-16 text-right text-xs'>
-                          {t('Current:')}
-                        </span>
-                        <span className='tabular-nums'>
-                          <ScoreBadge score={item.current_weighted_score} />
-                        </span>
-                      </span>
-                      <span className='flex items-center gap-2'>
-                        <span className='text-muted-foreground w-16 text-right text-xs'>
-                          {t('Suggested')}
-                        </span>
-                        <span className='tabular-nums'>
-                          <ScoreBadge score={suggestedScore} />
-                        </span>
-                      </span>
+                      <ScoreBadge score={item.current_weighted_score} />
                     </Button>
+                  </TableCell>
+                  <TableCell className='font-medium tabular-nums'>
+                    {grossMargin == null ? '-' : `${grossMargin.toFixed(1)}%`}
                   </TableCell>
                   <TableCell>
                     <AvailabilityTrend
                       item={item}
                       timeline={timelineByChannelId.get(item.id)}
-                      locale={i18n.resolvedLanguage ?? i18n.language}
+                      onSelectPoint={(point) => setTrendDetail({ item, point })}
                     />
                   </TableCell>
                 </TableRow>
@@ -718,7 +758,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
             })}
             {!props.loading && displayRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className='h-72'>
+                <TableCell colSpan={5} className='h-72'>
                   <Empty>
                     <EmptyHeader>
                       <EmptyMedia variant='icon'>
@@ -784,6 +824,107 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Sheet
+        open={trendDetail !== null}
+        onOpenChange={(open) => !open && setTrendDetail(null)}
+      >
+        <SheetContent className='w-full sm:max-w-xl'>
+          <SheetHeader className='border-b pr-12'>
+            <SheetTitle>{t('Failure details')}</SheetTitle>
+            <SheetDescription>
+              {trendDetail
+                ? `${trendDetail.item.name} · ${formatBeijingDateTime(trendDetail.point.time_bucket)}`
+                : ''}
+            </SheetDescription>
+          </SheetHeader>
+          {trendDetail && (
+            <div className='flex min-h-0 flex-1 flex-col overflow-y-auto'>
+              <div className='grid grid-cols-3 gap-3 border-b px-4 py-3 text-sm tabular-nums'>
+                <div>
+                  <div className='text-muted-foreground text-xs'>
+                    {t('Success rate')}
+                  </div>
+                  <div className='mt-1 font-medium'>
+                    {formatRate(
+                      trendDetail.point.request_count > 0
+                        ? trendDetail.point.success_count /
+                            trendDetail.point.request_count
+                        : 0
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <div className='text-muted-foreground text-xs'>
+                    {t('Requests')}
+                  </div>
+                  <div className='mt-1 font-medium'>
+                    {trendDetail.point.request_count.toLocaleString()}
+                  </div>
+                </div>
+                <div>
+                  <div className='text-muted-foreground text-xs'>
+                    {t('Failure count')}
+                  </div>
+                  <div className='mt-1 font-medium'>
+                    {trendDetail.point.failure_count.toLocaleString()}
+                  </div>
+                </div>
+              </div>
+              {(trendDetail.point.failure_reasons ?? []).length === 0 ? (
+                <div className='text-muted-foreground px-4 py-10 text-center text-sm'>
+                  {t('No failure details recorded')}
+                </div>
+              ) : (
+                (trendDetail.point.failure_reasons ?? []).map((reason) => (
+                  <section
+                    key={`${reason.reason}-${reason.status_code}`}
+                    className='border-b px-4 py-4 last:border-b-0'
+                  >
+                    <div className='flex items-start justify-between gap-3'>
+                      <div className='min-w-0'>
+                        <h3 className='truncate font-medium'>
+                          {reason.reason}
+                        </h3>
+                        <p className='text-muted-foreground mt-1 text-xs'>
+                          {[reason.error_type, reason.status_code || null]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      </div>
+                      <StatusBadge
+                        label={reason.count.toLocaleString()}
+                        variant='danger'
+                        copyable={false}
+                      />
+                    </div>
+                    <div className='mt-3 space-y-3'>
+                      {reason.details.map((detail) => (
+                        <div
+                          key={`${detail.occurred_at}-${detail.request_id}`}
+                          className='border-l-2 pl-3'
+                        >
+                          <div className='text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums'>
+                            <span>
+                              {formatBeijingDateTime(detail.occurred_at)}
+                            </span>
+                            {detail.request_id && (
+                              <span>{detail.request_id}</span>
+                            )}
+                          </div>
+                          <p className='mt-1 text-sm break-words'>
+                            {detail.message || reason.reason}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
 
       <ConfirmDialog
         open={circuitItem !== null}

@@ -35,13 +35,13 @@ import { Skeleton } from '@/components/ui/skeleton'
 
 import {
   getChannelMonitorChannels,
-  getChannelMonitorRankings,
   getChannelMonitorSummary,
   getChannelMonitorTimeline,
 } from './api'
 import { ChannelMonitorTable } from './channel-monitor-table'
 import { formatLatency, formatRate } from './channel-monitor-utils'
-import type { ChannelMonitorItem } from './types'
+import { ChannelPerformanceRanking } from './channel-performance-ranking'
+import { getProviderWorkspace } from './provider-management/api'
 
 const DAY_OPTIONS = [1, 7, 14, 30] as const
 const ChannelMutateDrawer = lazy(() =>
@@ -72,9 +72,9 @@ function ChannelMonitorContent() {
     queryKey: ['channel-monitor', 'timeline'],
     queryFn: () => getChannelMonitorTimeline(''),
   })
-  const rankingsQuery = useQuery({
-    queryKey: ['channel-monitor', 'rankings', days],
-    queryFn: () => getChannelMonitorRankings(days),
+  const providerWorkspaceQuery = useQuery({
+    queryKey: ['upstream-providers'],
+    queryFn: () => getProviderWorkspace(),
   })
 
   const refreshMonitor = () =>
@@ -83,7 +83,10 @@ function ChannelMonitorContent() {
   const summary = summaryQuery.data
   const loading = summaryQuery.isLoading || channelsQuery.isLoading
   const queryError =
-    summaryQuery.error || channelsQuery.error || timelineQuery.error
+    summaryQuery.error ||
+    channelsQuery.error ||
+    timelineQuery.error ||
+    providerWorkspaceQuery.error
 
   return (
     <>
@@ -191,49 +194,13 @@ function ChannelMonitorContent() {
               onEditChannel={setEditingChannelId}
             />
 
-            <div className='grid gap-4 lg:grid-cols-2'>
-              {[
-                {
-                  title: t('Most stable channels'),
-                  items: rankingsQuery.data?.stability ?? [],
-                  value: (item: ChannelMonitorItem) =>
-                    formatRate(item.success_rate),
-                },
-                {
-                  title: t('Lowest latency channels'),
-                  items: rankingsQuery.data?.latency ?? [],
-                  value: (item: ChannelMonitorItem) =>
-                    formatLatency(item.avg_latency),
-                },
-              ].map((ranking) => (
-                <section
-                  key={ranking.title}
-                  className='bg-card rounded-lg border'
-                >
-                  <h2 className='border-b px-4 py-3 font-semibold'>
-                    {ranking.title}
-                  </h2>
-                  <div className='divide-y'>
-                    {ranking.items.slice(0, 8).map((item, index) => (
-                      <div
-                        key={item.id}
-                        className='flex items-center justify-between gap-3 px-4 py-2.5'
-                      >
-                        <div className='min-w-0 truncate text-sm'>
-                          <span className='text-muted-foreground mr-2 tabular-nums'>
-                            {index + 1}
-                          </span>
-                          {item.name}
-                        </div>
-                        <span className='shrink-0 text-sm font-medium tabular-nums'>
-                          {ranking.value(item)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              ))}
-            </div>
+            <ChannelPerformanceRanking
+              items={channelsQuery.data?.items ?? []}
+              providers={providerWorkspaceQuery.data?.providers ?? []}
+              loading={
+                channelsQuery.isLoading || providerWorkspaceQuery.isLoading
+              }
+            />
           </div>
         </SectionPageLayout.Content>
       </SectionPageLayout>

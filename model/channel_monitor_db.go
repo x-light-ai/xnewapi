@@ -106,17 +106,34 @@ type ChannelMonitorChannelItem struct {
 	TemporaryCircuitUntil  time.Time `json:"temporary_circuit_until"`
 	TemporaryCircuitReason string    `json:"temporary_circuit_reason"`
 	CurrentWeightedScore   float64   `json:"current_weighted_score"`
+	GrossMargin            *float64  `json:"gross_margin"`
 }
 
 type ChannelTimelinePoint struct {
-	ChannelID     int       `json:"channel_id"`
-	ChannelName   string    `json:"channel_name"`
-	ChannelType   int       `json:"channel_type"`
-	ChannelStatus int       `json:"channel_status"`
-	TimeBucket    time.Time `json:"time_bucket"`
-	RequestCount  int64     `json:"request_count"`
-	SuccessCount  int64     `json:"success_count"`
-	FailureCount  int64     `json:"failure_count"`
+	ChannelID      int                            `json:"channel_id"`
+	ChannelName    string                         `json:"channel_name"`
+	ChannelType    int                            `json:"channel_type"`
+	ChannelStatus  int                            `json:"channel_status"`
+	TimeBucket     time.Time                      `json:"time_bucket"`
+	RequestCount   int64                          `json:"request_count"`
+	SuccessCount   int64                          `json:"success_count"`
+	FailureCount   int64                          `json:"failure_count"`
+	FailureReasons []ChannelTimelineFailureReason `json:"failure_reasons"`
+}
+
+type ChannelTimelineFailureReason struct {
+	Reason     string                         `json:"reason"`
+	ErrorCode  string                         `json:"error_code"`
+	ErrorType  string                         `json:"error_type"`
+	StatusCode int                            `json:"status_code"`
+	Count      int64                          `json:"count"`
+	Details    []ChannelTimelineFailureDetail `json:"details"`
+}
+
+type ChannelTimelineFailureDetail struct {
+	OccurredAt time.Time `json:"occurred_at"`
+	Message    string    `json:"message"`
+	RequestID  string    `json:"request_id"`
 }
 
 type ChannelTimelineChannel struct {
@@ -141,6 +158,22 @@ type channelTimelineRow struct {
 	SuccessCount  int64     `json:"success_count"`
 	FailureCount  int64     `json:"failure_count"`
 }
+
+type channelTimelineErrorLog struct {
+	ChannelID int
+	CreatedAt int64
+	Content   string
+	RequestID string
+	Other     string
+}
+
+type channelTimelineBucketKey struct {
+	ChannelID  int
+	BucketUnix int64
+}
+
+const channelTimelineFailureDetailLimit = 20
+
 type channelMonitorAggregate struct {
 	RequestCount int64
 	SuccessCount int64
@@ -794,6 +827,102 @@ func GetChannelMonitorTimeline(hours int, bucketMinutes int, limit int) ([]Chann
 	return GetChannelMonitorTimelineByGroup(hours, bucketMinutes, limit, "")
 }
 
+func channelTimelineMetadataString(value any) string {
+	switch typed := value.(type) {
+	case string:
+		return strings.TrimSpace(typed)
+	case float64:
+		return strconv.FormatFloat(typed, 'f', -1, 64)
+	case int:
+		return strconv.Itoa(typed)
+	case int64:
+		return strconv.FormatInt(typed, 10)
+	default:
+		return ""
+	}
+}
+
+func loadChannelTimelineFailureReasons(start time.Time, end time.Time, bucketDuration time.Duration, channelIDs []int) (map[channelTimelineBucketKey][]ChannelTimelineFailureReason, error) {
+	result := make(map[channelTimelineBucketKey][]ChannelTimelineFailureReason)
+	if LOG_DB == nil || len(channelIDs) == 0 {
+		return result, nil
+	}
+	logs := make([]channelTimelineErrorLog, 0)
+	err := LOG_DB.Model(&Log{}).
+		Select("channel_id, created_at, content, request_id, other").
+		Where("type = ? AND channel_id IN ?", LogTypeError, channelIDs).
+		Where("created_at >= ? AND created_at <= ?", start.Unix(), end.Unix()).
+		Order("created_at DESC").
+		Find(&logs).Error
+	if err != nil {
+		return nil, err
+	}
+	type failureReasonKey struct {
+		Reason     string
+		ErrorCode  string
+		ErrorType  string
+		StatusCode int
+	}
+	aggregates := make(map[channelTimelineBucketKey]map[failureReasonKey]*ChannelTimelineFailureReason)
+	for _, log := range logs {
+		occurredAt := time.Unix(log.CreatedAt, 0).In(start.Location())
+		bucketKey := channelTimelineBucketKey{ChannelID: log.ChannelID, BucketUnix: occurredAt.Truncate(bucketDuration).Unix()}
+		metadata := make(map[string]any)
+		if strings.TrimSpace(log.Other) != "" {
+			_ = common.UnmarshalJsonStr(log.Other, &metadata)
+		}
+		errorCode := channelTimelineMetadataString(metadata["error_code"])
+		errorType := channelTimelineMetadataString(metadata["error_type"])
+		statusCode, _ := strconv.Atoi(channelTimelineMetadataString(metadata["status_code"]))
+		reason := errorCode
+		if reason == "" {
+			reason = errorType
+		}
+		if reason == "" && statusCode > 0 {
+			reason = "HTTP " + strconv.Itoa(statusCode)
+		}
+		if reason == "" {
+			reason = "Unknown error"
+		}
+		reasonKey := failureReasonKey{Reason: reason, ErrorCode: errorCode, ErrorType: errorType, StatusCode: statusCode}
+		bucketReasons := aggregates[bucketKey]
+		if bucketReasons == nil {
+			bucketReasons = make(map[failureReasonKey]*ChannelTimelineFailureReason)
+			aggregates[bucketKey] = bucketReasons
+		}
+		aggregate := bucketReasons[reasonKey]
+		if aggregate == nil {
+			aggregate = &ChannelTimelineFailureReason{
+				Reason: reason, ErrorCode: errorCode, ErrorType: errorType, StatusCode: statusCode,
+				Details: make([]ChannelTimelineFailureDetail, 0),
+			}
+			bucketReasons[reasonKey] = aggregate
+		}
+		aggregate.Count++
+		if len(aggregate.Details) < channelTimelineFailureDetailLimit {
+			aggregate.Details = append(aggregate.Details, ChannelTimelineFailureDetail{
+				OccurredAt: occurredAt,
+				Message:    log.Content,
+				RequestID:  log.RequestID,
+			})
+		}
+	}
+	for bucketKey, bucketReasons := range aggregates {
+		reasons := make([]ChannelTimelineFailureReason, 0, len(bucketReasons))
+		for _, reason := range bucketReasons {
+			reasons = append(reasons, *reason)
+		}
+		sort.SliceStable(reasons, func(i, j int) bool {
+			if reasons[i].Count != reasons[j].Count {
+				return reasons[i].Count > reasons[j].Count
+			}
+			return reasons[i].Reason < reasons[j].Reason
+		})
+		result[bucketKey] = reasons
+	}
+	return result, nil
+}
+
 func GetChannelMonitorTimelineByGroup(hours int, bucketMinutes int, limit int, groupFilter string) ([]ChannelTimelineChannel, error) {
 	if DB == nil {
 		return []ChannelTimelineChannel{}, nil
@@ -820,10 +949,6 @@ func GetChannelMonitorTimelineByGroup(hours int, bucketMinutes int, limit int, g
 	if err != nil {
 		return nil, err
 	}
-	type channelTimelineBucketKey struct {
-		ChannelID  int
-		TimeBucket time.Time
-	}
 	channelMap := make(map[int]*ChannelTimelineChannel)
 	pointMap := make(map[channelTimelineBucketKey]*ChannelTimelinePoint)
 	for _, row := range rows {
@@ -842,7 +967,7 @@ func GetChannelMonitorTimelineByGroup(hours int, bucketMinutes int, limit int, g
 			channelMap[row.ChannelID] = item
 		}
 		bucket := row.TimeBucket.Truncate(bucketDuration)
-		key := channelTimelineBucketKey{ChannelID: row.ChannelID, TimeBucket: bucket}
+		key := channelTimelineBucketKey{ChannelID: row.ChannelID, BucketUnix: bucket.Unix()}
 		point := pointMap[key]
 		if point == nil {
 			item.Points = append(item.Points, ChannelTimelinePoint{
@@ -881,6 +1006,23 @@ func GetChannelMonitorTimelineByGroup(hours int, bucketMinutes int, limit int, g
 	})
 	if len(items) > limit {
 		items = items[:limit]
+	}
+	channelIDs := make([]int, 0, len(items))
+	for i := range items {
+		channelIDs = append(channelIDs, items[i].ChannelID)
+	}
+	failureReasons, err := loadChannelTimelineFailureReasons(start, time.Now(), bucketDuration, channelIDs)
+	if err != nil {
+		return nil, err
+	}
+	for i := range items {
+		for j := range items[i].Points {
+			key := channelTimelineBucketKey{ChannelID: items[i].ChannelID, BucketUnix: items[i].Points[j].TimeBucket.Unix()}
+			items[i].Points[j].FailureReasons = failureReasons[key]
+			if items[i].Points[j].FailureReasons == nil {
+				items[i].Points[j].FailureReasons = []ChannelTimelineFailureReason{}
+			}
+		}
 	}
 	return items, nil
 }

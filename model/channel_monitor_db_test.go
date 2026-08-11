@@ -11,6 +11,8 @@ import (
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/constant"
 	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
@@ -34,7 +36,7 @@ func setupChannelMonitorTestDB(t *testing.T) *gorm.DB {
 	DB = db
 	LOG_DB = db
 
-	if err = db.AutoMigrate(&Channel{}, &ChannelMonitorStat{}); err != nil {
+	if err = db.AutoMigrate(&Channel{}, &ChannelMonitorStat{}, &Log{}); err != nil {
 		t.Fatalf("failed to migrate channel monitor tables: %v", err)
 	}
 
@@ -53,6 +55,47 @@ func setupChannelMonitorTestDB(t *testing.T) *gorm.DB {
 	})
 
 	return db
+}
+
+func TestGetChannelMonitorTimelineAggregatesFailureReasonsAndDetails(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	now := time.Now()
+	bucket := now.Add(-time.Hour).Truncate(10 * time.Minute)
+	channel := seedChannelMonitorTestChannel(t, db, "failure-reasons", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	seedChannelMonitorStat(t, db, channel.Id, bucket, 20, 17, 3, 120, 180, bucket.Add(5*time.Minute))
+
+	logs := []Log{
+		{
+			CreatedAt: bucket.Add(time.Minute).Unix(), Type: LogTypeError, ChannelId: channel.Id,
+			Content: "upstream overloaded", RequestId: "req-1",
+			Other: common.MapToJsonStr(map[string]any{"error_code": "rate_limit", "error_type": "upstream_error", "status_code": 429}),
+		},
+		{
+			CreatedAt: bucket.Add(2 * time.Minute).Unix(), Type: LogTypeError, ChannelId: channel.Id,
+			Content: "retry after 30 seconds", RequestId: "req-2",
+			Other: common.MapToJsonStr(map[string]any{"error_code": "rate_limit", "error_type": "upstream_error", "status_code": 429}),
+		},
+		{
+			CreatedAt: bucket.Add(3 * time.Minute).Unix(), Type: LogTypeError, ChannelId: channel.Id,
+			Content: "upstream unavailable", RequestId: "req-3",
+			Other: common.MapToJsonStr(map[string]any{"error_type": "server_error", "status_code": 503}),
+		},
+	}
+	require.NoError(t, db.Create(&logs).Error)
+
+	items, err := GetChannelMonitorTimeline(24, 10, 20)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Len(t, items[0].Points, 1)
+	reasons := items[0].Points[0].FailureReasons
+	require.Len(t, reasons, 2)
+	assert.Equal(t, "rate_limit", reasons[0].Reason)
+	assert.Equal(t, int64(2), reasons[0].Count)
+	require.Len(t, reasons[0].Details, 2)
+	assert.Equal(t, "req-2", reasons[0].Details[0].RequestID)
+	assert.Equal(t, "retry after 30 seconds", reasons[0].Details[0].Message)
+	assert.Equal(t, "server_error", reasons[1].Reason)
+	assert.Equal(t, int64(1), reasons[1].Count)
 }
 
 func resetChannelMonitorTestState() {

@@ -183,21 +183,21 @@ export function ProviderTable(props: ProviderTableProps) {
 
   return (
     <div className='overflow-hidden rounded-lg border'>
-      <Table className='min-w-[1120px]'>
+      <Table className='min-w-[1120px] table-fixed'>
         <TableHeader className='bg-muted/40'>
           <TableRow>
-            <TableHead className='w-[24%] pl-3'>
+            <TableHead className='w-[22%] pl-3'>
               {t('Model provider')}
             </TableHead>
-            <TableHead className='w-[16%]'>{t('Accounts / groups')}</TableHead>
-            <TableHead className='w-[17%]'>{t('Channel mappings')}</TableHead>
+            <TableHead className='w-[15%]'>{t('Accounts / groups')}</TableHead>
+            <TableHead className='w-[16%]'>{t('Channel mappings')}</TableHead>
             <TableHead className='w-[12%] text-right'>
               {t('Balance / recharged')}
             </TableHead>
-            <TableHead className='w-[15%] text-right'>
+            <TableHead className='w-[15%] pr-8 text-right'>
               {t('Revenue / cost')}
             </TableHead>
-            <TableHead className='w-[11%]'>{t('Sync status')}</TableHead>
+            <TableHead className='w-[15%] pl-4'>{t('Sync status')}</TableHead>
             <TableHead className='w-[5%] text-right'>{t('Actions')}</TableHead>
           </TableRow>
         </TableHeader>
@@ -288,7 +288,7 @@ export function ProviderTable(props: ProviderTableProps) {
                     {props.formatAmount(totals.balance)} /{' '}
                     {props.formatAmount(totals.totalRecharge)}
                   </TableCell>
-                  <TableCell className='text-right'>
+                  <TableCell className='pr-8 text-right'>
                     <div className='font-medium tabular-nums'>
                       {props.formatAmount(totals.revenue)} /{' '}
                       {totals.cost === null
@@ -309,7 +309,7 @@ export function ProviderTable(props: ProviderTableProps) {
                         : `${totals.margin.toFixed(1)}%`}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className='pl-4'>
                     <ProviderSyncStatusBadge
                       status={provider.syncStatus}
                       error={provider.lastSyncError}
@@ -401,7 +401,7 @@ export function ProviderTable(props: ProviderTableProps) {
                             </div>
                           </TableCell>
                           <TableCell />
-                          <TableCell className='text-right'>
+                          <TableCell className='pr-8 text-right'>
                             <div className='font-medium tabular-nums'>
                               {props.formatAmount(profit?.revenue ?? 0)} /{' '}
                               {profit?.cost == null
@@ -415,7 +415,7 @@ export function ProviderTable(props: ProviderTableProps) {
                                 : `${profit.grossMargin.toFixed(1)}%`}
                             </div>
                           </TableCell>
-                          <TableCell className='text-muted-foreground text-xs tabular-nums'>
+                          <TableCell className='text-muted-foreground pl-4 text-xs tabular-nums'>
                             {account.lastSyncedAt || '-'}
                           </TableCell>
                           <TableCell />

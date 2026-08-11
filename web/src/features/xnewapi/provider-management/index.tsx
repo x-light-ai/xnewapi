@@ -43,6 +43,7 @@ import {
   syncProvider,
   syncProviderAccount,
 } from './api'
+import { ChannelMarginRanking } from './channel-margin-ranking'
 import { createProviderAmountFormatter } from './provider-amount'
 import { ProviderDateRangePicker } from './provider-date-range'
 import { ProviderDetailSheet } from './provider-detail-sheet'
@@ -300,6 +301,16 @@ export function ProviderManagement(): ReactElement {
               providers={providers}
               formatAmount={formatAmount}
               dateRangeLabel={dateRangeLabel}
+            />
+            <ChannelMarginRanking
+              providers={providers}
+              formatAmount={formatAmount}
+              onViewProfitDetails={(filter) =>
+                navigate({
+                  to: '/providers/profit-details',
+                  search: filter,
+                })
+              }
             />
 
             <ProviderProfitTrend

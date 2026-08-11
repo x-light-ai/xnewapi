@@ -14,6 +14,7 @@ import type { ChannelMonitorItem } from './types'
 export type ChannelMonitorSortKey =
   | 'priority'
   | 'routing_score'
+  | 'gross_margin'
   | 'success_rate'
   | 'avg_latency'
   | 'p95_latency'
@@ -53,28 +54,30 @@ export function formatLatency(value: number): string {
   return `${Math.round(value)} ms`
 }
 
+export function getTrendPointSize(requestCount: number): number {
+  if (!Number.isFinite(requestCount) || requestCount <= 0) return 4
+  return Math.min(12, 4 + Math.sqrt(requestCount))
+}
+
 export function normalizeGroupName(groupName: string): string {
   return groupName.trim() || 'default'
 }
 
-export function getSuggestedWeightScore(item: ChannelMonitorItem): number {
-  if (item.temporary_circuit_open) return 0.05
-
-  const successRate = Math.max(0, Math.min(1, item.success_rate))
-  let latencyScore = 0.5
-  if (item.avg_latency > 0) {
-    latencyScore = Math.max(0, Math.min(1, 1 - item.avg_latency / 6000))
-  }
-
-  let p95Penalty = 0
-  if (item.p95_latency > 0) {
-    p95Penalty = Math.max(0, Math.min(0.35, (item.p95_latency - 1500) / 10000))
-  }
-
-  let score = successRate * 0.7 + latencyScore * 0.3 - p95Penalty
-  if (successRate < 0.7) score -= 0.15
-  if (item.avg_latency > 5000) score -= 0.1
-  return Math.max(0.05, Math.min(1, score))
+export function formatBeijingDateTime(value: string | Date): string {
+  const date = value instanceof Date ? value : new Date(value)
+  if (!Number.isFinite(date.getTime()) || date.getUTCFullYear() <= 1) return '-'
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(date)
+  const values = new Map(parts.map((part) => [part.type, part.value]))
+  return `${values.get('year')}-${values.get('month')}-${values.get('day')} ${values.get('hour')}:${values.get('minute')}:${values.get('second')}`
 }
 
 function compareNumber(left: number, right: number): number {
@@ -100,6 +103,15 @@ function compareChannels(
           right.current_weighted_score
         ) || compareNumber(left.success_rate, right.success_rate)
       )
+    case 'gross_margin': {
+      const leftMargin = left.gross_margin
+      const rightMargin = right.gross_margin
+      if (leftMargin == null || rightMargin == null) {
+        if (leftMargin == null && rightMargin == null) return 0
+        return leftMargin == null ? -1 : 1
+      }
+      return compareNumber(leftMargin, rightMargin)
+    }
     case 'success_rate':
       return (
         compareNumber(left.success_rate, right.success_rate) ||

@@ -68,6 +68,11 @@ export function ProviderProfitTrend(
       xField: 'date',
       yField: 'value',
       seriesField: 'metric',
+      line: {
+        style: {
+          curveType: 'monotone',
+        },
+      },
       point: { visible: true },
       legends: { visible: true, orient: 'top', position: 'end' },
       axes: [

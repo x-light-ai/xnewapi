@@ -14,7 +14,8 @@ import { describe, test } from 'node:test'
 
 import {
   buildChannelMonitorRows,
-  getSuggestedWeightScore,
+  formatBeijingDateTime,
+  getTrendPointSize,
   sortChannelMonitorItems,
 } from './channel-monitor-utils'
 import type { ChannelMonitorItem } from './types'
@@ -136,12 +137,34 @@ describe('channel monitor table helpers', () => {
     assert.equal(alphaSummary.avg_latency, 250)
   })
 
-  test('recommends the minimum score while a temporary circuit is open', () => {
-    assert.equal(
-      getSuggestedWeightScore(
-        channel({ id: 1, name: 'circuit', temporary_circuit_open: true })
+  test('sorts channels by gross margin while keeping missing values last', () => {
+    const items = [
+      channel({ id: 1, name: 'unknown', gross_margin: null }),
+      channel({ id: 2, name: 'lower', gross_margin: 12.5 }),
+      channel({ id: 3, name: 'higher', gross_margin: 35.2 }),
+    ]
+
+    assert.deepEqual(
+      sortChannelMonitorItems(items, 'gross_margin', 'desc').map(
+        (item) => item.name
       ),
-      0.05
+      ['higher', 'lower', 'unknown']
     )
+  })
+
+  test('formats ISO timestamps in Beijing time without timezone suffixes', () => {
+    assert.equal(
+      formatBeijingDateTime('2026-08-11T06:30:00Z'),
+      '2026-08-11 14:30:00'
+    )
+    assert.equal(formatBeijingDateTime('0001-01-01T00:00:00Z'), '-')
+  })
+
+  test('scales trend points with request volume and caps their size', () => {
+    assert.equal(getTrendPointSize(0), 4)
+    assert.equal(getTrendPointSize(4), 6)
+    assert.equal(getTrendPointSize(16), 8)
+    assert.equal(getTrendPointSize(64), 12)
+    assert.equal(getTrendPointSize(10000), 12)
   })
 })
