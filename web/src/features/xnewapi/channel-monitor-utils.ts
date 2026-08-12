@@ -9,7 +9,11 @@ License, or (at your option) any later version.
 
 // FORK-CUSTOM: Preserve the classic channel-monitor table behavior in the default frontend.
 
-import type { ChannelMonitorItem } from './types'
+import type {
+  ChannelMonitorItem,
+  ChannelTimelineFailureReason,
+  ChannelTimelinePoint,
+} from './types'
 
 export type ChannelMonitorSortKey =
   | 'priority'
@@ -57,6 +61,121 @@ export function formatLatency(value: number): string {
 export function getTrendPointSize(requestCount: number): number {
   if (!Number.isFinite(requestCount) || requestCount <= 0) return 4
   return Math.min(12, 4 + Math.sqrt(requestCount))
+}
+
+export const MAX_TREND_POINTS = 40
+export const MAX_TREND_DOT_SIZE = 10
+const MAX_TREND_FAILURE_DETAILS = 20
+
+export function compressTimelinePoints(
+  points: ChannelTimelinePoint[],
+  maxPoints: number = MAX_TREND_POINTS
+): ChannelTimelinePoint[] {
+  if (points.length <= maxPoints || maxPoints <= 0) return points
+
+  const sortedPoints = points.toSorted(
+    (left, right) =>
+      new Date(left.time_bucket).getTime() -
+      new Date(right.time_bucket).getTime()
+  )
+  const timestamps = sortedPoints.map((point) =>
+    new Date(point.time_bucket).getTime()
+  )
+  let bucketDuration = Number.POSITIVE_INFINITY
+  for (let index = 1; index < timestamps.length; index += 1) {
+    const duration = timestamps[index] - timestamps[index - 1]
+    if (duration > 0) bucketDuration = Math.min(bucketDuration, duration)
+  }
+  if (!Number.isFinite(bucketDuration)) return points
+
+  const timelineStart = timestamps[0]
+  const lastTimestamp = timestamps.at(-1)
+  if (lastTimestamp === undefined) return points
+  const timelineEnd = lastTimestamp + bucketDuration
+  const sourceBucketCount = Math.max(
+    1,
+    Math.ceil((timelineEnd - timelineStart) / bucketDuration)
+  )
+  const groupDuration =
+    Math.ceil(sourceBucketCount / maxPoints) * bucketDuration
+  const groups = new Map<number, ChannelTimelinePoint[]>()
+  for (const point of sortedPoints) {
+    const timestamp = new Date(point.time_bucket).getTime()
+    const groupIndex = Math.floor((timestamp - timelineStart) / groupDuration)
+    const group = groups.get(groupIndex)
+    if (group) group.push(point)
+    else groups.set(groupIndex, [point])
+  }
+
+  const compressed: ChannelTimelinePoint[] = []
+  const groupCount = Math.ceil((timelineEnd - timelineStart) / groupDuration)
+  for (let groupIndex = 0; groupIndex < groupCount; groupIndex += 1) {
+    const group = groups.get(groupIndex)
+    const start = timelineStart + groupIndex * groupDuration
+    const end = Math.min(start + groupDuration, timelineEnd)
+    if (group) {
+      compressed.push(mergeTimelinePointGroup(group, start, end))
+      continue
+    }
+    compressed.push({
+      ...sortedPoints[0],
+      time_bucket: new Date(start).toISOString(),
+      time_bucket_end: new Date(end).toISOString(),
+      request_count: 0,
+      success_count: 0,
+      failure_count: 0,
+      failure_reasons: [],
+    })
+  }
+  return compressed
+}
+
+function mergeTimelinePointGroup(
+  group: ChannelTimelinePoint[],
+  start: number,
+  end: number
+): ChannelTimelinePoint {
+  const first = group[0]
+  const reasons = new Map<string, ChannelTimelineFailureReason>()
+  let requestCount = 0
+  let successCount = 0
+  let failureCount = 0
+  for (const point of group) {
+    requestCount += point.request_count
+    successCount += point.success_count
+    failureCount += point.failure_count
+    for (const reason of point.failure_reasons ?? []) {
+      const key = `${reason.reason}\u0000${reason.error_code}\u0000${reason.error_type}\u0000${reason.status_code}`
+      const existing = reasons.get(key)
+      if (existing) {
+        existing.count += reason.count
+        for (const detail of reason.details) {
+          if (existing.details.length < MAX_TREND_FAILURE_DETAILS) {
+            existing.details.push(detail)
+          }
+        }
+      } else {
+        reasons.set(key, { ...reason, details: [...reason.details] })
+      }
+    }
+  }
+  return {
+    ...first,
+    time_bucket: new Date(start).toISOString(),
+    time_bucket_end: new Date(end).toISOString(),
+    request_count: requestCount,
+    success_count: successCount,
+    failure_count: failureCount,
+    failure_reasons: [...reasons.values()].sort(
+      (left, right) => right.count - left.count
+    ),
+  }
+}
+
+export function formatTimelinePointTime(point: ChannelTimelinePoint): string {
+  const start = formatBeijingDateTime(point.time_bucket)
+  if (!point.time_bucket_end) return start
+  return `${start} - ${formatBeijingDateTime(point.time_bucket_end)}`
 }
 
 export function normalizeGroupName(groupName: string): string {

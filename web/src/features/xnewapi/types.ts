@@ -61,6 +61,7 @@ export type ChannelTimelinePoint = {
   channel_type: number
   channel_status: number
   time_bucket: string
+  time_bucket_end?: string
   request_count: number
   success_count: number
   failure_count: number

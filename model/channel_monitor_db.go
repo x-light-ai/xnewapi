@@ -159,14 +159,6 @@ type channelTimelineRow struct {
 	FailureCount  int64     `json:"failure_count"`
 }
 
-type channelTimelineErrorLog struct {
-	ChannelID int
-	CreatedAt int64
-	Content   string
-	RequestID string
-	Other     string
-}
-
 type channelTimelineBucketKey struct {
 	ChannelID  int
 	BucketUnix int64
@@ -419,13 +411,24 @@ func aggregateChannelMonitorStats(sourceGranularity int, targetGranularity int, 
 }
 
 func refreshChannelMonitorAggregates(now time.Time) error {
+	minuteRetentionCutoff := now.Add(-channelMonitorMinuteRetention)
+	hourSourceFrom := minuteRetentionCutoff.Truncate(time.Hour)
+	if hourSourceFrom.Before(minuteRetentionCutoff) {
+		hourSourceFrom = hourSourceFrom.Add(time.Hour)
+	}
 	if err := aggregateChannelMonitorStats(
 		ChannelMonitorGranularityMinute,
 		ChannelMonitorGranularityHour,
 		func(t time.Time) time.Time { return t.Truncate(time.Hour) },
-		now.Add(-channelMonitorHourRetention),
+		hourSourceFrom,
 	); err != nil {
 		return err
+	}
+	hourRetentionCutoff := now.Add(-channelMonitorHourRetention)
+	year, month, day := hourRetentionCutoff.Date()
+	daySourceFrom := time.Date(year, month, day, 0, 0, 0, 0, hourRetentionCutoff.Location())
+	if daySourceFrom.Before(hourRetentionCutoff) {
+		daySourceFrom = daySourceFrom.AddDate(0, 0, 1)
 	}
 	return aggregateChannelMonitorStats(
 		ChannelMonitorGranularityHour,
@@ -434,7 +437,7 @@ func refreshChannelMonitorAggregates(now time.Time) error {
 			y, m, d := t.Date()
 			return time.Date(y, m, d, 0, 0, 0, 0, t.Location())
 		},
-		now.Add(-channelMonitorDayRetention),
+		daySourceFrom,
 	)
 }
 
@@ -474,7 +477,10 @@ func CleanupExpiredChannelMonitorStats() error {
 	if err := DB.Where("granularity = ? AND time_bucket < ?", ChannelMonitorGranularityHour, now.Add(-channelMonitorHourRetention)).Delete(&ChannelMonitorStat{}).Error; err != nil {
 		return err
 	}
-	return DB.Where("granularity = ? AND time_bucket < ?", ChannelMonitorGranularityDay, now.Add(-channelMonitorDayRetention)).Delete(&ChannelMonitorStat{}).Error
+	if err := DB.Where("granularity = ? AND time_bucket < ?", ChannelMonitorGranularityDay, now.Add(-channelMonitorDayRetention)).Delete(&ChannelMonitorStat{}).Error; err != nil {
+		return err
+	}
+	return CleanupExpiredChannelMonitorErrors(now)
 }
 
 func StartChannelMonitorCleanupTask() {
@@ -827,33 +833,14 @@ func GetChannelMonitorTimeline(hours int, bucketMinutes int, limit int) ([]Chann
 	return GetChannelMonitorTimelineByGroup(hours, bucketMinutes, limit, "")
 }
 
-func channelTimelineMetadataString(value any) string {
-	switch typed := value.(type) {
-	case string:
-		return strings.TrimSpace(typed)
-	case float64:
-		return strconv.FormatFloat(typed, 'f', -1, 64)
-	case int:
-		return strconv.Itoa(typed)
-	case int64:
-		return strconv.FormatInt(typed, 10)
-	default:
-		return ""
-	}
-}
-
 func loadChannelTimelineFailureReasons(start time.Time, end time.Time, bucketDuration time.Duration, channelIDs []int) (map[channelTimelineBucketKey][]ChannelTimelineFailureReason, error) {
 	result := make(map[channelTimelineBucketKey][]ChannelTimelineFailureReason)
-	if LOG_DB == nil || len(channelIDs) == 0 {
+	if DB == nil || len(channelIDs) == 0 {
 		return result, nil
 	}
-	logs := make([]channelTimelineErrorLog, 0)
-	err := LOG_DB.Model(&Log{}).
-		Select("channel_id, created_at, content, request_id, other").
-		Where("type = ? AND channel_id IN ?", LogTypeError, channelIDs).
-		Where("created_at >= ? AND created_at <= ?", start.Unix(), end.Unix()).
-		Order("created_at DESC").
-		Find(&logs).Error
+	errors := make([]ChannelMonitorError, 0)
+	err := DB.Where("channel_id IN ? AND time_bucket >= ? AND time_bucket <= ?", channelIDs, start, end).
+		Order("last_occurred_at DESC").Find(&errors).Error
 	if err != nil {
 		return nil, err
 	}
@@ -864,16 +851,12 @@ func loadChannelTimelineFailureReasons(start time.Time, end time.Time, bucketDur
 		StatusCode int
 	}
 	aggregates := make(map[channelTimelineBucketKey]map[failureReasonKey]*ChannelTimelineFailureReason)
-	for _, log := range logs {
-		occurredAt := time.Unix(log.CreatedAt, 0).In(start.Location())
-		bucketKey := channelTimelineBucketKey{ChannelID: log.ChannelID, BucketUnix: occurredAt.Truncate(bucketDuration).Unix()}
-		metadata := make(map[string]any)
-		if strings.TrimSpace(log.Other) != "" {
-			_ = common.UnmarshalJsonStr(log.Other, &metadata)
-		}
-		errorCode := channelTimelineMetadataString(metadata["error_code"])
-		errorType := channelTimelineMetadataString(metadata["error_type"])
-		statusCode, _ := strconv.Atoi(channelTimelineMetadataString(metadata["status_code"]))
+	for _, monitorError := range errors {
+		occurredAt := time.Unix(monitorError.LastOccurredAt, 0).In(start.Location())
+		bucketKey := channelTimelineBucketKey{ChannelID: monitorError.ChannelID, BucketUnix: monitorError.TimeBucket.In(start.Location()).Truncate(bucketDuration).Unix()}
+		errorCode := monitorError.ErrorCode
+		errorType := monitorError.ErrorType
+		statusCode := monitorError.StatusCode
 		reason := errorCode
 		if reason == "" {
 			reason = errorType
@@ -898,12 +881,12 @@ func loadChannelTimelineFailureReasons(start time.Time, end time.Time, bucketDur
 			}
 			bucketReasons[reasonKey] = aggregate
 		}
-		aggregate.Count++
+		aggregate.Count += monitorError.Count
 		if len(aggregate.Details) < channelTimelineFailureDetailLimit {
 			aggregate.Details = append(aggregate.Details, ChannelTimelineFailureDetail{
 				OccurredAt: occurredAt,
-				Message:    log.Content,
-				RequestID:  log.RequestID,
+				Message:    monitorError.SampleMessage,
+				RequestID:  monitorError.SampleRequestID,
 			})
 		}
 	}

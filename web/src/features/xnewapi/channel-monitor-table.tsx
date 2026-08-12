@@ -84,10 +84,13 @@ import {
 } from './api'
 import {
   buildChannelMonitorRows,
+  compressTimelinePoints,
   formatBeijingDateTime,
   formatLatency,
   formatRate,
+  formatTimelinePointTime,
   getTrendPointSize,
+  MAX_TREND_DOT_SIZE,
   normalizeGroupName,
   type ChannelMonitorSortKey,
   type ChannelMonitorSortOrder,
@@ -200,7 +203,7 @@ function AvailabilityTrend(props: {
   onSelectPoint: (point: ChannelTimelinePoint) => void
 }) {
   const { t } = useTranslation('xnewapi')
-  const points = props.timeline?.points ?? []
+  const points = compressTimelinePoints(props.timeline?.points ?? [])
   let maxRequests = 0
   for (const point of points) {
     maxRequests = Math.max(maxRequests, point.request_count)
@@ -209,9 +212,9 @@ function AvailabilityTrend(props: {
   const lastActive = formatBeijingDateTime(props.item.last_active)
 
   return (
-    <div className='flex min-w-72 flex-col gap-2'>
+    <div className='flex w-full min-w-0 flex-col gap-2'>
       <TooltipProvider>
-        <div className='flex min-h-2 items-center gap-1'>
+        <div className='flex min-h-2 w-full items-center gap-px'>
           {hasData ? (
             points.map((point) => (
               <Tooltip key={point.time_bucket}>
@@ -219,15 +222,21 @@ function AvailabilityTrend(props: {
                   render={
                     <button
                       type='button'
-                      className='flex size-4 shrink-0 items-center justify-center'
+                      className='flex min-w-0 flex-1 items-center justify-center py-1'
                       onClick={() => props.onSelectPoint(point)}
-                      aria-label={`${formatBeijingDateTime(point.time_bucket)} ${t('Failure details')}`}
+                      aria-label={`${formatTimelinePointTime(point)} ${t('Failure details')}`}
                     >
                       <span
                         className={getTrendPointClassName(point)}
                         style={{
-                          width: getTrendPointSize(point.request_count),
-                          height: getTrendPointSize(point.request_count),
+                          width: Math.min(
+                            getTrendPointSize(point.request_count),
+                            MAX_TREND_DOT_SIZE
+                          ),
+                          height: Math.min(
+                            getTrendPointSize(point.request_count),
+                            MAX_TREND_DOT_SIZE
+                          ),
                         }}
                       />
                     </button>
@@ -235,7 +244,7 @@ function AvailabilityTrend(props: {
                 />
                 <TooltipContent>
                   <div className='flex flex-col gap-1 tabular-nums'>
-                    <span>{formatBeijingDateTime(point.time_bucket)}</span>
+                    <span>{formatTimelinePointTime(point)}</span>
                     <span>
                       {t('Success rate')}:{' '}
                       {formatRate(
@@ -834,7 +843,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
             <SheetTitle>{t('Failure details')}</SheetTitle>
             <SheetDescription>
               {trendDetail
-                ? `${trendDetail.item.name} · ${formatBeijingDateTime(trendDetail.point.time_bucket)}`
+                ? `${trendDetail.item.name} · ${formatTimelinePointTime(trendDetail.point)}`
                 : ''}
             </SheetDescription>
           </SheetHeader>
@@ -872,8 +881,15 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                 </div>
               </div>
               {(trendDetail.point.failure_reasons ?? []).length === 0 ? (
-                <div className='text-muted-foreground px-4 py-10 text-center text-sm'>
-                  {t('No failure details recorded')}
+                <div className='px-4 py-10 text-center text-sm'>
+                  <p className='text-muted-foreground'>
+                    {t('No failure details recorded')}
+                  </p>
+                  <p className='text-muted-foreground/70 mt-2 text-xs'>
+                    {t(
+                      'No aggregated error sample was retained for this time range'
+                    )}
+                  </p>
                 </div>
               ) : (
                 (trendDetail.point.failure_reasons ?? []).map((reason) => (

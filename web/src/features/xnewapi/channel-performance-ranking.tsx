@@ -9,7 +9,13 @@ License, or (at your option) any later version.
 
 // FORK-CUSTOM: Rank channel groups by reliability and provider profitability.
 
-import { ArrowDown, ArrowUp, ArrowUpDown, ExternalLink } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  ExternalLink,
+  Medal,
+} from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -34,6 +40,7 @@ import { cn } from '@/lib/utils'
 import { formatRate } from './channel-monitor-utils'
 import {
   buildChannelPerformanceRows,
+  buildRecommendedChannelGroups,
   sortChannelPerformanceRows,
   type RankingSortKey,
 } from './channel-performance-ranking-utils'
@@ -69,14 +76,17 @@ export function ChannelPerformanceRanking(
   const [sortKey, setSortKey] = useState<RankingSortKey>('request_count')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
+  const performanceRows = useMemo(
+    () => buildChannelPerformanceRows(props.items, props.providers),
+    [props.items, props.providers]
+  )
+  const recommendedGroups = useMemo(
+    () => buildRecommendedChannelGroups(performanceRows),
+    [performanceRows]
+  )
   const rows = useMemo(
-    () =>
-      sortChannelPerformanceRows(
-        buildChannelPerformanceRows(props.items, props.providers),
-        sortKey,
-        sortOrder
-      ),
-    [props.items, props.providers, sortKey, sortOrder]
+    () => sortChannelPerformanceRows(performanceRows, sortKey, sortOrder),
+    [performanceRows, sortKey, sortOrder]
   )
 
   const sort = (key: RankingSortKey) => {
@@ -96,15 +106,15 @@ export function ChannelPerformanceRanking(
       ariaSort = sortOrder === 'asc' ? 'ascending' : 'descending'
     }
     return (
-      <TableHead className='text-right' aria-sort={ariaSort}>
+      <TableHead className='text-right whitespace-normal' aria-sort={ariaSort}>
         <Button
           variant='ghost'
           size='sm'
-          className='-mr-3 ml-auto h-8 px-3'
+          className='ml-auto h-auto min-h-8 w-full justify-end px-1 text-right whitespace-normal'
           onClick={() => sort(key)}
         >
-          {label}
-          <Icon className='size-3.5' aria-hidden />
+          <span className='leading-tight'>{label}</span>
+          <Icon className='size-3.5 shrink-0' aria-hidden />
         </Button>
       </TableHead>
     )
@@ -131,12 +141,83 @@ export function ChannelPerformanceRanking(
         </Empty>
       )}
       {!props.loading && rows.length > 0 && (
-        <div className='overflow-x-auto'>
-          <Table className='min-w-[980px]'>
+        <div>
+          {recommendedGroups.length > 0 && (
+            <div className='border-b px-4 py-4'>
+              <div className='mb-3 flex items-center gap-2'>
+                <Medal className='text-primary size-4' aria-hidden />
+                <h3 className='text-sm font-semibold'>
+                  {t('Recommended channels')}
+                </h3>
+              </div>
+              <div className='divide-y rounded-md border'>
+                {recommendedGroups.map((group) => (
+                  <section key={group.groupName}>
+                    <h4 className='bg-muted/40 border-b px-3 py-2 text-sm font-medium break-words'>
+                      {group.groupName}
+                    </h4>
+                    <Table className='table-fixed'>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className='w-12 text-center'>#</TableHead>
+                          <TableHead>{t('Channel')}</TableHead>
+                          <TableHead className='text-right'>
+                            {t('Recommendation score')}
+                          </TableHead>
+                          <TableHead className='text-right'>
+                            {t('Success rate')}
+                          </TableHead>
+                          <TableHead className='text-right'>
+                            {t('Gross margin')}
+                          </TableHead>
+                          <TableHead className='text-right'>
+                            {t('Requests')}
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {group.rows.map((row, index) => (
+                          <TableRow
+                            key={`recommended-${group.groupName}-${row.id}`}
+                          >
+                            <TableCell className='text-center font-semibold tabular-nums'>
+                              {index + 1}
+                            </TableCell>
+                            <TableCell className='font-medium'>
+                              <span className='line-clamp-2 break-words'>
+                                {row.channelNames.join(', ')}
+                              </span>
+                            </TableCell>
+                            <TableCell className='text-right font-semibold tabular-nums'>
+                              {row.recommendationScore.toFixed(1)}
+                            </TableCell>
+                            <TableCell className='text-right tabular-nums'>
+                              {formatRate(row.successRate)}
+                            </TableCell>
+                            <TableCell className='text-right tabular-nums'>
+                              {row.grossMargin?.toFixed(1)}%
+                            </TableCell>
+                            <TableCell className='text-right tabular-nums'>
+                              {row.requestCount.toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </section>
+                ))}
+              </div>
+            </div>
+          )}
+          <Table className='table-fixed [&_td]:whitespace-normal'>
             <TableHeader>
               <TableRow>
-                <TableHead>{t('Channel')}</TableHead>
-                <TableHead>{t('Provider')}</TableHead>
+                <TableHead className='w-[22%] whitespace-normal'>
+                  {t('Channel')}
+                </TableHead>
+                <TableHead className='w-[18%] whitespace-normal'>
+                  {t('Provider')}
+                </TableHead>
                 {sortableHead(t('Requests'), 'request_count')}
                 {sortableHead(t('Failure count'), 'failure_count')}
                 {sortableHead(t('Success rate'), 'success_rate')}
@@ -150,8 +231,8 @@ export function ChannelPerformanceRanking(
                 const endpoint = providerLink(row.providerEndpoint)
                 return (
                   <TableRow key={row.id}>
-                    <TableCell className='max-w-72 font-medium'>
-                      <span className='line-clamp-2'>
+                    <TableCell className='font-medium'>
+                      <span className='line-clamp-2 break-words'>
                         {row.channelNames.join(', ')}
                       </span>
                     </TableCell>
@@ -161,7 +242,7 @@ export function ChannelPerformanceRanking(
                           href={endpoint}
                           target='_blank'
                           rel='noreferrer'
-                          className='hover:text-primary inline-flex items-center gap-1 font-medium underline-offset-4 hover:underline'
+                          className='hover:text-primary inline-flex min-w-0 items-center gap-1 font-medium break-all underline-offset-4 hover:underline'
                         >
                           {row.providerName}
                           <ExternalLink className='size-3.5' aria-hidden />

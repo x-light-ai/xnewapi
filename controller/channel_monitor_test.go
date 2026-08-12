@@ -21,6 +21,8 @@ import (
 	hosttypes "github.com/QuantumNous/new-api/types"
 	"github.com/gin-gonic/gin"
 	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"gorm.io/gorm"
 )
 
@@ -68,7 +70,7 @@ func setupChannelMonitorControllerTestDB(t *testing.T) *gorm.DB {
 	model.ResetChannelMonitorRuntimeStateForTest()
 	service.ResetChannelSuccessRateHealthManagerForTest()
 
-	if err = db.AutoMigrate(&model.Channel{}, &model.Ability{}, &model.ChannelMonitorStat{}, &model.ChannelCircuitEvent{}); err != nil {
+	if err = db.AutoMigrate(&model.Channel{}, &model.Ability{}, &model.ChannelMonitorStat{}, &model.ChannelMonitorError{}, &model.ChannelCircuitEvent{}, &model.Log{}); err != nil {
 		t.Fatalf("failed to migrate channel monitor tables: %v", err)
 	}
 
@@ -402,6 +404,39 @@ func TestGetChannelMonitorChannelsHandlerShowsAutoDisabledChannelStatus(t *testi
 	if page.Items[0].CurrentWeightedScore <= 0 {
 		t.Fatalf("expected positive runtime score, got %+v", page.Items[0])
 	}
+}
+
+func TestObserveChannelFailureRecordsMonitorErrorWithoutUpstreamErrorLogging(t *testing.T) {
+	db := setupChannelMonitorControllerTestDB(t)
+	channel := seedChannelMonitorControllerChannel(t, db, "MonitorError", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	originalErrorLogEnabled := constant.ErrorLogEnabled
+	constant.ErrorLogEnabled = false
+	t.Cleanup(func() {
+		constant.ErrorLogEnabled = originalErrorLogEnabled
+	})
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	common.SetContextKey(ctx, constant.ContextKeyChannelId, channel.Id)
+	common.SetContextKey(ctx, constant.ContextKeyUsingGroup, "default")
+	common.SetContextKey(ctx, constant.ContextKeyOriginalModel, "gpt-4")
+	ctx.Set(common.RequestIdKey, "monitor-request-id")
+	service.ObserveChannelRequestResult(ctx, false, types.NewErrorWithStatusCode(errors.New("upstream failed"), "upstream_error", http.StatusBadGateway))
+
+	var monitorErrors []model.ChannelMonitorError
+	require.Eventually(t, func() bool {
+		monitorErrors = nil
+		return db.Find(&monitorErrors).Error == nil && len(monitorErrors) == 1
+	}, time.Second, 10*time.Millisecond)
+	require.Len(t, monitorErrors, 1)
+	assert.Equal(t, channel.Id, monitorErrors[0].ChannelID)
+	assert.Equal(t, http.StatusBadGateway, monitorErrors[0].StatusCode)
+	assert.Equal(t, "monitor-request-id", monitorErrors[0].SampleRequestID)
+	assert.Equal(t, int64(1), monitorErrors[0].Count)
+
+	var upstreamErrorLogCount int64
+	require.NoError(t, db.Model(&model.Log{}).Where("type = ?", model.LogTypeError).Count(&upstreamErrorLogCount).Error)
+	assert.Zero(t, upstreamErrorLogCount)
 }
 
 func TestGetChannelMonitorChannelsHandlerMergesRuntimeStateAndMetrics(t *testing.T) {

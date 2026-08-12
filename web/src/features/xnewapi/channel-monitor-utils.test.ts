@@ -14,11 +14,12 @@ import { describe, test } from 'node:test'
 
 import {
   buildChannelMonitorRows,
+  compressTimelinePoints,
   formatBeijingDateTime,
   getTrendPointSize,
   sortChannelMonitorItems,
 } from './channel-monitor-utils'
-import type { ChannelMonitorItem } from './types'
+import type { ChannelMonitorItem, ChannelTimelinePoint } from './types'
 
 function channel(
   values: Partial<ChannelMonitorItem> & Pick<ChannelMonitorItem, 'id' | 'name'>
@@ -166,5 +167,155 @@ describe('channel monitor table helpers', () => {
     assert.equal(getTrendPointSize(16), 8)
     assert.equal(getTrendPointSize(64), 12)
     assert.equal(getTrendPointSize(10000), 12)
+  })
+})
+describe('availability trend compression', () => {
+  function timelinePoint(
+    values: Partial<ChannelTimelinePoint>
+  ): ChannelTimelinePoint {
+    return {
+      channel_id: 1,
+      channel_name: 'alpha',
+      channel_type: 1,
+      channel_status: 1,
+      time_bucket: '2026-08-11T12:00:00Z',
+      request_count: 0,
+      success_count: 0,
+      failure_count: 0,
+      failure_reasons: [],
+      ...values,
+    }
+  }
+
+  test('keeps timeline points unchanged when within the cap', () => {
+    const points = [
+      timelinePoint({ time_bucket: '2026-08-11T12:00:00Z' }),
+      timelinePoint({ time_bucket: '2026-08-11T12:10:00Z' }),
+    ]
+    assert.equal(compressTimelinePoints(points, 5), points)
+  })
+
+  test('compresses 144 points to 36 even groups of 4 buckets', () => {
+    const points = Array.from({ length: 144 }, (_, index) =>
+      timelinePoint({
+        time_bucket: new Date(
+          Date.UTC(2026, 7, 11, 12) + index * 600000
+        ).toISOString(),
+        request_count: 10,
+        success_count: 8,
+        failure_count: 2,
+      })
+    )
+
+    const compressed = compressTimelinePoints(points)
+
+    assert.equal(compressed.length, 36)
+    assert.equal(compressed[0].time_bucket, points[0].time_bucket)
+    assert.equal(compressed[0].request_count, 40)
+    assert.equal(compressed[0].success_count, 32)
+    assert.equal(compressed[0].failure_count, 8)
+    assert.equal(compressed.at(-1)?.time_bucket, points[140].time_bucket)
+    assert.equal(
+      compressed[0].time_bucket_end,
+      new Date(Date.UTC(2026, 7, 11, 12) + 4 * 600000).toISOString()
+    )
+  })
+
+  test('keeps empty time divisions so visual spacing remains proportional', () => {
+    const firstHalf = Array.from({ length: 21 }, (_, index) =>
+      timelinePoint({
+        time_bucket: new Date(
+          Date.UTC(2026, 7, 11, 12) + index * 600000
+        ).toISOString(),
+        request_count: 1,
+        success_count: 1,
+      })
+    )
+    const secondHalf = Array.from({ length: 20 }, (_, index) =>
+      timelinePoint({
+        time_bucket: new Date(
+          Date.UTC(2026, 7, 11, 22) + index * 600000
+        ).toISOString(),
+        request_count: 1,
+        success_count: 1,
+      })
+    )
+
+    const compressed = compressTimelinePoints([...firstHalf, ...secondHalf], 4)
+
+    assert.equal(compressed.length, 4)
+    assert.equal(compressed[2].request_count, 0)
+    assert.equal(compressed[2].failure_reasons.length, 0)
+  })
+
+  test('merges failure reasons and keeps details across compressed buckets', () => {
+    const points = [
+      timelinePoint({
+        time_bucket: '2026-08-11T12:00:00Z',
+        failure_count: 3,
+        failure_reasons: [
+          {
+            reason: 'rate_limit',
+            error_code: 'rate_limit',
+            error_type: 'upstream_error',
+            status_code: 429,
+            count: 2,
+            details: [
+              {
+                occurred_at: '2026-08-11T12:00:10Z',
+                message: 'too many requests',
+                request_id: 'req-1',
+              },
+            ],
+          },
+        ],
+      }),
+      timelinePoint({
+        time_bucket: '2026-08-11T12:10:00Z',
+        failure_count: 4,
+        failure_reasons: [
+          {
+            reason: 'rate_limit',
+            error_code: 'rate_limit',
+            error_type: 'upstream_error',
+            status_code: 429,
+            count: 3,
+            details: [
+              {
+                occurred_at: '2026-08-11T12:10:10Z',
+                message: 'retry after 30s',
+                request_id: 'req-2',
+              },
+            ],
+          },
+          {
+            reason: 'request_timeout',
+            error_code: 'request_timeout',
+            error_type: 'timeout_error',
+            status_code: 504,
+            count: 1,
+            details: [],
+          },
+        ],
+      }),
+    ]
+
+    const padding = Array.from({ length: 39 }, (_, index) =>
+      timelinePoint({
+        time_bucket: new Date(
+          Date.UTC(2026, 7, 11, 12, 20) + index * 600000
+        ).toISOString(),
+      })
+    )
+    const compressed = compressTimelinePoints([...points, ...padding], 1)
+
+    assert.equal(compressed.length, 1)
+    assert.equal(compressed[0].failure_count, 7)
+    assert.equal(compressed[0].failure_reasons.length, 2)
+    assert.equal(compressed[0].failure_reasons[0].reason, 'rate_limit')
+    assert.equal(compressed[0].failure_reasons[0].count, 5)
+    assert.equal(compressed[0].failure_reasons[0].details.length, 2)
+    assert.equal(compressed[0].failure_reasons[1].reason, 'request_timeout')
+    assert.equal(compressed[0].failure_reasons[1].count, 1)
   })
 })

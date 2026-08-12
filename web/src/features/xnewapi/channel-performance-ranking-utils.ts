@@ -23,6 +23,7 @@ export type RankingSortKey =
 export type RankingRow = {
   id: string
   channelNames: string[]
+  groupNames: string[]
   providerName: string
   providerEndpoint: string
   requestCount: number
@@ -31,6 +32,28 @@ export type RankingRow = {
   failureRate: number
   grossMargin: number | null
   revenue: number | null
+}
+
+export type RecommendedChannelRow = RankingRow & {
+  recommendationScore: number
+}
+
+export type RecommendedChannelGroup = {
+  groupName: string
+  rows: RecommendedChannelRow[]
+}
+
+function channelGroupNames(items: ChannelMonitorItem[]): string[] {
+  return [
+    ...new Set(
+      items.flatMap((item) =>
+        item.group_name
+          .split(',')
+          .map((groupName) => groupName.trim())
+          .filter(Boolean)
+      )
+    ),
+  ].toSorted((left, right) => left.localeCompare(right))
 }
 
 function numericValue(row: RankingRow, key: RankingSortKey): number | null {
@@ -76,6 +99,7 @@ export function buildChannelPerformanceRows(
         result.push({
           id: group.groupKey,
           channelNames: monitoredChannels.map((channel) => channel.name),
+          groupNames: channelGroupNames(monitoredChannels),
           providerName: provider.name,
           providerEndpoint: provider.endpoint || '',
           requestCount,
@@ -95,6 +119,7 @@ export function buildChannelPerformanceRows(
     result.push({
       id: `channel-${item.id}`,
       channelNames: [item.name],
+      groupNames: channelGroupNames([item]),
       providerName: '-',
       providerEndpoint: '',
       requestCount: item.request_count,
@@ -106,6 +131,72 @@ export function buildChannelPerformanceRows(
     })
   }
   return result
+}
+
+export function buildRecommendedChannelRows(
+  rows: RankingRow[],
+  limit: number = 5
+): RecommendedChannelRow[] {
+  if (limit <= 0) return []
+  return rows
+    .flatMap((row) => {
+      if (
+        row.requestCount <= 0 ||
+        row.grossMargin == null ||
+        !Number.isFinite(row.grossMargin)
+      ) {
+        return []
+      }
+      const successes = Math.max(0, row.requestCount - row.failureCount)
+      const bayesianSuccessRate = (successes + 19) / (row.requestCount + 20)
+      const confidence = row.requestCount / (row.requestCount + 50)
+      const stabilityScore = bayesianSuccessRate * (0.5 + 0.5 * confidence)
+      const valueScore = Math.min(1, Math.max(0, (row.grossMargin + 10) / 60))
+      return [
+        {
+          ...row,
+          recommendationScore: (stabilityScore * 0.5 + valueScore * 0.5) * 100,
+        },
+      ]
+    })
+    .toSorted((left, right) => {
+      if (left.recommendationScore !== right.recommendationScore) {
+        return right.recommendationScore - left.recommendationScore
+      }
+      if (left.requestCount !== right.requestCount) {
+        return right.requestCount - left.requestCount
+      }
+      return left.channelNames
+        .join(',')
+        .localeCompare(right.channelNames.join(','))
+    })
+    .slice(0, limit)
+}
+
+export function buildRecommendedChannelGroups(
+  rows: RankingRow[],
+  limitPerGroup: number = 3
+): RecommendedChannelGroup[] {
+  if (limitPerGroup <= 0) return []
+  const rowsByGroup = new Map<string, RankingRow[]>()
+  for (const row of rows) {
+    for (const groupName of row.groupNames) {
+      const groupRows = rowsByGroup.get(groupName) ?? []
+      groupRows.push(row)
+      rowsByGroup.set(groupName, groupRows)
+    }
+  }
+  return [...rowsByGroup.entries()]
+    .toSorted(([left], [right]) => left.localeCompare(right))
+    .flatMap(([groupName, groupRows]) => {
+      const recommendedRows = buildRecommendedChannelRows(
+        groupRows,
+        limitPerGroup
+      )
+      return recommendedRows.length > 0
+        ? [{ groupName, rows: recommendedRows }]
+        : []
+    })
 }
 
 export function sortChannelPerformanceRows(

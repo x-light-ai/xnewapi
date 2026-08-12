@@ -7,7 +7,7 @@ import "github.com/QuantumNous/new-api/common"
 // registration here instead of in the upstream AutoMigrate list avoids conflicting with
 // upstream whenever it appends models of its own.
 func migrateChannelMonitorTables() error {
-	if err := DB.AutoMigrate(&ChannelMonitorStat{}); err != nil {
+	if err := DB.AutoMigrate(&ChannelMonitorStat{}, &ChannelMonitorError{}); err != nil {
 		return err
 	}
 	// Circuit events keep a hand-written SQLite path; other databases use AutoMigrate.

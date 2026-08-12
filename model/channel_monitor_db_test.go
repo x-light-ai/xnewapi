@@ -36,7 +36,7 @@ func setupChannelMonitorTestDB(t *testing.T) *gorm.DB {
 	DB = db
 	LOG_DB = db
 
-	if err = db.AutoMigrate(&Channel{}, &ChannelMonitorStat{}, &Log{}); err != nil {
+	if err = db.AutoMigrate(&Channel{}, &ChannelMonitorStat{}, &ChannelMonitorError{}, &Log{}); err != nil {
 		t.Fatalf("failed to migrate channel monitor tables: %v", err)
 	}
 
@@ -64,24 +64,9 @@ func TestGetChannelMonitorTimelineAggregatesFailureReasonsAndDetails(t *testing.
 	channel := seedChannelMonitorTestChannel(t, db, "failure-reasons", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
 	seedChannelMonitorStat(t, db, channel.Id, bucket, 20, 17, 3, 120, 180, bucket.Add(5*time.Minute))
 
-	logs := []Log{
-		{
-			CreatedAt: bucket.Add(time.Minute).Unix(), Type: LogTypeError, ChannelId: channel.Id,
-			Content: "upstream overloaded", RequestId: "req-1",
-			Other: common.MapToJsonStr(map[string]any{"error_code": "rate_limit", "error_type": "upstream_error", "status_code": 429}),
-		},
-		{
-			CreatedAt: bucket.Add(2 * time.Minute).Unix(), Type: LogTypeError, ChannelId: channel.Id,
-			Content: "retry after 30 seconds", RequestId: "req-2",
-			Other: common.MapToJsonStr(map[string]any{"error_code": "rate_limit", "error_type": "upstream_error", "status_code": 429}),
-		},
-		{
-			CreatedAt: bucket.Add(3 * time.Minute).Unix(), Type: LogTypeError, ChannelId: channel.Id,
-			Content: "upstream unavailable", RequestId: "req-3",
-			Other: common.MapToJsonStr(map[string]any{"error_type": "server_error", "status_code": 503}),
-		},
-	}
-	require.NoError(t, db.Create(&logs).Error)
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "rate_limit", "upstream_error", 429, "upstream overloaded", "req-1", bucket.Add(time.Minute)))
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "rate_limit", "upstream_error", 429, "retry after 30 seconds", "req-2", bucket.Add(2*time.Minute)))
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "", "server_error", 503, "upstream unavailable", "req-3", bucket.Add(3*time.Minute)))
 
 	items, err := GetChannelMonitorTimeline(24, 10, 20)
 	require.NoError(t, err)
@@ -91,11 +76,82 @@ func TestGetChannelMonitorTimelineAggregatesFailureReasonsAndDetails(t *testing.
 	require.Len(t, reasons, 2)
 	assert.Equal(t, "rate_limit", reasons[0].Reason)
 	assert.Equal(t, int64(2), reasons[0].Count)
-	require.Len(t, reasons[0].Details, 2)
+	require.Len(t, reasons[0].Details, 1)
 	assert.Equal(t, "req-2", reasons[0].Details[0].RequestID)
 	assert.Equal(t, "retry after 30 seconds", reasons[0].Details[0].Message)
 	assert.Equal(t, "server_error", reasons[1].Reason)
 	assert.Equal(t, int64(1), reasons[1].Count)
+}
+
+func TestRecordChannelMonitorErrorAggregatesByBucketAndFingerprint(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	channel := seedChannelMonitorTestChannel(t, db, "aggregated-errors", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	bucket := time.Now().Add(-time.Hour).Truncate(10 * time.Minute)
+
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "rate_limit", "upstream_error", 429, "first sample", "req-1", bucket.Add(time.Minute)))
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "rate_limit", "upstream_error", 429, "latest sample", "req-2", bucket.Add(2*time.Minute)))
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "rate_limit", "upstream_error", 429, "older delayed sample", "req-delayed", bucket.Add(30*time.Second)))
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "request_timeout", "timeout_error", 504, "timeout", "req-3", bucket.Add(3*time.Minute)))
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "rate_limit", "upstream_error", 429, "next bucket", "req-4", bucket.Add(11*time.Minute)))
+
+	var records []ChannelMonitorError
+	require.NoError(t, db.Order("time_bucket ASC, error_code ASC").Find(&records).Error)
+	require.Len(t, records, 3)
+
+	var rateLimitRecord ChannelMonitorError
+	require.NoError(t, db.Where("channel_id = ? AND time_bucket = ? AND error_code = ?", channel.Id, bucket, "rate_limit").First(&rateLimitRecord).Error)
+	assert.Equal(t, int64(3), rateLimitRecord.Count)
+	assert.Equal(t, "latest sample", rateLimitRecord.SampleMessage)
+	assert.Equal(t, "req-2", rateLimitRecord.SampleRequestID)
+	assert.Equal(t, bucket.Add(30*time.Second).Unix(), rateLimitRecord.FirstOccurredAt)
+	assert.Equal(t, bucket.Add(2*time.Minute).Unix(), rateLimitRecord.LastOccurredAt)
+}
+
+func TestRecordChannelMonitorErrorUsesNormalizedMessageWhenMetadataIsMissing(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	channel := seedChannelMonitorTestChannel(t, db, "fallback-fingerprint", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	bucket := time.Now().Add(-time.Hour).Truncate(10 * time.Minute)
+
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "", "", 503, "service unavailable (request id: req-alpha)", "req-alpha", bucket.Add(time.Minute)))
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "", "", 503, "service unavailable (request id: req-beta)", "req-beta", bucket.Add(2*time.Minute)))
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "", "", 503, "no eligible account", "req-gamma", bucket.Add(3*time.Minute)))
+
+	var records []ChannelMonitorError
+	require.NoError(t, db.Order("count DESC").Find(&records).Error)
+	require.Len(t, records, 2)
+	assert.Equal(t, int64(2), records[0].Count)
+	assert.Equal(t, "req-beta", records[0].SampleRequestID)
+	assert.Equal(t, int64(1), records[1].Count)
+}
+
+func TestCleanupExpiredChannelMonitorErrorsKeepsLast72Hours(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	channel := seedChannelMonitorTestChannel(t, db, "error-retention", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	now := time.Now().Truncate(10 * time.Minute)
+
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "expired", "upstream_error", 500, "expired", "req-old", now.Add(-73*time.Hour)))
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "retained", "upstream_error", 500, "retained", "req-new", now.Add(-71*time.Hour)))
+	require.NoError(t, CleanupExpiredChannelMonitorErrors(now))
+
+	var records []ChannelMonitorError
+	require.NoError(t, db.Find(&records).Error)
+	require.Len(t, records, 1)
+	assert.Equal(t, "retained", records[0].ErrorCode)
+}
+
+func TestMigrateChannelMonitorTablesIsIdempotentWithErrorData(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	channel := seedChannelMonitorTestChannel(t, db, "error-migration", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	require.NoError(t, RecordChannelMonitorError(channel.Id, "rate_limit", "upstream_error", 429, "sample", "req-1", time.Now()))
+
+	require.NoError(t, migrateChannelMonitorTables())
+	require.NoError(t, migrateChannelMonitorTables())
+
+	var count int64
+	require.NoError(t, db.Model(&ChannelMonitorError{}).Count(&count).Error)
+	assert.Equal(t, int64(1), count)
+	assert.True(t, db.Migrator().HasIndex(&ChannelMonitorError{}, "idx_xnewapi_monitor_error_bucket"))
+	assert.True(t, db.Migrator().HasIndex(&ChannelMonitorError{}, "idx_xnewapi_monitor_error_channel_time"))
 }
 
 func resetChannelMonitorTestState() {
@@ -514,6 +570,48 @@ func TestPersistChannelMonitorRuntimeStatsBuildsHourAndDayAggregates(t *testing.
 	if dayStat.RequestCount != 30 || dayStat.SuccessCount != 26 || dayStat.FailureCount != 4 {
 		t.Fatalf("unexpected day aggregate counts: %+v", dayStat)
 	}
+}
+
+func TestRefreshChannelMonitorAggregatesPreservesBucketsWithPartiallyExpiredSources(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	channel := seedChannelMonitorTestChannel(t, db, "retained-aggregate", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	now := time.Now()
+	hourBucket := now.Add(-channelMonitorMinuteRetention - time.Hour).Truncate(time.Hour)
+	dayBucket := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -7)
+
+	seedChannelMonitorStat(t, db, channel.Id, hourBucket.Add(50*time.Minute), 10, 9, 1, 100, 120, hourBucket.Add(50*time.Minute))
+	require.NoError(t, db.Create(&ChannelMonitorStat{
+		ChannelID: channel.Id, GroupName: "default", ModelName: "gpt-4", TimeBucket: dayBucket.Add(23 * time.Hour),
+		Granularity: ChannelMonitorGranularityHour, RequestCount: 20, SuccessCount: 18, FailureCount: 2,
+		AvgLatencyMs: 200, P95LatencyMs: 240, LastActiveAt: dayBucket.Add(23*time.Hour + 59*time.Minute),
+		CreatedAt: now.Unix(), UpdatedAt: now.Unix(),
+	}).Error)
+	require.NoError(t, db.Model(&ChannelMonitorStat{}).Create(&ChannelMonitorStat{
+		ChannelID: channel.Id, GroupName: "default", ModelName: "gpt-4", TimeBucket: hourBucket,
+		Granularity: ChannelMonitorGranularityHour, RequestCount: 30, SuccessCount: 27, FailureCount: 3,
+		AvgLatencyMs: 150, P95LatencyMs: 240, LastActiveAt: hourBucket.Add(59 * time.Minute),
+		CreatedAt: now.Unix(), UpdatedAt: now.Unix(),
+	}).Error)
+	require.NoError(t, db.Model(&ChannelMonitorStat{}).Create(&ChannelMonitorStat{
+		ChannelID: channel.Id, GroupName: "default", ModelName: "gpt-4", TimeBucket: dayBucket,
+		Granularity: ChannelMonitorGranularityDay, RequestCount: 40, SuccessCount: 36, FailureCount: 4,
+		AvgLatencyMs: 175, P95LatencyMs: 260, LastActiveAt: dayBucket.Add(23*time.Hour + 59*time.Minute),
+		CreatedAt: now.Unix(), UpdatedAt: now.Unix(),
+	}).Error)
+
+	require.NoError(t, refreshChannelMonitorAggregates(now))
+
+	var hourStat ChannelMonitorStat
+	require.NoError(t, db.Where("channel_id = ? AND granularity = ? AND time_bucket = ?", channel.Id, ChannelMonitorGranularityHour, hourBucket).First(&hourStat).Error)
+	assert.Equal(t, int64(30), hourStat.RequestCount)
+	assert.Equal(t, int64(27), hourStat.SuccessCount)
+	assert.Equal(t, int64(3), hourStat.FailureCount)
+
+	var dayStat ChannelMonitorStat
+	require.NoError(t, db.Where("channel_id = ? AND granularity = ? AND time_bucket = ?", channel.Id, ChannelMonitorGranularityDay, dayBucket).First(&dayStat).Error)
+	assert.Equal(t, int64(40), dayStat.RequestCount)
+	assert.Equal(t, int64(36), dayStat.SuccessCount)
+	assert.Equal(t, int64(4), dayStat.FailureCount)
 }
 
 func TestCleanupExpiredChannelMonitorStatsUsesTieredRetention(t *testing.T) {

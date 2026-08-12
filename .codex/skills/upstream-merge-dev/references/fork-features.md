@@ -71,10 +71,10 @@ Anthropic Claude 渠道新增 `upstream_protocol` 字段(`anthropic`/`codex`),�
 - 合并注意:上游重构 `channel_select.go` 或重试主流程时逐文件审查。
 
 ### 5. 渠道监控系统
-渠道健康度监控:成功率/失败数/延迟汇总、可用性趋势、延迟/稳定性排名、临时熔断事件记录,前端独立页面。
+渠道健康度监控:成功率/失败数/延迟汇总、可用性趋势、延迟/稳定性排名、临时熔断事件记录、按渠道/10 分钟桶/错误指纹聚合并保留 72 小时的失败详情,前端独立页面。
 - **API 命名空间**:`/api/xnewapi/channel-monitor/*`,避免与上游 `/api/channel/` 集合路由共享前缀并干扰 Gin 尾斜杠重定向。
-- **A类核心**:`controller/channel_monitor.go`(+`_test.go`)、`model/channel_monitor.go`、`model/channel_monitor_db.go`(+`_test.go`)、`model/channel_circuit_event.go`、`web/src/features/xnewapi/channel-monitor.tsx`。
-- **A类组装**:`forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`(内含 `migrateChannelMonitorTables()`,同时注册 `ChannelMonitorStat` 与 `ChannelCircuitEvent`;索引 DDL 修复共用 `model/fork_sqlite_ddl.go`)、`model/fork_migration.go`、`router/fork_routes.go`、default `features/xnewapi/` 与 `routes/_authenticated/channel-monitor/`。
+- **A类核心**:`controller/channel_monitor.go`(+`_test.go`)、`model/channel_monitor.go`、`model/channel_monitor_db.go`(+`_test.go`)、`model/channel_monitor_error.go`、`model/channel_circuit_event.go`、`web/src/features/xnewapi/channel-monitor.tsx`。
+- **A类组装**:`forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`(内含 `migrateChannelMonitorTables()`,注册 `ChannelMonitorStat`、`ChannelMonitorError` 与 `ChannelCircuitEvent`;索引 DDL 修复共用 `model/fork_sqlite_ddl.go`)、`model/fork_migration.go`、`router/fork_routes.go`、default `features/xnewapi/` 与 `routes/_authenticated/channel-monitor/`。
 - **B类接入点**:`main.go` 仅调用 `forkcustom.Start()`;`model/main.go` 仅在 `migrateDB()`/`migrateDBFast()` 各插入一行 `migrateForkTables()`,**模型不进上游 `AutoMigrate` 列表、不改上游 SQLite 分支**(该文件对上游只有纯新增、无修改行);`router/api-router.go` 仅调用 `registerForkRoutes`;default sidebar/section registry 只展开 fork extension。
 - 合并注意:DB 聚合查询需保持三库兼容(Rule 2);上游改路由注册或 `model/main.go` 迁移时确认监控注册未被覆盖。
 

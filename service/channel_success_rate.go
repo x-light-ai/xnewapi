@@ -15,6 +15,7 @@ import (
 	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/relaykit/types"
 	"github.com/QuantumNous/new-api/setting/operation_setting"
+	"github.com/bytedance/gopkg/util/gopool"
 	"github.com/gin-gonic/gin"
 )
 
@@ -233,6 +234,19 @@ func ObserveChannelRequestResult(c *gin.Context, success bool, err *types.NewAPI
 	cfg := buildChannelSuccessRateConfig()
 
 	model.ObserveChannelRuntime(group, modelName, channelID, success, latency)
+	if !success && err != nil {
+		errorCode := string(err.GetErrorCode())
+		errorType := string(err.GetErrorType())
+		statusCode := err.StatusCode
+		message := err.MaskSensitiveErrorWithStatusCode()
+		requestID := c.GetString(common.RequestIdKey)
+		occurredAt := time.Now()
+		gopool.Go(func() {
+			if recordErr := model.RecordChannelMonitorError(channelID, errorCode, errorType, statusCode, message, requestID, occurredAt); recordErr != nil {
+				common.SysError(fmt.Sprintf("record channel monitor error failed: channel_id=%d err=%v", channelID, recordErr))
+			}
+		})
+	}
 	defaultChannelSuccessRateSelector.observeDetailed(group, modelName, channelID, success, err, cfg)
 }
 
