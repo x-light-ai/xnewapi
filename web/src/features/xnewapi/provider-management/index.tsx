@@ -303,7 +303,7 @@ export function ProviderManagement(): ReactElement {
               dateRangeLabel={dateRangeLabel}
             />
             <ChannelMarginRanking
-              providers={providers}
+              profits={workspaceQuery.data?.profits ?? []}
               formatAmount={formatAmount}
               onViewProfitDetails={(filter) =>
                 navigate({

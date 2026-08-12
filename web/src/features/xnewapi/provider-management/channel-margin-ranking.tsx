@@ -25,63 +25,21 @@ import {
 } from '@/components/ui/table'
 import { cn } from '@/lib/utils'
 
-import type { UpstreamProvider } from './types'
+import { buildProviderMarginRanking } from './provider-margin-ranking'
+import type { ProviderGroupProfit } from './types'
 
 type ChannelMarginRankingProps = {
-  providers: UpstreamProvider[]
+  profits: ProviderGroupProfit[]
   formatAmount: (value: number) => string
-  onViewProfitDetails: (filter: { providerId: string; groupId: string }) => void
-}
-
-type ChannelMarginRankingItem = {
-  groupKey: string
-  groupId: string
-  groupName: string
-  providerId: string
-  providerName: string
-  lastSyncedAt: string
-  revenue: number
-  cost: number
-  profit: number
-  margin: number
+  onViewProfitDetails: (filter: { providerId: string }) => void
 }
 
 export function ChannelMarginRanking(props: ChannelMarginRankingProps) {
   const { t } = useTranslation('xnewapi')
-  const rankings = useMemo<ChannelMarginRankingItem[]>(() => {
-    const items: ChannelMarginRankingItem[] = []
-    for (const provider of props.providers) {
-      for (const account of provider.accounts) {
-        for (const group of account.groups) {
-          const groupProfit = group.profit
-          if (
-            !groupProfit ||
-            groupProfit.revenue <= 0 ||
-            groupProfit.cost === null
-          ) {
-            continue
-          }
-          const profit = groupProfit.revenue - groupProfit.cost
-          items.push({
-            groupKey: groupProfit.groupKey,
-            groupId: String(groupProfit.groupId),
-            groupName: groupProfit.groupName,
-            providerId: String(groupProfit.providerId),
-            providerName: provider.name,
-            lastSyncedAt: account.lastSyncedAt,
-            revenue: groupProfit.revenue,
-            cost: groupProfit.cost,
-            profit,
-            margin: (profit / groupProfit.revenue) * 100,
-          })
-        }
-      }
-    }
-    return items.sort(
-      (left, right) =>
-        right.margin - left.margin || right.revenue - left.revenue
-    )
-  }, [props.providers])
+  const rankings = useMemo(
+    () => buildProviderMarginRanking(props.profits),
+    [props.profits]
+  )
 
   return (
     <Card className='gap-0 py-0 shadow-none'>
@@ -102,7 +60,7 @@ export function ChannelMarginRanking(props: ChannelMarginRankingProps) {
               <TableHeader className='bg-muted/40'>
                 <TableRow>
                   <TableHead className='w-14 pl-4'>#</TableHead>
-                  <TableHead>{t('Provider group')}</TableHead>
+                  <TableHead>{t('Model provider')}</TableHead>
                   <TableHead className='text-right'>
                     {t('Revenue / cost')}
                   </TableHead>
@@ -118,14 +76,14 @@ export function ChannelMarginRanking(props: ChannelMarginRankingProps) {
                 {rankings.map((item, index) => {
                   const barWidth = Math.min(Math.max(item.margin, 0), 100)
                   return (
-                    <TableRow key={item.groupKey}>
+                    <TableRow key={item.providerId}>
                       <TableCell className='pl-4 font-medium tabular-nums'>
                         {index + 1}
                       </TableCell>
                       <TableCell>
                         <div className='flex min-w-0 items-center gap-1'>
                           <div className='truncate font-medium'>
-                            {item.groupName || '-'}
+                            {item.providerName || '-'}
                           </div>
                           <Button
                             variant='ghost'
@@ -134,7 +92,6 @@ export function ChannelMarginRanking(props: ChannelMarginRankingProps) {
                             onClick={() =>
                               props.onViewProfitDetails({
                                 providerId: item.providerId,
-                                groupId: item.groupId,
                               })
                             }
                             aria-label={t('View profit details')}
@@ -142,9 +99,6 @@ export function ChannelMarginRanking(props: ChannelMarginRankingProps) {
                           >
                             <ArrowUpRight />
                           </Button>
-                        </div>
-                        <div className='text-muted-foreground mt-1 truncate text-xs'>
-                          {item.providerName} / {item.lastSyncedAt}
                         </div>
                       </TableCell>
                       <TableCell className='text-right font-medium tabular-nums'>

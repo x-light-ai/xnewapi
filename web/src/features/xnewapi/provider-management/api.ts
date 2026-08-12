@@ -135,7 +135,7 @@ type RawProviderProfitDailyTrendPoint = {
 type ProviderWorkspace = {
   providers: UpstreamProvider[]
   channelOptions: ProviderChannel[]
-  profits: ProviderProfitItem[]
+  profits: ProviderGroupProfit[]
 }
 
 function unwrap<T>(response: ApiResponse<T>): T {
@@ -186,7 +186,26 @@ export async function getProviderWorkspace(
     })
   )
   const channelMap = new Map(channelOptions.map((item) => [item.id, item]))
-  const profitByGroup = new Map(profits.map((item) => [item.group_key, item]))
+  const normalizedProfits: ProviderGroupProfit[] = profits.map((profit) => ({
+    groupKey: profit.group_key,
+    groupId: profit.group_id,
+    groupName: profit.group_name,
+    providerId: profit.provider_id,
+    providerName: profit.provider_name,
+    accountId: profit.account_id,
+    accountName: profit.account_name,
+    keyIds: profit.key_ids,
+    revenue: Number(profit.revenue),
+    cost: profit.cost == null ? null : Number(profit.cost),
+    profit: profit.profit == null ? null : Number(profit.profit),
+    grossMargin:
+      profit.gross_margin == null ? null : Number(profit.gross_margin),
+    costStatus: profit.cost_status,
+    lastSyncedAt: profit.last_synced_at,
+  }))
+  const profitByGroup = new Map(
+    normalizedProfits.map((item) => [item.groupKey, item])
+  )
 
   const providers: UpstreamProvider[] = rawProviders.map((provider) => ({
     id: String(provider.id),
@@ -222,27 +241,7 @@ export async function getProviderWorkspace(
       groups: (account.groups ?? []).map((group) => {
         const groupKey = `${provider.id}:${account.id}:${group.id}`
         const profit = profitByGroup.get(groupKey)
-        const groupProfit: ProviderGroupProfit | null = profit
-          ? {
-              groupKey: profit.group_key,
-              groupId: profit.group_id,
-              groupName: profit.group_name,
-              providerId: profit.provider_id,
-              providerName: profit.provider_name,
-              accountId: profit.account_id,
-              accountName: profit.account_name,
-              keyIds: profit.key_ids,
-              revenue: Number(profit.revenue),
-              cost: profit.cost == null ? null : Number(profit.cost),
-              profit: profit.profit == null ? null : Number(profit.profit),
-              grossMargin:
-                profit.gross_margin == null
-                  ? null
-                  : Number(profit.gross_margin),
-              costStatus: profit.cost_status,
-              lastSyncedAt: profit.last_synced_at,
-            }
-          : null
+        const groupProfit: ProviderGroupProfit | null = profit ?? null
         return {
           id: String(group.id),
           name: group.name,
@@ -265,7 +264,7 @@ export async function getProviderWorkspace(
       }),
     })),
   }))
-  return { providers, channelOptions, profits }
+  return { providers, channelOptions, profits: normalizedProfits }
 }
 
 export async function getProviderProfitTrend(
