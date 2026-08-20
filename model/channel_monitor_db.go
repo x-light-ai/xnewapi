@@ -166,6 +166,14 @@ type channelTimelineBucketKey struct {
 
 const channelTimelineFailureDetailLimit = 20
 
+var channelMonitorLocation = time.FixedZone("Asia/Shanghai", 8*60*60)
+
+func channelMonitorDateRangeStart(now time.Time, days int) time.Time {
+	now = now.In(channelMonitorLocation)
+	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, channelMonitorLocation).
+		AddDate(0, 0, -(days - 1))
+}
+
 type channelMonitorAggregate struct {
 	RequestCount int64
 	SuccessCount int64
@@ -606,15 +614,15 @@ func applyChannelMonitorAggregate(agg *channelMonitorAggregate, requestCount int
 
 func channelMonitorTimeRangeLabel(days int) string {
 	if days <= 1 {
-		return "last_24h"
+		return "today"
 	}
 	return "last_" + strconv.Itoa(days) + "d"
 }
 
 func GetChannelMonitorSummary(days int) (ChannelMonitorSummary, error) {
 	days = normalizeChannelMonitorDays(days)
-	now := time.Now()
-	start := now.Add(-time.Duration(days) * 24 * time.Hour)
+	now := time.Now().In(channelMonitorLocation)
+	start := channelMonitorDateRangeStart(now, days)
 	stats, pending, err := loadChannelMonitorDataSince(start)
 	if err != nil {
 		return ChannelMonitorSummary{}, err
@@ -665,8 +673,8 @@ func GetChannelMonitorSummary(days int) (ChannelMonitorSummary, error) {
 
 func GetChannelMonitorHealth(days int) ([]ChannelMonitorHealthPoint, error) {
 	days = normalizeChannelMonitorDays(days)
-	now := time.Now()
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -(days - 1))
+	now := time.Now().In(channelMonitorLocation)
+	start := channelMonitorDateRangeStart(now, days)
 	stats, pending, err := loadChannelMonitorDataSince(start)
 	if err != nil {
 		return nil, err
@@ -703,7 +711,7 @@ func GetChannelMonitorHealth(days int) ([]ChannelMonitorHealthPoint, error) {
 		applyChannelMonitorAggregate(channelAgg, requestCount, successCount, failureCount, avgLatencyMs, p95LatencyMs, lastActiveAt)
 	}
 	for _, stat := range stats {
-		applyRow(stat.TimeBucket.Format("2006-01-02"), stat.ChannelID, stat.RequestCount, stat.SuccessCount, stat.FailureCount, stat.AvgLatencyMs, stat.P95LatencyMs, stat.LastActiveAt)
+		applyRow(stat.TimeBucket.In(channelMonitorLocation).Format("2006-01-02"), stat.ChannelID, stat.RequestCount, stat.SuccessCount, stat.FailureCount, stat.AvgLatencyMs, stat.P95LatencyMs, stat.LastActiveAt)
 	}
 	for _, delta := range pending {
 		applyRow(now.Format("2006-01-02"), delta.ChannelID, delta.RequestCount, delta.SuccessCount, delta.FailureCount, delta.AvgLatencyMs, delta.P95LatencyMs, delta.LastActiveAt)
@@ -833,6 +841,11 @@ func GetChannelMonitorTimeline(hours int, bucketMinutes int, limit int) ([]Chann
 	return GetChannelMonitorTimelineByGroup(hours, bucketMinutes, limit, "")
 }
 
+func GetChannelMonitorTimelineForDaysByGroup(days int, bucketMinutes int, groupFilter string) ([]ChannelTimelineChannel, error) {
+	days = normalizeChannelMonitorDays(days)
+	return getChannelMonitorTimeline(channelMonitorDateRangeStart(time.Now(), days), bucketMinutes, 0, groupFilter)
+}
+
 func loadChannelTimelineFailureReasons(start time.Time, end time.Time, bucketDuration time.Duration, channelIDs []int) (map[channelTimelineBucketKey][]ChannelTimelineFailureReason, error) {
 	result := make(map[channelTimelineBucketKey][]ChannelTimelineFailureReason)
 	if DB == nil || len(channelIDs) == 0 {
@@ -907,15 +920,19 @@ func loadChannelTimelineFailureReasons(start time.Time, end time.Time, bucketDur
 }
 
 func GetChannelMonitorTimelineByGroup(hours int, bucketMinutes int, limit int, groupFilter string) ([]ChannelTimelineChannel, error) {
+	hours = normalizeChannelMonitorTimelineHours(hours)
+	bucketMinutes = normalizeChannelMonitorTimelineBucketMinutes(bucketMinutes)
+	start := time.Now().Add(-time.Duration(hours) * time.Hour).Truncate(time.Duration(bucketMinutes) * time.Minute)
+	return getChannelMonitorTimeline(start, bucketMinutes, normalizeChannelMonitorTimelineLimit(limit), groupFilter)
+}
+
+func getChannelMonitorTimeline(start time.Time, bucketMinutes int, limit int, groupFilter string) ([]ChannelTimelineChannel, error) {
 	if DB == nil {
 		return []ChannelTimelineChannel{}, nil
 	}
-	hours = normalizeChannelMonitorTimelineHours(hours)
 	bucketMinutes = normalizeChannelMonitorTimelineBucketMinutes(bucketMinutes)
-	limit = normalizeChannelMonitorTimelineLimit(limit)
 	groupFilter = normalizeChannelMonitorGroupFilter(groupFilter)
 	bucketDuration := time.Duration(bucketMinutes) * time.Minute
-	start := time.Now().Add(-time.Duration(hours) * time.Hour).Truncate(bucketDuration)
 	rows := make([]channelTimelineRow, 0)
 	query := DB.Table((ChannelMonitorStat{}).TableName()+" AS cms").
 		Select("cms.channel_id, channels.name AS channel_name, channels.type AS channel_type, channels.status AS channel_status, cms.time_bucket, SUM(cms.request_count) AS request_count, SUM(cms.success_count) AS success_count, SUM(cms.failure_count) AS failure_count").
@@ -987,7 +1004,7 @@ func GetChannelMonitorTimelineByGroup(hours int, bucketMinutes int, limit int, g
 		}
 		return items[i].RequestCount > items[j].RequestCount
 	})
-	if len(items) > limit {
+	if limit > 0 && len(items) > limit {
 		items = items[:limit]
 	}
 	channelIDs := make([]int, 0, len(items))
@@ -1017,7 +1034,8 @@ func buildChannelMonitorChannelItems(days int) ([]ChannelMonitorChannelItem, err
 func buildChannelMonitorChannelItemsByGroup(days int, groupFilter string) ([]ChannelMonitorChannelItem, error) {
 	days = normalizeChannelMonitorDays(days)
 	groupFilter = normalizeChannelMonitorGroupFilter(groupFilter)
-	start := time.Now().Add(-time.Duration(days) * 24 * time.Hour)
+	now := time.Now().In(channelMonitorLocation)
+	start := channelMonitorDateRangeStart(now, days)
 	stats, pending, err := loadChannelMonitorDataSince(start)
 	if err != nil {
 		return nil, err
@@ -1065,9 +1083,8 @@ func buildChannelMonitorChannelItemsByGroup(days int, groupFilter string) ([]Cha
 		allowedChannelIDs[channel.Id] = struct{}{}
 	}
 	for _, stat := range stats {
-		applyMetric(stat.TimeBucket.Format("2006-01-02"), stat.ChannelID, stat.RequestCount, stat.SuccessCount, stat.FailureCount, stat.AvgLatencyMs, stat.P95LatencyMs, stat.LastActiveAt)
+		applyMetric(stat.TimeBucket.In(channelMonitorLocation).Format("2006-01-02"), stat.ChannelID, stat.RequestCount, stat.SuccessCount, stat.FailureCount, stat.AvgLatencyMs, stat.P95LatencyMs, stat.LastActiveAt)
 	}
-	now := time.Now()
 	for _, delta := range pending {
 		applyMetric(now.Format("2006-01-02"), delta.ChannelID, delta.RequestCount, delta.SuccessCount, delta.FailureCount, delta.AvgLatencyMs, delta.P95LatencyMs, delta.LastActiveAt)
 	}

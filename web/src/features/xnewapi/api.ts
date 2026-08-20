@@ -53,10 +53,10 @@ export async function getChannelMonitorChannels(days: number, group: string) {
   return unwrap(response.data)
 }
 
-export async function getChannelMonitorTimeline(group: string) {
+export async function getChannelMonitorTimeline(days: number, group: string) {
   const response = await api.get<ApiResponse<ChannelTimeline[]>>(
     `${channelMonitorBasePath}/timeline`,
-    { params: { hours: 24, bucket_minutes: 10, limit: 20, group } }
+    { params: { days, bucket_minutes: 10, group } }
   )
   return unwrap(response.data)
 }

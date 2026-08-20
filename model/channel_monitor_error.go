@@ -70,20 +70,31 @@ func RecordChannelMonitorError(channelID int, errorCode string, errorType string
 		LastOccurredAt: nowUnix, Count: 1, CreatedAt: nowUnix, UpdatedAt: nowUnix,
 	}
 	countColumn := "count"
+	firstOccurredAtColumn := "first_occurred_at"
+	lastOccurredAtColumn := "last_occurred_at"
+	sampleMessageColumn := "sample_message"
+	sampleRequestIDColumn := "sample_request_id"
+	updatedAtColumn := "updated_at"
 	if DB.Dialector.Name() == "postgres" {
-		countColumn = `"count"`
+		const targetTable = `"xnewapi_channel_monitor_errors".`
+		countColumn = targetTable + `"count"`
+		firstOccurredAtColumn = targetTable + "first_occurred_at"
+		lastOccurredAtColumn = targetTable + "last_occurred_at"
+		sampleMessageColumn = targetTable + "sample_message"
+		sampleRequestIDColumn = targetTable + "sample_request_id"
+		updatedAtColumn = targetTable + "updated_at"
 	}
-	latestSampleMessage := gorm.Expr("CASE WHEN last_occurred_at <= ? THEN ? ELSE sample_message END", nowUnix, message)
-	latestSampleRequestID := gorm.Expr("CASE WHEN last_occurred_at <= ? THEN ? ELSE sample_request_id END", nowUnix, strings.TrimSpace(requestID))
+	latestSampleMessage := gorm.Expr("CASE WHEN "+lastOccurredAtColumn+" <= ? THEN ? ELSE "+sampleMessageColumn+" END", nowUnix, message)
+	latestSampleRequestID := gorm.Expr("CASE WHEN "+lastOccurredAtColumn+" <= ? THEN ? ELSE "+sampleRequestIDColumn+" END", nowUnix, strings.TrimSpace(requestID))
 	return DB.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "channel_id"}, {Name: "time_bucket"}, {Name: "fingerprint"}},
 		DoUpdates: clause.Assignments(map[string]any{
 			"count":             gorm.Expr(countColumn+" + ?", 1),
-			"first_occurred_at": gorm.Expr("CASE WHEN first_occurred_at > ? THEN ? ELSE first_occurred_at END", nowUnix, nowUnix),
-			"last_occurred_at":  gorm.Expr("CASE WHEN last_occurred_at < ? THEN ? ELSE last_occurred_at END", nowUnix, nowUnix),
+			"first_occurred_at": gorm.Expr("CASE WHEN "+firstOccurredAtColumn+" > ? THEN ? ELSE "+firstOccurredAtColumn+" END", nowUnix, nowUnix),
+			"last_occurred_at":  gorm.Expr("CASE WHEN "+lastOccurredAtColumn+" < ? THEN ? ELSE "+lastOccurredAtColumn+" END", nowUnix, nowUnix),
 			"sample_message":    latestSampleMessage,
 			"sample_request_id": latestSampleRequestID,
-			"updated_at":        gorm.Expr("CASE WHEN updated_at < ? THEN ? ELSE updated_at END", nowUnix, nowUnix),
+			"updated_at":        gorm.Expr("CASE WHEN "+updatedAtColumn+" < ? THEN ? ELSE "+updatedAtColumn+" END", nowUnix, nowUnix),
 		}),
 	}).Create(errorRecord).Error
 }

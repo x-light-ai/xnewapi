@@ -18,7 +18,7 @@ import {
 } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -203,7 +203,26 @@ function AvailabilityTrend(props: {
   onSelectPoint: (point: ChannelTimelinePoint) => void
 }) {
   const { t } = useTranslation('xnewapi')
-  const points = compressTimelinePoints(props.timeline?.points ?? [])
+  const trendRef = useRef<HTMLDivElement>(null)
+  const [maxPoints, setMaxPoints] = useState(40)
+  useEffect(() => {
+    const trend = trendRef.current
+    if (!trend) return
+    const updateMaxPoints = () => {
+      const nextMaxPoints = Math.max(
+        4,
+        Math.min(40, Math.floor(trend.clientWidth / 12))
+      )
+      setMaxPoints((current) =>
+        current === nextMaxPoints ? current : nextMaxPoints
+      )
+    }
+    updateMaxPoints()
+    const observer = new ResizeObserver(updateMaxPoints)
+    observer.observe(trend)
+    return () => observer.disconnect()
+  }, [])
+  const points = compressTimelinePoints(props.timeline?.points ?? [], maxPoints)
   let maxRequests = 0
   for (const point of points) {
     maxRequests = Math.max(maxRequests, point.request_count)
@@ -214,7 +233,7 @@ function AvailabilityTrend(props: {
   return (
     <div className='flex w-full min-w-0 flex-col gap-2'>
       <TooltipProvider>
-        <div className='flex min-h-2 w-full items-center gap-px'>
+        <div ref={trendRef} className='flex min-h-2 w-full items-center gap-px'>
           {hasData ? (
             points.map((point) => (
               <Tooltip key={point.time_bucket}>
@@ -576,17 +595,17 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
         </div>
       </header>
 
-      <div className='overflow-x-auto'>
-        <Table className='min-w-[1120px]'>
+      <div>
+        <Table className='w-full table-fixed'>
           <TableHeader>
             <TableRow>
-              <TableHead className='w-72'>{t('Channel')}</TableHead>
+              <TableHead className='w-56'>{t('Channel')}</TableHead>
               <SortableTableHead
                 label={t('Priority')}
                 sortKey='priority'
                 activeSortKey={sortKey}
                 sortOrder={sortOrder}
-                className='w-32'
+                className='hidden w-28 md:table-cell'
                 onSort={sortByColumn}
               />
               <SortableTableHead
@@ -594,7 +613,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                 sortKey='routing_score'
                 activeSortKey={sortKey}
                 sortOrder={sortOrder}
-                className='w-36 text-left'
+                className='hidden w-32 text-left lg:table-cell'
                 onSort={sortByColumn}
               />
               <SortableTableHead
@@ -602,7 +621,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                 sortKey='gross_margin'
                 activeSortKey={sortKey}
                 sortOrder={sortOrder}
-                className='w-32'
+                className='hidden w-28 xl:table-cell'
                 onSort={sortByColumn}
               />
               <SortableTableHead
@@ -638,9 +657,9 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                         </span>
                       </div>
                     </TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell>-</TableCell>
-                    <TableCell>-</TableCell>
+                    <TableCell className='hidden md:table-cell'>-</TableCell>
+                    <TableCell className='hidden lg:table-cell'>-</TableCell>
+                    <TableCell className='hidden xl:table-cell'>-</TableCell>
                     <TableCell>
                       <div className='text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs tabular-nums'>
                         <span>{formatRate(row.success_rate)}</span>
@@ -725,7 +744,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className='hidden md:table-cell'>
                     <Input
                       key={`${item.id}-${item.priority}`}
                       type='number'
@@ -743,7 +762,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                       })}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell className='hidden lg:table-cell'>
                     <Button
                       variant='ghost'
                       className='h-auto justify-start px-2 py-1.5'
@@ -752,7 +771,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                       <ScoreBadge score={item.current_weighted_score} />
                     </Button>
                   </TableCell>
-                  <TableCell className='font-medium tabular-nums'>
+                  <TableCell className='hidden font-medium tabular-nums xl:table-cell'>
                     {grossMargin == null ? '-' : `${grossMargin.toFixed(1)}%`}
                   </TableCell>
                   <TableCell>

@@ -500,8 +500,8 @@ func TestGetChannelMonitorSummaryAndPageMatchObservedRuntimeRequests(t *testing.
 	if summary.ActiveChannels != 1 || summary.TotalChannels != 1 {
 		t.Fatalf("unexpected channel counts in summary: %+v", summary)
 	}
-	if summary.TimeRange != "last_24h" {
-		t.Fatalf("expected time range last_24h, got %s", summary.TimeRange)
+	if summary.TimeRange != "today" {
+		t.Fatalf("expected time range today, got %s", summary.TimeRange)
 	}
 
 	items, total, err := GetChannelMonitorChannelPage(1, 1, 20)
@@ -532,6 +532,45 @@ func TestGetChannelMonitorSummaryAndPageMatchObservedRuntimeRequests(t *testing.
 	if len(items[0].HealthTrend) != 1 || items[0].HealthTrend[0] != float64(2)/float64(3) {
 		t.Fatalf("unexpected health trend: %+v", items[0].HealthTrend)
 	}
+}
+
+func TestChannelMonitorOneDayUsesBeijingCalendarDay(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	now := time.Now().In(channelMonitorLocation)
+	todayStart := channelMonitorDateRangeStart(now, 1)
+	channel := seedChannelMonitorTestChannel(t, db, "beijing-day", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+
+	seedChannelMonitorStat(t, db, channel.Id, todayStart.Add(-time.Minute), 20, 10, 10, 300, 400, todayStart.Add(-time.Minute))
+	seedChannelMonitorStat(t, db, channel.Id, todayStart.Add(time.Minute), 4, 3, 1, 100, 120, todayStart.Add(time.Minute))
+
+	summary, err := GetChannelMonitorSummary(1)
+	require.NoError(t, err)
+	assert.Equal(t, int64(4), summary.TotalRequests)
+
+	items, _, err := GetChannelMonitorChannelPage(1, 1, 20)
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	assert.Equal(t, int64(4), items[0].RequestCount)
+
+	timeline, err := GetChannelMonitorTimelineForDaysByGroup(1, 10, "")
+	require.NoError(t, err)
+	require.Len(t, timeline, 1)
+	assert.Equal(t, int64(4), timeline[0].RequestCount)
+}
+
+func TestCalendarDayTimelineReturnsEveryActiveChannel(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	todayStart := channelMonitorDateRangeStart(time.Now(), 1)
+	alpha := seedChannelMonitorTestChannel(t, db, "timeline-alpha", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	beta := seedChannelMonitorTestChannel(t, db, "timeline-beta", constant.ChannelTypeAnthropic, common.ChannelStatusEnabled)
+	seedChannelMonitorStat(t, db, alpha.Id, todayStart.Add(time.Minute), 10, 10, 0, 100, 120, todayStart.Add(time.Minute))
+	seedChannelMonitorStat(t, db, beta.Id, todayStart.Add(2*time.Minute), 1, 0, 1, 200, 240, todayStart.Add(2*time.Minute))
+
+	items, err := GetChannelMonitorTimelineForDaysByGroup(1, 10, "")
+	require.NoError(t, err)
+	require.Len(t, items, 2)
+	assert.Equal(t, alpha.Id, items[0].ChannelID)
+	assert.Equal(t, beta.Id, items[1].ChannelID)
 }
 
 func TestPersistChannelMonitorRuntimeStatsBuildsHourAndDayAggregates(t *testing.T) {

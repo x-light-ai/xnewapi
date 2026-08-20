@@ -42,11 +42,18 @@ func GetChannelMonitorHealth(c *gin.Context) {
 }
 
 func GetChannelMonitorTimeline(c *gin.Context) {
+	days, _ := strconv.Atoi(strings.TrimSpace(c.Query("days")))
 	hours, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("hours", "24")))
 	bucketMinutes, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("bucket_minutes", "10")))
 	limit, _ := strconv.Atoi(strings.TrimSpace(c.DefaultQuery("limit", "20")))
 	group := strings.TrimSpace(c.Query("group"))
-	items, err := model.GetChannelMonitorTimelineByGroup(hours, bucketMinutes, limit, group)
+	var items []model.ChannelTimelineChannel
+	var err error
+	if days > 0 {
+		items, err = model.GetChannelMonitorTimelineForDaysByGroup(days, bucketMinutes, group)
+	} else {
+		items, err = model.GetChannelMonitorTimelineByGroup(hours, bucketMinutes, limit, group)
+	}
 	if err != nil {
 		common.ApiError(c, err)
 		return

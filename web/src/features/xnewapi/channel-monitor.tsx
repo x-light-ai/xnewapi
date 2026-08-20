@@ -69,8 +69,8 @@ function ChannelMonitorContent() {
     queryFn: () => getChannelMonitorChannels(days, ''),
   })
   const timelineQuery = useQuery({
-    queryKey: ['channel-monitor', 'timeline'],
-    queryFn: () => getChannelMonitorTimeline(''),
+    queryKey: ['channel-monitor', 'timeline', days],
+    queryFn: () => getChannelMonitorTimeline(days, ''),
   })
   const providerWorkspaceQuery = useQuery({
     queryKey: ['upstream-providers'],

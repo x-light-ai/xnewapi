@@ -160,17 +160,19 @@ export function ChannelPerformanceRanking(
                       <TableHeader>
                         <TableRow>
                           <TableHead className='w-12 text-center'>#</TableHead>
-                          <TableHead>{t('Channel')}</TableHead>
-                          <TableHead className='text-right'>
+                          <TableHead className='whitespace-normal'>
+                            {t('Channel')}
+                          </TableHead>
+                          <TableHead className='w-36 text-right whitespace-normal'>
                             {t('Recommendation score')}
                           </TableHead>
-                          <TableHead className='text-right'>
+                          <TableHead className='hidden w-28 text-right xl:table-cell'>
                             {t('Success rate')}
                           </TableHead>
-                          <TableHead className='text-right'>
+                          <TableHead className='hidden w-28 text-right xl:table-cell'>
                             {t('Gross margin')}
                           </TableHead>
-                          <TableHead className='text-right'>
+                          <TableHead className='hidden w-28 text-right xl:table-cell'>
                             {t('Requests')}
                           </TableHead>
                         </TableRow>
@@ -184,20 +186,20 @@ export function ChannelPerformanceRanking(
                               {index + 1}
                             </TableCell>
                             <TableCell className='font-medium'>
-                              <span className='line-clamp-2 break-words'>
+                              <span className='block [overflow-wrap:anywhere] whitespace-normal'>
                                 {row.channelNames.join(', ')}
                               </span>
                             </TableCell>
                             <TableCell className='text-right font-semibold tabular-nums'>
                               {row.recommendationScore.toFixed(1)}
                             </TableCell>
-                            <TableCell className='text-right tabular-nums'>
+                            <TableCell className='hidden text-right tabular-nums xl:table-cell'>
                               {formatRate(row.successRate)}
                             </TableCell>
-                            <TableCell className='text-right tabular-nums'>
+                            <TableCell className='hidden text-right tabular-nums xl:table-cell'>
                               {row.grossMargin?.toFixed(1)}%
                             </TableCell>
-                            <TableCell className='text-right tabular-nums'>
+                            <TableCell className='hidden text-right tabular-nums xl:table-cell'>
                               {row.requestCount.toLocaleString()}
                             </TableCell>
                           </TableRow>
