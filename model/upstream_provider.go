@@ -69,6 +69,10 @@ type UpstreamProviderAccount struct {
 	AutoSync           bool                    `json:"auto_sync" gorm:"not null"`
 	SyncAPIKey         string                  `json:"-" gorm:"type:text"`
 	HasSyncAPIKey      bool                    `json:"has_sync_api_key" gorm:"-"`
+	AccessToken        string                  `json:"-" gorm:"type:text"`
+	RefreshToken       string                  `json:"-" gorm:"type:text"`
+	HasAccessToken     bool                    `json:"has_access_token" gorm:"-"`
+	HasRefreshToken    bool                    `json:"has_refresh_token" gorm:"-"`
 	Balance            decimal.Decimal         `json:"balance" gorm:"type:decimal(20,8);not null"`
 	TotalRecharge      decimal.Decimal         `json:"total_recharge" gorm:"type:decimal(20,8);not null"`
 	BalanceUpdatedAt   int64                   `json:"balance_updated_at" gorm:"bigint;not null"`
@@ -198,6 +202,8 @@ type UpstreamProviderWorkspaceAccount struct {
 	Account       UpstreamProviderAccount
 	LoginUsername *string
 	SyncAPIKey    *string
+	AccessToken   *string
+	RefreshToken  *string
 	Groups        []UpstreamProviderWorkspaceGroup
 }
 
@@ -311,7 +317,7 @@ func GetUpstreamProviderPage(offset int, limit int, keyword string) ([]UpstreamP
 		return nil, 0, err
 	}
 	for index := range providers {
-		markUpstreamProviderSyncAPIKeyPresence(&providers[index])
+		markUpstreamProviderCredentialPresence(&providers[index])
 	}
 	return providers, total, nil
 }
@@ -381,6 +387,12 @@ func SaveUpstreamProviderWorkspace(workspace *UpstreamProviderWorkspace) (*Upstr
 				if input.SyncAPIKey != nil {
 					account.SyncAPIKey = strings.TrimSpace(*input.SyncAPIKey)
 				}
+				if input.AccessToken != nil {
+					account.AccessToken = strings.TrimSpace(*input.AccessToken)
+				}
+				if input.RefreshToken != nil {
+					account.RefreshToken = strings.TrimSpace(*input.RefreshToken)
+				}
 				if err := tx.Omit("Groups").Create(&account).Error; err != nil {
 					return err
 				}
@@ -399,6 +411,12 @@ func SaveUpstreamProviderWorkspace(workspace *UpstreamProviderWorkspace) (*Upstr
 				if input.SyncAPIKey != nil {
 					existing.SyncAPIKey = strings.TrimSpace(*input.SyncAPIKey)
 				}
+				if input.AccessToken != nil {
+					existing.AccessToken = strings.TrimSpace(*input.AccessToken)
+				}
+				if input.RefreshToken != nil {
+					existing.RefreshToken = strings.TrimSpace(*input.RefreshToken)
+				}
 				account = existing
 				updates := map[string]any{
 					"name": account.Name, "external_id": account.ExternalId, "status": account.Status,
@@ -409,6 +427,12 @@ func SaveUpstreamProviderWorkspace(workspace *UpstreamProviderWorkspace) (*Upstr
 				}
 				if input.SyncAPIKey != nil {
 					updates["sync_api_key"] = account.SyncAPIKey
+				}
+				if input.AccessToken != nil {
+					updates["access_token"] = account.AccessToken
+				}
+				if input.RefreshToken != nil {
+					updates["refresh_token"] = account.RefreshToken
 				}
 				if err := tx.Model(&existing).Updates(updates).Error; err != nil {
 					return err
@@ -442,7 +466,7 @@ func SaveUpstreamProviderWorkspace(workspace *UpstreamProviderWorkspace) (*Upstr
 		if err := preloadUpstreamProviderWorkspace(tx).First(&saved, "id = ?", provider.Id).Error; err != nil {
 			return err
 		}
-		markUpstreamProviderSyncAPIKeyPresence(&saved)
+		markUpstreamProviderCredentialPresence(&saved)
 		return nil
 	})
 	if err != nil {
@@ -799,6 +823,23 @@ func GetUpstreamProviderAccountById(id int) (*UpstreamProviderAccount, error) {
 	return &account, nil
 }
 
+func RotateUpstreamProviderAccountTokens(id int, previousRefreshToken string, accessToken string, refreshToken string) error {
+	result := DB.Model(&UpstreamProviderAccount{}).
+		Where("id = ? AND refresh_token = ?", id, previousRefreshToken).
+		Updates(map[string]any{
+			"access_token":  strings.TrimSpace(accessToken),
+			"refresh_token": strings.TrimSpace(refreshToken),
+			"updated_at":    common.GetTimestamp(),
+		})
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected != 1 {
+		return errors.New("provider account credentials changed during synchronization")
+	}
+	return nil
+}
+
 func AdjustUpstreamProviderAccountRecharge(id int, delta decimal.Decimal) (*UpstreamProviderAccount, error) {
 	var adjusted UpstreamProviderAccount
 	err := DB.Transaction(func(tx *gorm.DB) error {
@@ -880,12 +921,14 @@ func UpdateUpstreamProviderGroupProfitDailyRevenue(id int, revenueQuota int64, r
 	}).Error
 }
 
-func markUpstreamProviderSyncAPIKeyPresence(provider *UpstreamProvider) {
+func markUpstreamProviderCredentialPresence(provider *UpstreamProvider) {
 	if provider == nil {
 		return
 	}
 	for index := range provider.Accounts {
 		provider.Accounts[index].HasSyncAPIKey = provider.Accounts[index].SyncAPIKey != ""
+		provider.Accounts[index].HasAccessToken = provider.Accounts[index].AccessToken != ""
+		provider.Accounts[index].HasRefreshToken = provider.Accounts[index].RefreshToken != ""
 	}
 }
 

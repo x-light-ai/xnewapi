@@ -56,6 +56,7 @@ import { ProviderSyncStatusBadge } from './provider-sync-status-badge'
 import type {
   ProviderAccount,
   ProviderAccountStatus,
+  ProviderAuthenticationMethod,
   ProviderAdapterType,
   ProviderChannel,
   ProviderGroup,
@@ -64,6 +65,7 @@ import type {
 type ProviderAccountKeyEditorProps = {
   accounts: ProviderAccount[]
   adapterType: ProviderAdapterType
+  authenticationMethod: ProviderAuthenticationMethod
   channels: ProviderChannel[]
   formatAmount: (value: number) => string
   onAccountsChange: (accounts: ProviderAccount[]) => void
@@ -148,6 +150,8 @@ export function ProviderAccountKeyEditor(props: ProviderAccountKeyEditorProps) {
         loginUsername: '',
         status: 'healthy',
         syncApiKey: '',
+        accessToken: '',
+        refreshToken: '',
         autoSync: true,
         balance: 0,
         totalRecharge: 0,
@@ -281,6 +285,9 @@ export function ProviderAccountKeyEditor(props: ProviderAccountKeyEditorProps) {
             (count, group) => count + group.keys.length,
             0
           )
+          const tokenAuthentication =
+            props.adapterType === 'sub2api' &&
+            props.authenticationMethod === 'token'
           const externalIDLabel =
             props.adapterType === 'sub2api'
               ? t('Login username')
@@ -368,32 +375,36 @@ export function ProviderAccountKeyEditor(props: ProviderAccountKeyEditorProps) {
                       }
                     />
                   </div>
-                  <div className='flex flex-col gap-2'>
-                    <Label htmlFor={`account-external-id-${account.id}`}>
-                      {externalIDLabel}
-                    </Label>
-                    <Input
-                      id={`account-external-id-${account.id}`}
-                      type={props.adapterType === 'sub2api' ? 'email' : 'text'}
-                      value={
-                        props.adapterType === 'sub2api'
-                          ? account.loginUsername
-                          : account.externalId
-                      }
-                      onChange={(event) => {
-                        const value = event.target.value
-                        updateAccount(account.id, (current) => {
-                          if (props.adapterType === 'sub2api') {
-                            return { ...current, loginUsername: value }
-                          }
-                          return { ...current, externalId: value }
-                        })
-                      }}
-                      autoComplete={
-                        props.adapterType === 'sub2api' ? 'username' : 'off'
-                      }
-                    />
-                  </div>
+                  {!tokenAuthentication && (
+                    <div className='flex flex-col gap-2'>
+                      <Label htmlFor={`account-external-id-${account.id}`}>
+                        {externalIDLabel}
+                      </Label>
+                      <Input
+                        id={`account-external-id-${account.id}`}
+                        type={
+                          props.adapterType === 'sub2api' ? 'email' : 'text'
+                        }
+                        value={
+                          props.adapterType === 'sub2api'
+                            ? account.loginUsername
+                            : account.externalId
+                        }
+                        onChange={(event) => {
+                          const value = event.target.value
+                          updateAccount(account.id, (current) => {
+                            if (props.adapterType === 'sub2api') {
+                              return { ...current, loginUsername: value }
+                            }
+                            return { ...current, externalId: value }
+                          })
+                        }}
+                        autoComplete={
+                          props.adapterType === 'sub2api' ? 'username' : 'off'
+                        }
+                      />
+                    </div>
+                  )}
                   <div className='flex flex-col gap-2'>
                     <Label htmlFor={`account-status-${account.id}`}>
                       {t('Status')}
@@ -417,45 +428,134 @@ export function ProviderAccountKeyEditor(props: ProviderAccountKeyEditorProps) {
                       </NativeSelectOption>
                     </NativeSelect>
                   </div>
-                  <div className='flex flex-col gap-2'>
-                    <Label htmlFor={`account-sync-api-key-${account.id}`}>
-                      {credentialLabel}
-                    </Label>
-                    <Input
-                      id={`account-sync-api-key-${account.id}`}
-                      type='password'
-                      value={account.syncApiKey}
-                      onChange={(event) =>
-                        updateAccount(account.id, (current) => ({
-                          ...current,
-                          syncApiKey: event.target.value,
-                        }))
-                      }
-                      placeholder={credentialPlaceholder}
-                      autoComplete={
-                        props.adapterType === 'sub2api'
-                          ? 'current-password'
-                          : 'off'
-                      }
-                    />
-                    {account.hasSyncApiKey && !account.clearSyncApiKey && (
-                      <Button
-                        type='button'
-                        variant='ghost'
-                        size='sm'
-                        onClick={() =>
+                  {tokenAuthentication && (
+                    <>
+                      <div className='flex flex-col gap-2'>
+                        <Label htmlFor={`account-access-token-${account.id}`}>
+                          {t('Access Token')}
+                        </Label>
+                        <Input
+                          id={`account-access-token-${account.id}`}
+                          type='password'
+                          value={account.accessToken}
+                          onChange={(event) =>
+                            updateAccount(account.id, (current) => ({
+                              ...current,
+                              accessToken: event.target.value,
+                              clearAccessToken: false,
+                            }))
+                          }
+                          placeholder={
+                            account.hasAccessToken
+                              ? t('Configured; leave blank to keep it')
+                              : t('Enter Access Token')
+                          }
+                          autoComplete='off'
+                        />
+                        {account.hasAccessToken &&
+                          !account.clearAccessToken && (
+                            <Button
+                              type='button'
+                              variant='ghost'
+                              size='sm'
+                              onClick={() =>
+                                updateAccount(account.id, (current) => ({
+                                  ...current,
+                                  accessToken: '',
+                                  clearAccessToken: true,
+                                  hasAccessToken: false,
+                                }))
+                              }
+                            >
+                              {t('Clear')}
+                            </Button>
+                          )}
+                      </div>
+                      <div className='flex flex-col gap-2'>
+                        <Label htmlFor={`account-refresh-token-${account.id}`}>
+                          {t('Refresh Token')}
+                        </Label>
+                        <Input
+                          id={`account-refresh-token-${account.id}`}
+                          type='password'
+                          value={account.refreshToken}
+                          onChange={(event) =>
+                            updateAccount(account.id, (current) => ({
+                              ...current,
+                              refreshToken: event.target.value,
+                              clearRefreshToken: false,
+                            }))
+                          }
+                          placeholder={
+                            account.hasRefreshToken
+                              ? t('Configured; leave blank to keep it')
+                              : t('Enter Refresh Token')
+                          }
+                          autoComplete='off'
+                        />
+                        {account.hasRefreshToken &&
+                          !account.clearRefreshToken && (
+                            <Button
+                              type='button'
+                              variant='ghost'
+                              size='sm'
+                              onClick={() =>
+                                updateAccount(account.id, (current) => ({
+                                  ...current,
+                                  refreshToken: '',
+                                  clearRefreshToken: true,
+                                  hasRefreshToken: false,
+                                }))
+                              }
+                            >
+                              {t('Clear')}
+                            </Button>
+                          )}
+                      </div>
+                    </>
+                  )}
+                  {!tokenAuthentication && (
+                    <div className='flex flex-col gap-2'>
+                      <Label htmlFor={`account-sync-api-key-${account.id}`}>
+                        {credentialLabel}
+                      </Label>
+                      <Input
+                        id={`account-sync-api-key-${account.id}`}
+                        type='password'
+                        value={account.syncApiKey}
+                        onChange={(event) =>
                           updateAccount(account.id, (current) => ({
                             ...current,
-                            syncApiKey: '',
-                            clearSyncApiKey: true,
-                            hasSyncApiKey: false,
+                            syncApiKey: event.target.value,
+                            clearSyncApiKey: false,
                           }))
                         }
-                      >
-                        {t('Clear')}
-                      </Button>
-                    )}
-                  </div>
+                        placeholder={credentialPlaceholder}
+                        autoComplete={
+                          props.adapterType === 'sub2api'
+                            ? 'current-password'
+                            : 'off'
+                        }
+                      />
+                      {account.hasSyncApiKey && !account.clearSyncApiKey && (
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='sm'
+                          onClick={() =>
+                            updateAccount(account.id, (current) => ({
+                              ...current,
+                              syncApiKey: '',
+                              clearSyncApiKey: true,
+                              hasSyncApiKey: false,
+                            }))
+                          }
+                        >
+                          {t('Clear')}
+                        </Button>
+                      )}
+                    </div>
+                  )}
                   <div className='flex min-h-12 items-center justify-between gap-3 rounded-lg border px-3 py-2 sm:col-span-2'>
                     <Label htmlFor={`account-auto-sync-${account.id}`}>
                       {t('Automatic synchronization')}

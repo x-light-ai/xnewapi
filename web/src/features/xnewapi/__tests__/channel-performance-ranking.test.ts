@@ -16,6 +16,7 @@ import {
   buildChannelPerformanceRows,
   buildRecommendedChannelGroups,
   buildRecommendedChannelRows,
+  filterChannelRankingItems,
   sortChannelPerformanceRows,
 } from '../channel-performance-ranking-utils'
 import type { UpstreamProvider } from '../provider-management/types'
@@ -190,6 +191,55 @@ describe('channel performance ranking', () => {
         (row) => row.channelNames[0]
       ),
       ['known', 'unknown']
+    )
+  })
+
+  test('defaults ranking to enabled channels and keeps mixed groups split by status', () => {
+    const enabled = channel(1, 'enabled', 80, 4)
+    const disabled = channel(2, 'disabled', 20, 1)
+    disabled.status = 2
+    const autoDisabled = channel(3, 'auto-disabled', 10, 2)
+    autoDisabled.status = 3
+    const providers = [
+      {
+        id: '1',
+        name: 'Provider A',
+        endpoint: 'https://provider.example/api',
+        currency: 'USD',
+        accounts: [
+          {
+            groups: [
+              {
+                groupKey: '1:1:1',
+                channels: [
+                  { id: 1, name: 'enabled', status: 'available' },
+                  { id: 2, name: 'disabled', status: 'disabled' },
+                ],
+                profit: { grossMargin: 25, revenue: 120 },
+              },
+            ],
+          },
+        ],
+      },
+    ] as UpstreamProvider[]
+    const items = [enabled, disabled, autoDisabled]
+
+    const enabledRows = buildChannelPerformanceRows(
+      filterChannelRankingItems(items, '1'),
+      providers
+    )
+    assert.deepEqual(
+      enabledRows.map((row) => row.channelNames),
+      [['enabled']]
+    )
+
+    const allRows = buildChannelPerformanceRows(
+      filterChannelRankingItems(items, 'all'),
+      providers
+    )
+    assert.deepEqual(
+      allRows.map((row) => row.channelNames),
+      [['enabled', 'disabled'], ['auto-disabled']]
     )
   })
 })

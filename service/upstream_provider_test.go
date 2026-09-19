@@ -4,12 +4,26 @@ package service
 import (
 	"testing"
 
+	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/dto"
 	"github.com/QuantumNous/new-api/model"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestUpstreamProviderAccountResponseDoesNotExposeCredentials(t *testing.T) {
+	response := ToUpstreamProviderAccountResponse(&model.UpstreamProviderAccount{
+		SyncAPIKey: "password-secret", AccessToken: "access-secret", RefreshToken: "refresh-secret",
+	})
+	payload, err := common.Marshal(response)
+	require.NoError(t, err)
+	assert.NotContains(t, string(payload), "password-secret")
+	assert.NotContains(t, string(payload), "access-secret")
+	assert.NotContains(t, string(payload), "refresh-secret")
+	assert.Contains(t, string(payload), `"has_access_token":true`)
+	assert.Contains(t, string(payload), `"has_refresh_token":true`)
+}
 
 func TestApplyUpstreamProviderAccountRequestSyncAPIKey(t *testing.T) {
 	autoSync := true
@@ -53,7 +67,13 @@ func TestBuildUpstreamProviderValidatesAdapterAuthenticationMethod(t *testing.T)
 	_, err = buildUpstreamProvider(nil, &baseRequest)
 	require.EqualError(t, err, "authentication method does not match provider adapter type")
 
+	baseRequest.AuthenticationMethod = "token"
+	provider, err = buildUpstreamProvider(nil, &baseRequest)
+	require.NoError(t, err)
+	assert.Equal(t, "token", provider.AuthenticationMethod)
+
 	baseRequest.AdapterType = "newapi"
+	baseRequest.AuthenticationMethod = "api_key"
 	_, err = buildUpstreamProvider(nil, &baseRequest)
 	require.EqualError(t, err, "quota conversion base must be positive for NewAPI providers")
 

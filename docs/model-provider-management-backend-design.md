@@ -19,7 +19,7 @@
 
 `xnewapi_upstream_providers` 保存供应商地址、同步周期、适配器所需的换算参数和同步状态。NewAPI 使用 Quota 换算基数和充值比例还原金额；Sub2API 返回的余额、累计充值和 `actual_cost` 已是金额，不使用 Quota 换算基数。
 
-`xnewapi_upstream_provider_accounts` 保存上游账户标识、适配器所需的登录用户名/同步密钥、余额、累计充值及账户同步状态。登录密码和同步密钥不会通过 API 返回。
+`xnewapi_upstream_provider_accounts` 保存上游账户标识、适配器所需的登录用户名/同步密钥或 Access/Refresh Token、余额、累计充值及账户同步状态。密码、同步密钥和 Token 均不会通过 API 返回，只返回是否已配置的布尔标记。
 
 ### 上游分组
 
@@ -75,9 +75,14 @@ Key 不保存渠道映射。Key 名称也不是成本查询条件。
 
 ### Sub2API 适配
 
-Sub2API 账户使用独立的 `login_username` 和 `login_password` 配置同步；适配器登录时按参考实现将用户名放入请求的 `email` 字段，不复用上游账户 ID。每次同步只登录一次：
+Sub2API 支持两种认证方式：
 
-1. `POST /api/v1/auth/login` 获取短期访问令牌，令牌不落库。
+- `password`：使用独立的 `login_username` 和 `login_password`；适配器登录时将用户名放入请求的 `email` 字段，不复用上游账户 ID。
+- `token`：手动配置 `access_token` 和 `refresh_token`。每次同步先调用 `POST /api/v1/auth/refresh` 获取并立即保存新的 Token 对，再使用新 Access Token 采集数据。Refresh Token 一次性轮转，保存时以旧 Refresh Token 为条件更新，避免并发同步或页面编辑覆盖较新的凭据。
+
+认证完成后的采集流程：
+
+1. 密码模式调用 `POST /api/v1/auth/login` 获取短期访问令牌；Token 模式调用 `POST /api/v1/auth/refresh` 并持久化轮转后的 Token 对。
 2. `GET /api/v1/auth/me?timezone=Asia%2FShanghai` 获取上游账户 ID、余额和累计充值；返回的账户 ID 写入 `external_id`。
 3. 分页请求 `GET /api/v1/keys` 获取账户下的 API Key。
 4. 对每个 Key 请求 `GET /api/v1/usage/dashboard/snapshot-v2`，使用 `api_key_id` 和当天日期查询。

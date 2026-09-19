@@ -26,6 +26,7 @@ import {
   EmptyHeader,
   EmptyTitle,
 } from '@/components/ui/empty'
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
@@ -41,6 +42,7 @@ import { formatRate } from './channel-monitor-utils'
 import {
   buildChannelPerformanceRows,
   buildRecommendedChannelGroups,
+  filterChannelRankingItems,
   sortChannelPerformanceRows,
   type RankingSortKey,
 } from './channel-performance-ranking-utils'
@@ -52,6 +54,13 @@ type ChannelPerformanceRankingProps = {
   providers: UpstreamProvider[]
   loading: boolean
 }
+
+const STATUS_OPTIONS = [
+  { labelKey: 'Enabled', value: '1' },
+  { labelKey: 'Disabled', value: '2' },
+  { labelKey: 'Automatically disabled', value: '3' },
+  { labelKey: 'All Status', value: 'all' },
+] as const
 
 function formatRevenue(value: number | null): string {
   if (value == null) return '-'
@@ -73,12 +82,17 @@ export function ChannelPerformanceRanking(
   props: ChannelPerformanceRankingProps
 ) {
   const { t } = useTranslation('xnewapi')
+  const [statusFilter, setStatusFilter] = useState('1')
   const [sortKey, setSortKey] = useState<RankingSortKey>('request_count')
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
 
   const performanceRows = useMemo(
-    () => buildChannelPerformanceRows(props.items, props.providers),
-    [props.items, props.providers]
+    () =>
+      buildChannelPerformanceRows(
+        filterChannelRankingItems(props.items, statusFilter),
+        props.providers
+      ),
+    [props.items, props.providers, statusFilter]
   )
   const recommendedGroups = useMemo(
     () => buildRecommendedChannelGroups(performanceRows),
@@ -122,8 +136,20 @@ export function ChannelPerformanceRanking(
 
   return (
     <section className='bg-card overflow-hidden rounded-lg border'>
-      <header className='border-b px-4 py-3'>
+      <header className='flex items-center justify-between gap-3 border-b px-4 py-3'>
         <h2 className='font-semibold'>{t('Channel ranking')}</h2>
+        <NativeSelect
+          className='w-44 shrink-0'
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+          aria-label={t('Status')}
+        >
+          {STATUS_OPTIONS.map((option) => (
+            <NativeSelectOption key={option.value} value={option.value}>
+              {t(option.labelKey)}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
       </header>
       {props.loading && (
         <div className='space-y-2 p-4'>

@@ -67,8 +67,30 @@ func TestLatestProviderSchemaMigratesCleanly(t *testing.T) {
 	require.NoError(t, db.AutoMigrate(upstreamProviderMigrationModels()...))
 	assert.True(t, db.Migrator().HasColumn(&UpstreamProviderKey{}, "provider_group_id"))
 	assert.True(t, db.Migrator().HasColumn(&UpstreamProviderAccount{}, "login_username"))
+	assert.True(t, db.Migrator().HasColumn(&UpstreamProviderAccount{}, "access_token"))
+	assert.True(t, db.Migrator().HasColumn(&UpstreamProviderAccount{}, "refresh_token"))
 	assert.False(t, db.Migrator().HasColumn(&UpstreamProviderKey{}, "group_name"))
 	assert.False(t, db.Migrator().HasColumn(&UpstreamProviderKey{}, "channel_id"))
+}
+
+func TestRotateUpstreamProviderAccountTokensRequiresCurrentRefreshToken(t *testing.T) {
+	db := setupUpstreamProviderTestDB(t)
+	_, account := createProviderAccountFixture(t, db)
+	account.AccessToken = "access-old"
+	account.RefreshToken = "refresh-old"
+	require.NoError(t, db.Save(account).Error)
+
+	require.NoError(t, RotateUpstreamProviderAccountTokens(account.Id, "refresh-old", "access-new", "refresh-new"))
+	var stored UpstreamProviderAccount
+	require.NoError(t, db.First(&stored, account.Id).Error)
+	assert.Equal(t, "access-new", stored.AccessToken)
+	assert.Equal(t, "refresh-new", stored.RefreshToken)
+
+	err := RotateUpstreamProviderAccountTokens(account.Id, "refresh-old", "access-stale", "refresh-stale")
+	require.EqualError(t, err, "provider account credentials changed during synchronization")
+	require.NoError(t, db.First(&stored, account.Id).Error)
+	assert.Equal(t, "access-new", stored.AccessToken)
+	assert.Equal(t, "refresh-new", stored.RefreshToken)
 }
 
 func TestLegacySyncEndpointColumnDoesNotBlockProviderWrites(t *testing.T) {

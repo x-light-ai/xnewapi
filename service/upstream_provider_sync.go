@@ -47,13 +47,19 @@ type ProviderGroupSnapshot struct {
 }
 
 type ProviderSyncCredentials struct {
-	Username   string
-	SyncAPIKey string
+	Username     string
+	SyncAPIKey   string
+	AccessToken  string
+	RefreshToken string
 }
 
 type ProviderSyncAdapter interface {
 	ValidateAccount(ctx context.Context, provider *model.UpstreamProvider, account *model.UpstreamProviderAccount, credentials ProviderSyncCredentials) error
 	SyncAccountSnapshot(ctx context.Context, provider *model.UpstreamProvider, account *model.UpstreamProviderAccount, credentials ProviderSyncCredentials) (*ProviderAccountSnapshot, error)
+}
+
+type ProviderSyncCredentialRefresher interface {
+	RefreshCredentials(ctx context.Context, provider *model.UpstreamProvider, account *model.UpstreamProviderAccount, credentials ProviderSyncCredentials) (ProviderSyncCredentials, error)
 }
 
 var (
@@ -153,15 +159,25 @@ func syncUpstreamProviderAccount(ctx context.Context, adapter ProviderSyncAdapte
 		return nil, err
 	}
 
-	apiKey := account.SyncAPIKey
-	var err error
-	if apiKey == "" {
-		err = errors.New("account sync API key is not configured")
+	credentials := ProviderSyncCredentials{
+		Username: account.LoginUsername, SyncAPIKey: account.SyncAPIKey,
+		AccessToken: account.AccessToken, RefreshToken: account.RefreshToken,
 	}
-	credentials := ProviderSyncCredentials{Username: account.LoginUsername, SyncAPIKey: apiKey}
+	var err error
 	var snapshot *ProviderAccountSnapshot
+	err = adapter.ValidateAccount(ctx, provider, account, credentials)
 	if err == nil {
-		err = adapter.ValidateAccount(ctx, provider, account, credentials)
+		if refresher, ok := adapter.(ProviderSyncCredentialRefresher); ok {
+			previousRefreshToken := credentials.RefreshToken
+			credentials, err = refresher.RefreshCredentials(ctx, provider, account, credentials)
+			if err == nil && (credentials.AccessToken != account.AccessToken || credentials.RefreshToken != previousRefreshToken) {
+				err = model.RotateUpstreamProviderAccountTokens(account.Id, previousRefreshToken, credentials.AccessToken, credentials.RefreshToken)
+				if err == nil {
+					account.AccessToken = credentials.AccessToken
+					account.RefreshToken = credentials.RefreshToken
+				}
+			}
+		}
 	}
 	if err == nil {
 		snapshot, err = adapter.SyncAccountSnapshot(ctx, provider, account, credentials)
@@ -185,7 +201,7 @@ func syncUpstreamProviderAccount(ctx context.Context, adapter ProviderSyncAdapte
 	finishedAt := common.GetTimestamp()
 	run.FinishedAt = finishedAt
 	if err != nil {
-		publicError := sanitizeProviderSyncError(err, apiKey)
+		publicError := sanitizeProviderSyncError(err, credentials.SyncAPIKey, credentials.AccessToken, credentials.RefreshToken)
 		run.Status = "error"
 		run.Error = publicError
 		account.SyncStatus = "error"

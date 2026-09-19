@@ -18,7 +18,7 @@ export type ProviderSyncStatus =
   | 'syncing'
   | 'error'
   | 'never'
-export type ProviderAuthenticationMethod = 'api-key' | 'password'
+export type ProviderAuthenticationMethod = 'api-key' | 'password' | 'token'
 export type ProviderAdapterType = 'newapi' | 'sub2api'
 
 export type ProviderChannel = {
@@ -121,6 +121,12 @@ export type ProviderAccount = {
   syncApiKey: string
   hasSyncApiKey?: boolean
   clearSyncApiKey?: boolean
+  accessToken: string
+  refreshToken: string
+  hasAccessToken?: boolean
+  hasRefreshToken?: boolean
+  clearAccessToken?: boolean
+  clearRefreshToken?: boolean
   autoSync: boolean
   balance: number
   totalRecharge: number

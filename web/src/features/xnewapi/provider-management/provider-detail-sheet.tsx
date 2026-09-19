@@ -92,8 +92,11 @@ export function ProviderDetailSheet(props: ProviderDetailSheetProps) {
       (account) =>
         account.name.trim().length > 0 &&
         (adapterType !== 'sub2api' ||
-          (account.loginUsername.trim().length > 0 &&
-            (account.hasSyncApiKey || account.syncApiKey.length > 0))) &&
+          (authenticationMethod === 'password'
+            ? account.loginUsername.trim().length > 0 &&
+              (account.hasSyncApiKey || account.syncApiKey.length > 0)
+            : (account.hasAccessToken || account.accessToken.length > 0) &&
+              (account.hasRefreshToken || account.refreshToken.length > 0))) &&
         account.groups.every((group) => group.name.trim().length > 0)
     )
   const handleSync = () => {
@@ -197,12 +200,18 @@ export function ProviderDetailSheet(props: ProviderDetailSheetProps) {
                             syncApiKey: '',
                             hasSyncApiKey: false,
                             clearSyncApiKey: true,
+                            accessToken: '',
+                            refreshToken: '',
+                            hasAccessToken: false,
+                            hasRefreshToken: false,
+                            clearAccessToken: true,
+                            clearRefreshToken: true,
                           }))
                         )
                       }
                       setAdapterType(nextAdapter)
                       setAuthenticationMethod(
-                        nextAdapter === 'sub2api' ? 'password' : 'api-key'
+                        nextAdapter === 'sub2api' ? 'token' : 'api-key'
                       )
                     }}
                   >
@@ -282,12 +291,45 @@ export function ProviderDetailSheet(props: ProviderDetailSheetProps) {
                     id='provider-authentication-method'
                     className='w-full'
                     value={authenticationMethod}
-                    disabled
+                    disabled={adapterType !== 'sub2api'}
+                    onChange={(event) => {
+                      const nextMethod = event.target
+                        .value as ProviderAuthenticationMethod
+                      if (nextMethod !== authenticationMethod) {
+                        setAccounts((current) =>
+                          current.map((account) => {
+                            if (nextMethod === 'token') {
+                              return {
+                                ...account,
+                                syncApiKey: '',
+                                hasSyncApiKey: false,
+                                clearSyncApiKey: true,
+                              }
+                            }
+                            return {
+                              ...account,
+                              accessToken: '',
+                              refreshToken: '',
+                              hasAccessToken: false,
+                              hasRefreshToken: false,
+                              clearAccessToken: true,
+                              clearRefreshToken: true,
+                            }
+                          })
+                        )
+                      }
+                      setAuthenticationMethod(nextMethod)
+                    }}
                   >
                     {adapterType === 'sub2api' ? (
-                      <NativeSelectOption value='password'>
-                        {t('Email and password')}
-                      </NativeSelectOption>
+                      <>
+                        <NativeSelectOption value='token'>
+                          {t('Access Token and Refresh Token')}
+                        </NativeSelectOption>
+                        <NativeSelectOption value='password'>
+                          {t('Email and password')}
+                        </NativeSelectOption>
+                      </>
                     ) : (
                       <NativeSelectOption value='api-key'>
                         {t('API Key')}
@@ -347,6 +389,7 @@ export function ProviderDetailSheet(props: ProviderDetailSheetProps) {
             <ProviderAccountKeyEditor
               accounts={accounts}
               adapterType={adapterType}
+              authenticationMethod={authenticationMethod}
               channels={props.channels}
               formatAmount={props.formatAmount}
               onAccountsChange={setAccounts}

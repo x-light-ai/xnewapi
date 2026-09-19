@@ -105,7 +105,7 @@ export function ProviderManagement(): ReactElement {
   })
   const providers = workspaceQuery.data?.providers ?? EMPTY_PROVIDERS
   const [query, setQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('healthy')
   const [expandedIds, setExpandedIds] = useState<Set<string>>(
     () => new Set<string>()
   )
@@ -342,14 +342,14 @@ export function ProviderManagement(): ReactElement {
                 }
                 aria-label={t('Model provider status')}
               >
-                <NativeSelectOption value='all'>
-                  {t('All statuses')}
-                </NativeSelectOption>
                 <NativeSelectOption value='healthy'>
                   {t('Healthy')}
                 </NativeSelectOption>
                 <NativeSelectOption value='disabled'>
                   {t('Disabled')}
+                </NativeSelectOption>
+                <NativeSelectOption value='all'>
+                  {t('All statuses')}
                 </NativeSelectOption>
               </NativeSelect>
             </div>

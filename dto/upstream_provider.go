@@ -20,6 +20,8 @@ type UpstreamProviderAccountRequest struct {
 	ExternalId    string  `json:"external_id"`
 	LoginUsername *string `json:"login_username"`
 	LoginPassword *string `json:"login_password"`
+	AccessToken   *string `json:"access_token"`
+	RefreshToken  *string `json:"refresh_token"`
 	Status        string  `json:"status"`
 	AutoSync      *bool   `json:"auto_sync"`
 	SyncAPIKey    *string `json:"sync_api_key"`
@@ -84,6 +86,8 @@ type UpstreamProviderAccountResponse struct {
 	Status            string                          `json:"status"`
 	AutoSync          bool                            `json:"auto_sync"`
 	HasSyncAPIKey     bool                            `json:"has_sync_api_key"`
+	HasAccessToken    bool                            `json:"has_access_token"`
+	HasRefreshToken   bool                            `json:"has_refresh_token"`
 	Balance           decimal.Decimal                 `json:"balance"`
 	TotalRecharge     decimal.Decimal                 `json:"total_recharge"`
 	BalanceUpdatedAt  int64                           `json:"balance_updated_at"`

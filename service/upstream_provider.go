@@ -37,7 +37,9 @@ func ToUpstreamProviderAccountResponse(account *model.UpstreamProviderAccount) *
 	response := &dto.UpstreamProviderAccountResponse{
 		ID: account.Id, ProviderID: account.ProviderId, Name: account.Name, ExternalID: account.ExternalId,
 		LoginUsername: account.LoginUsername,
-		Status:        account.Status, AutoSync: account.AutoSync, HasSyncAPIKey: account.HasSyncAPIKey,
+		Status:        account.Status, AutoSync: account.AutoSync,
+		HasSyncAPIKey:  account.HasSyncAPIKey || account.SyncAPIKey != "",
+		HasAccessToken: account.HasAccessToken || account.AccessToken != "", HasRefreshToken: account.HasRefreshToken || account.RefreshToken != "",
 		Balance: account.Balance, TotalRecharge: account.TotalRecharge, BalanceUpdatedAt: account.BalanceUpdatedAt,
 		SyncStatus: account.SyncStatus, LastSyncedAt: account.LastSyncedAt, LastSyncAttemptAt: account.LastSyncAttemptAt,
 		NextSyncAt: account.NextSyncAt, LastSyncError: account.LastSyncError,
@@ -91,7 +93,7 @@ func SaveUpstreamProviderWorkspace(request *dto.UpstreamProviderWorkspaceUpsertR
 	for accountIndex := range request.Accounts {
 		accountRequest := &request.Accounts[accountIndex]
 		syncCredential := accountRequest.SyncAPIKey
-		if provider.AdapterType == "sub2api" {
+		if provider.AdapterType == "sub2api" && provider.AuthenticationMethod == "password" {
 			syncCredential = accountRequest.LoginPassword
 		}
 		account, err := buildUpstreamProviderAccount(nil, &dto.UpstreamProviderAccountRequest{
@@ -113,6 +115,7 @@ func SaveUpstreamProviderWorkspace(request *dto.UpstreamProviderWorkspaceUpsertR
 		}
 		workspaceAccount := model.UpstreamProviderWorkspaceAccount{
 			Account: *account, LoginUsername: accountRequest.LoginUsername, SyncAPIKey: syncCredential,
+			AccessToken: accountRequest.AccessToken, RefreshToken: accountRequest.RefreshToken,
 			Groups: make([]model.UpstreamProviderWorkspaceGroup, 0, len(accountRequest.Groups)),
 		}
 		for groupIndex := range accountRequest.Groups {
@@ -167,11 +170,11 @@ func buildUpstreamProvider(provider *model.UpstreamProvider, request *dto.Upstre
 	if !isSupportedProviderAdapter(adapterType) {
 		return nil, errors.New("unsupported provider adapter type")
 	}
-	expectedAuthenticationMethod := "api_key"
+	validAuthenticationMethod := request.AuthenticationMethod == "api_key"
 	if adapterType == "sub2api" {
-		expectedAuthenticationMethod = "password"
+		validAuthenticationMethod = request.AuthenticationMethod == "password" || request.AuthenticationMethod == "token"
 	}
-	if request.AuthenticationMethod != expectedAuthenticationMethod {
+	if !validAuthenticationMethod {
 		return nil, errors.New("authentication method does not match provider adapter type")
 	}
 	if request.SyncIntervalMinutes < 1 || request.SyncIntervalMinutes > 1440 {

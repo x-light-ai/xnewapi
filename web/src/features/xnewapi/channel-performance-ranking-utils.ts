@@ -73,6 +73,14 @@ function numericValue(row: RankingRow, key: RankingSortKey): number | null {
   }
 }
 
+export function filterChannelRankingItems(
+  items: ChannelMonitorItem[],
+  statusFilter: string
+): ChannelMonitorItem[] {
+  if (statusFilter === 'all') return items
+  return items.filter((item) => String(item.status) === statusFilter)
+}
+
 export function buildChannelPerformanceRows(
   items: ChannelMonitorItem[],
   providers: UpstreamProvider[]

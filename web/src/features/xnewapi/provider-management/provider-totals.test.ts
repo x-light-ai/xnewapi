@@ -44,6 +44,8 @@ describe('provider profitability totals', () => {
           loginUsername: '',
           status: 'healthy',
           syncApiKey: '',
+          accessToken: '',
+          refreshToken: '',
           autoSync: true,
           balance: 100,
           totalRecharge: 150,

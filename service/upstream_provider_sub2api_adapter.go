@@ -41,6 +41,11 @@ type sub2APILoginData struct {
 	Requires2FA bool   `json:"requires_2fa"`
 }
 
+type sub2APITokenPair struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}
+
 type sub2APIMeData struct {
 	ID             int64           `json:"id"`
 	Email          string          `json:"email"`
@@ -83,6 +88,15 @@ func (a *sub2APIProviderSyncAdapter) ValidateAccount(_ context.Context, provider
 	if strings.TrimSpace(provider.Endpoint) == "" {
 		return fmt.Errorf("provider endpoint is required")
 	}
+	if provider.AuthenticationMethod == "token" {
+		if strings.TrimSpace(credentials.AccessToken) == "" {
+			return fmt.Errorf("access token is required for Sub2API synchronization")
+		}
+		if strings.TrimSpace(credentials.RefreshToken) == "" {
+			return fmt.Errorf("refresh token is required for Sub2API synchronization")
+		}
+		return nil
+	}
 	if strings.TrimSpace(credentials.Username) == "" {
 		return fmt.Errorf("login username is required for Sub2API synchronization")
 	}
@@ -92,29 +106,51 @@ func (a *sub2APIProviderSyncAdapter) ValidateAccount(_ context.Context, provider
 	return nil
 }
 
+func (a *sub2APIProviderSyncAdapter) RefreshCredentials(ctx context.Context, provider *model.UpstreamProvider, _ *model.UpstreamProviderAccount, credentials ProviderSyncCredentials) (ProviderSyncCredentials, error) {
+	if provider.AuthenticationMethod != "token" {
+		return credentials, nil
+	}
+	var tokenPair sub2APITokenPair
+	if err := a.request(ctx, provider, http.MethodPost, "/api/v1/auth/refresh", "", map[string]string{
+		"refresh_token": credentials.RefreshToken,
+	}, &tokenPair); err != nil {
+		return credentials, fmt.Errorf("refresh Sub2API token: %w", err)
+	}
+	if strings.TrimSpace(tokenPair.AccessToken) == "" || strings.TrimSpace(tokenPair.RefreshToken) == "" {
+		return credentials, fmt.Errorf("Sub2API token refresh returned an incomplete token pair")
+	}
+	credentials.AccessToken = strings.TrimSpace(tokenPair.AccessToken)
+	credentials.RefreshToken = strings.TrimSpace(tokenPair.RefreshToken)
+	return credentials, nil
+}
+
 func (a *sub2APIProviderSyncAdapter) SyncAccountSnapshot(ctx context.Context, provider *model.UpstreamProvider, account *model.UpstreamProviderAccount, credentials ProviderSyncCredentials) (*ProviderAccountSnapshot, error) {
-	loginPayload := map[string]string{
-		"email":    strings.TrimSpace(credentials.Username),
-		"password": credentials.SyncAPIKey,
-	}
-	var login sub2APILoginData
-	if err := a.request(ctx, provider, http.MethodPost, "/api/v1/auth/login", "", loginPayload, &login); err != nil {
-		return nil, fmt.Errorf("Sub2API login failed: %w", err)
-	}
-	if login.Requires2FA || strings.TrimSpace(login.AccessToken) == "" {
-		return nil, fmt.Errorf("Sub2API login requires an unsupported second authentication step")
+	accessToken := strings.TrimSpace(credentials.AccessToken)
+	if provider.AuthenticationMethod != "token" {
+		loginPayload := map[string]string{
+			"email":    strings.TrimSpace(credentials.Username),
+			"password": credentials.SyncAPIKey,
+		}
+		var login sub2APILoginData
+		if err := a.request(ctx, provider, http.MethodPost, "/api/v1/auth/login", "", loginPayload, &login); err != nil {
+			return nil, fmt.Errorf("Sub2API login failed: %w", err)
+		}
+		if login.Requires2FA || strings.TrimSpace(login.AccessToken) == "" {
+			return nil, fmt.Errorf("Sub2API login requires an unsupported second authentication step")
+		}
+		accessToken = strings.TrimSpace(login.AccessToken)
 	}
 
 	var currentUser sub2APIMeData
 	mePath := "/api/v1/auth/me?timezone=" + url.QueryEscape(sub2APITimezone)
-	if err := a.request(ctx, provider, http.MethodGet, mePath, login.AccessToken, nil, &currentUser); err != nil {
+	if err := a.request(ctx, provider, http.MethodGet, mePath, accessToken, nil, &currentUser); err != nil {
 		return nil, fmt.Errorf("fetch Sub2API account: %w", err)
 	}
 	if currentUser.Balance.IsNegative() || currentUser.TotalRecharged.IsNegative() {
 		return nil, fmt.Errorf("Sub2API account returned a negative balance or recharge total")
 	}
 
-	keys, err := a.collectKeys(ctx, provider, login.AccessToken)
+	keys, err := a.collectKeys(ctx, provider, accessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -142,7 +178,7 @@ func (a *sub2APIProviderSyncAdapter) SyncAccountSnapshot(ctx context.Context, pr
 			MaskedKey: maskProviderKey(key.Key), Fingerprint: common.GenerateHMAC(key.Key), Status: status, LastUsageAt: lastUsageAt,
 		})
 
-		actualCost, costErr := a.collectKeyCost(ctx, provider, login.AccessToken, key.ID, costDate)
+		actualCost, costErr := a.collectKeyCost(ctx, provider, accessToken, key.ID, costDate)
 		groupSnapshot := ProviderGroupSnapshot{
 			GroupName: groupName, CostDate: costDate, CostObservedAt: now.Unix(), CostStatus: "unavailable",
 		}
@@ -277,6 +313,10 @@ func (a *sub2APIProviderSyncAdapter) request(ctx context.Context, provider *mode
 		return fmt.Errorf("read Sub2API response")
 	}
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
+		var envelope sub2APIEnvelope[any]
+		if common.Unmarshal(payload, &envelope) == nil && strings.TrimSpace(envelope.Message) != "" {
+			return fmt.Errorf("Sub2API request returned status %d: %s", response.StatusCode, strings.TrimSpace(envelope.Message))
+		}
 		return fmt.Errorf("Sub2API request returned status %d", response.StatusCode)
 	}
 	var envelope sub2APIEnvelope[any]

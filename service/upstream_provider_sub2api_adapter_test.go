@@ -96,6 +96,66 @@ func TestSub2APIProviderSyncAdapterCollectsBalanceKeysAndActualCost(t *testing.T
 	assert.Empty(t, snapshot.MissingFields)
 }
 
+func TestSub2APIProviderSyncAdapterRefreshesTokenCredentials(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		require.Equal(t, "/api/v1/auth/refresh", request.URL.Path)
+		require.Equal(t, http.MethodPost, request.Method)
+		var payload map[string]string
+		require.NoError(t, common.DecodeJson(request.Body, &payload))
+		assert.Equal(t, "refresh-old", payload["refresh_token"])
+		response, err := common.Marshal(map[string]any{
+			"code": 0, "message": "success",
+			"data": map[string]any{"access_token": "access-new", "refresh_token": "refresh-new"},
+		})
+		require.NoError(t, err)
+		_, err = writer.Write(response)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+
+	adapter := &sub2APIProviderSyncAdapter{client: &http.Client{Timeout: time.Second}}
+	provider := &model.UpstreamProvider{Endpoint: server.URL, AuthenticationMethod: "token"}
+	credentials, err := adapter.RefreshCredentials(context.Background(), provider, &model.UpstreamProviderAccount{}, ProviderSyncCredentials{
+		AccessToken: "access-old", RefreshToken: "refresh-old",
+	})
+	require.NoError(t, err)
+	assert.Equal(t, "access-new", credentials.AccessToken)
+	assert.Equal(t, "refresh-new", credentials.RefreshToken)
+}
+
+func TestSub2APIProviderSyncAdapterUsesTokenWithoutLogin(t *testing.T) {
+	loginRequests := 0
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		var data any
+		switch request.URL.Path {
+		case "/api/v1/auth/login":
+			loginRequests++
+			http.Error(writer, "unexpected login", http.StatusInternalServerError)
+			return
+		case "/api/v1/auth/me":
+			assert.Equal(t, "Bearer access-token", request.Header.Get("Authorization"))
+			data = map[string]any{"id": 9, "balance": 1, "total_recharged": 2}
+		case "/api/v1/keys":
+			data = map[string]any{"items": []any{}, "pages": 1}
+		default:
+			http.NotFound(writer, request)
+			return
+		}
+		response, err := common.Marshal(map[string]any{"code": 0, "message": "success", "data": data})
+		require.NoError(t, err)
+		_, err = writer.Write(response)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+
+	adapter := &sub2APIProviderSyncAdapter{client: &http.Client{Timeout: time.Second}}
+	provider := &model.UpstreamProvider{Endpoint: server.URL, AuthenticationMethod: "token"}
+	snapshot, err := adapter.SyncAccountSnapshot(context.Background(), provider, &model.UpstreamProviderAccount{}, ProviderSyncCredentials{AccessToken: "access-token", RefreshToken: "refresh-token"})
+	require.NoError(t, err)
+	assert.Zero(t, loginRequests)
+	assert.Equal(t, "9", snapshot.AccountExternalID)
+}
+
 func TestSub2APIProviderSyncAdapterKeepsSameNamedKeysInSeparateCostGroups(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		var data any

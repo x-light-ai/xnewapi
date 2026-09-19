@@ -53,6 +53,8 @@ type RawAccount = {
   status: 'enabled' | 'disabled'
   auto_sync: boolean
   has_sync_api_key: boolean
+  has_access_token: boolean
+  has_refresh_token: boolean
   balance: string | number
   total_recharge: string | number
   sync_status: 'success' | 'partial_success' | 'syncing' | 'error' | 'never'
@@ -66,7 +68,7 @@ type RawProvider = {
   name: string
   endpoint: string
   status: 'enabled' | 'disabled'
-  authentication_method: 'api_key' | 'password'
+  authentication_method: 'api_key' | 'password' | 'token'
   adapter_type: string
   sync_interval_minutes: number
   recharge_ratio: string | number
@@ -207,63 +209,75 @@ export async function getProviderWorkspace(
     normalizedProfits.map((item) => [item.groupKey, item])
   )
 
-  const providers: UpstreamProvider[] = rawProviders.map((provider) => ({
-    id: String(provider.id),
-    name: provider.name,
-    endpoint: provider.endpoint,
-    status: provider.status === 'enabled' ? 'healthy' : 'disabled',
-    syncStatus: provider.sync_status,
-    lastSyncedAt: provider.last_synced_at
-      ? timestampLabel(provider.last_synced_at)
-      : null,
-    lastSyncError: provider.last_sync_error,
-    authenticationMethod:
-      provider.authentication_method === 'password' ? 'password' : 'api-key',
-    adapterType: provider.adapter_type === 'sub2api' ? 'sub2api' : 'newapi',
-    syncIntervalMinutes: provider.sync_interval_minutes,
-    rechargeRatio: Number(provider.recharge_ratio),
-    quotaConversionBase: Number(provider.quota_conversion_base),
-    currency: provider.currency,
-    accounts: (provider.accounts ?? []).map((account) => ({
-      id: String(account.id),
-      name: account.name,
-      externalId: account.external_id,
-      loginUsername: account.login_username,
-      status: account.status === 'enabled' ? 'healthy' : 'disabled',
-      syncApiKey: '',
-      hasSyncApiKey: account.has_sync_api_key,
-      autoSync: account.auto_sync,
-      balance: Number(account.balance),
-      totalRecharge: Number(account.total_recharge),
-      syncStatus: account.sync_status,
-      lastSyncError: account.last_sync_error,
-      lastSyncedAt: timestampLabel(account.last_synced_at),
-      groups: (account.groups ?? []).map((group) => {
-        const groupKey = `${provider.id}:${account.id}:${group.id}`
-        const profit = profitByGroup.get(groupKey)
-        const groupProfit: ProviderGroupProfit | null = profit ?? null
-        return {
-          id: String(group.id),
-          name: group.name,
-          groupKey,
-          channels: group.channel_ids.flatMap((channelId) => {
-            const channel = channelMap.get(channelId)
-            return channel ? [channel] : []
-          }),
-          keys: (group.keys ?? [])
-            .filter((key) => key.status === 'active')
-            .map((key) => ({
-              id: String(key.id),
-              externalId: key.external_id,
-              name: key.name,
-              maskedKey: key.key_masked,
-              status: key.status,
-            })),
-          profit: groupProfit,
-        }
-      }),
-    })),
-  }))
+  const providers: UpstreamProvider[] = rawProviders.map((provider) => {
+    let authenticationMethod: UpstreamProvider['authenticationMethod'] =
+      'api-key'
+    if (provider.authentication_method === 'password') {
+      authenticationMethod = 'password'
+    } else if (provider.authentication_method === 'token') {
+      authenticationMethod = 'token'
+    }
+    return {
+      id: String(provider.id),
+      name: provider.name,
+      endpoint: provider.endpoint,
+      status: provider.status === 'enabled' ? 'healthy' : 'disabled',
+      syncStatus: provider.sync_status,
+      lastSyncedAt: provider.last_synced_at
+        ? timestampLabel(provider.last_synced_at)
+        : null,
+      lastSyncError: provider.last_sync_error,
+      authenticationMethod,
+      adapterType: provider.adapter_type === 'sub2api' ? 'sub2api' : 'newapi',
+      syncIntervalMinutes: provider.sync_interval_minutes,
+      rechargeRatio: Number(provider.recharge_ratio),
+      quotaConversionBase: Number(provider.quota_conversion_base),
+      currency: provider.currency,
+      accounts: (provider.accounts ?? []).map((account) => ({
+        id: String(account.id),
+        name: account.name,
+        externalId: account.external_id,
+        loginUsername: account.login_username,
+        status: account.status === 'enabled' ? 'healthy' : 'disabled',
+        syncApiKey: '',
+        hasSyncApiKey: account.has_sync_api_key,
+        accessToken: '',
+        refreshToken: '',
+        hasAccessToken: account.has_access_token,
+        hasRefreshToken: account.has_refresh_token,
+        autoSync: account.auto_sync,
+        balance: Number(account.balance),
+        totalRecharge: Number(account.total_recharge),
+        syncStatus: account.sync_status,
+        lastSyncError: account.last_sync_error,
+        lastSyncedAt: timestampLabel(account.last_synced_at),
+        groups: (account.groups ?? []).map((group) => {
+          const groupKey = `${provider.id}:${account.id}:${group.id}`
+          const profit = profitByGroup.get(groupKey)
+          const groupProfit: ProviderGroupProfit | null = profit ?? null
+          return {
+            id: String(group.id),
+            name: group.name,
+            groupKey,
+            channels: group.channel_ids.flatMap((channelId) => {
+              const channel = channelMap.get(channelId)
+              return channel ? [channel] : []
+            }),
+            keys: (group.keys ?? [])
+              .filter((key) => key.status === 'active')
+              .map((key) => ({
+                id: String(key.id),
+                externalId: key.external_id,
+                name: key.name,
+                maskedKey: key.key_masked,
+                status: key.status,
+              })),
+            profit: groupProfit,
+          }
+        }),
+      })),
+    }
+  })
   return { providers, channelOptions, profits: normalizedProfits }
 }
 
@@ -345,7 +359,9 @@ export async function saveProvider(provider: UpstreamProvider) {
     endpoint: provider.endpoint,
     status: provider.status === 'healthy' ? 'enabled' : 'disabled',
     authentication_method:
-      provider.authenticationMethod === 'password' ? 'password' : 'api_key',
+      provider.authenticationMethod === 'api-key'
+        ? 'api_key'
+        : provider.authenticationMethod,
     adapter_type: provider.adapterType,
     sync_interval_minutes: provider.syncIntervalMinutes,
     recharge_ratio: provider.rechargeRatio,
@@ -357,8 +373,26 @@ export async function saveProvider(provider: UpstreamProvider) {
       let credentialUpdate: {
         login_password?: string
         sync_api_key?: string
+        access_token?: string
+        refresh_token?: string
       } = {}
-      if (account.clearSyncApiKey) {
+      if (account.clearAccessToken) {
+        credentialUpdate.access_token = ''
+      }
+      if (account.clearRefreshToken) {
+        credentialUpdate.refresh_token = ''
+      }
+      if (
+        provider.adapterType === 'sub2api' &&
+        provider.authenticationMethod === 'token'
+      ) {
+        if (!account.clearAccessToken && account.accessToken) {
+          credentialUpdate.access_token = account.accessToken
+        }
+        if (!account.clearRefreshToken && account.refreshToken) {
+          credentialUpdate.refresh_token = account.refreshToken
+        }
+      } else if (account.clearSyncApiKey) {
         credentialUpdate =
           provider.adapterType === 'sub2api'
             ? { login_password: '' }
