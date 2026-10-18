@@ -150,20 +150,11 @@ func (a *Adaptor) GetRequestURL(info *relaycommon.RelayInfo) (string, error) {
 	default:
 		return "", errors.New("codex channel: only /v1/responses, /v1/responses/compact and /v1/alpha/search are supported")
 	}
-	// FORK-CUSTOM: Allow third-party Codex-compatible endpoints without changing official OAuth behavior.
-	if requestURL, handled := thirdPartyRequestURL(info); handled {
-		return requestURL, nil
-	}
 	return relaycommon.GetFullRequestURL(info.ChannelBaseUrl, path, info.ChannelType), nil
 }
 
 func (a *Adaptor) SetupRequestHeader(c *gin.Context, req *http.Header, info *relaycommon.RelayInfo) error {
 	channel.SetupApiRequestHeader(info, c, req)
-
-	// FORK-CUSTOM: Apply third-party bearer authentication from one policy hook.
-	if handled, err := setupThirdPartyRequestHeader(req, info); handled {
-		return err
-	}
 
 	key := strings.TrimSpace(info.ApiKey)
 	oauthKey, err := ParseOAuthKey(key)

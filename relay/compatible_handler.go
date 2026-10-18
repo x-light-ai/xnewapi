@@ -50,8 +50,7 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 	includeUsage := true
 	// 判断用户是否需要返回使用情况
 	if request.StreamOptions != nil {
-		// FORK-CUSTOM: Preserve explicit false while retaining the historical default.
-		includeUsage = lo.FromPtrOr(request.StreamOptions.IncludeUsage, true)
+		includeUsage = request.StreamOptions.IncludeUsage
 	}
 
 	// 如果不支持StreamOptions，将StreamOptions设置为nil
@@ -62,7 +61,7 @@ func TextHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *types
 		if constant.ForceStreamOption {
 			request.StreamOptions = &dto.StreamOptions{
 				// FORK-CUSTOM: Adapt forced usage reporting to pointer StreamOptions.
-				IncludeUsage: lo.ToPtr(true),
+				IncludeUsage: true,
 			}
 		}
 	}
