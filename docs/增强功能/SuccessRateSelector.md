@@ -8,8 +8,13 @@ SuccessRateSelector 是一套基于真实请求结果的渠道择优机制。
 
 对于临时熔断，当前支持显式配置熔断范围：
 
-- `circuit_scope = model`：按 `group + model + channel_id` 熔断
+- `circuit_scope = model`（默认）：按 `group + model + channel_id` 熔断
+  - 影响范围：仅该渠道在该 group 下的**单个 model**
+  - 示例：Channel 1 的 `gpt-4o` 熔断，但同渠道的 `gpt-3.5-turbo` 仍可用
 - `circuit_scope = channel`：某个 model 命中熔断后，整个渠道在该 `group` 下都会被临时摘除
+  - 影响范围：该渠道在该 group 下的**所有 model** 都会被熔断
+  - 不影响：该渠道在其他 group 下的可用性，以及其他渠道
+  - 示例：Channel 1 的 `gpt-4o` 熔断，会同时熔断该渠道的 `gpt-3.5-turbo` 等所有模型
 
 适合以下场景：
 
@@ -51,7 +56,7 @@ SuccessRateSelector 会基于真实业务请求的结果，持续学习每个渠
 
 1. `controller/relay.go` 进入主循环，请求选择渠道
 2. `service/channel_select.go` 调用 `selectChannelWithSuccessRate(...)`
-3. `service/channel_success_rate.go` 在当前优先级层候选集合内打分，排除本次请求已失败渠道，选出当前最优渠道
+3. `service/fork_channel_success_rate.go` 在当前优先级层候选集合内打分，排除本次请求已失败渠道，选出当前最优渠道
 4. `controller/relay.go` 拿到该渠道后，真正执行一次 relay 请求
 5. 请求完成后，`controller/relay.go` 调用 `ObserveChannelRequestResult(...)`，把成功或失败结果回写给 SuccessRateSelector
 6. 如果失败且允许继续，主流程再次进入渠道选择；SuccessRateSelector 会跳过已失败渠道，优先选择当前层剩余候选；若当前层已全部尝试，则自动进入下一优先级层

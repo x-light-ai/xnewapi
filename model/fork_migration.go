@@ -5,8 +5,13 @@ package model
 // instead of inside the upstream AutoMigrate list keeps `model/main.go` down to one call
 // per migration function, so upstream changes to its own model list never conflict.
 func migrateForkTables() error {
+	// Migrate fork-owned tables
 	if err := migrateChannelMonitorTables(); err != nil {
 		return err
 	}
-	return migrateUpstreamProviderTables()
+	if err := migrateUpstreamProviderTables(); err != nil {
+		return err
+	}
+
+	return nil
 }

@@ -27,11 +27,11 @@
 
 | # | 功能 | A类新增文件 | B类改上游文件 | 风险 |
 |---|------|-----------|-------------|------|
-| 4 | 渠道成功率选择器(SuccessRateSelector) | `service/channel_success_rate*.go`、`service/fork_retry_policy.go`、`web/src/features/xnewapi/success-rate-settings-section.tsx` | `service/channel_select.go`、`controller/relay.go` 的单点 policy/observe hook、default 模型设置 section registry | 中 |
-| 5 | 渠道监控系统 | 原有监控文件 + `forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`、`model/fork_migration.go`、`router/fork_routes.go`、`web/src/features/xnewapi/` | `main.go`、`model/main.go`、`router/api-router.go`、default sidebar 的单点扩展 | 中 |
-| 6 | 渠道成功率高级配置 | `setting/operation_setting/channel_success_rate_setting.go` | — | 低 |
-| 7 | 渠道权重管理 | `service/channel_score_override.go` | (复用 #5 的 controller/router) | 低 |
-| 9 | 模型供应商管理 | `model/upstream_provider.go`、`model/upstream_provider_migration.go`、`model/fork_sqlite_ddl.go`、`service/upstream_provider*.go`、`controller/upstream_provider.go`、`web/src/features/xnewapi/provider-management/` | `model/main.go`、`router/fork_routes.go`、`forkcustom/bootstrap.go`、default 侧栏入口 | 中 |
+| 4 | 渠道成功率选择器(SuccessRateSelector) | `service/fork_channel_success_rate*.go`、`service/fork_retry_policy.go`、`web/src/features/xnewapi/success-rate-settings-section.tsx` | `service/channel_select.go`、`controller/relay.go` 的单点 policy/observe hook、default 模型设置 section registry | 中 |
+| 5 | 渠道监控系统 | 原有监控文件 + `forkcustom/bootstrap.go`、`model/fork_channel_circuit_event_migration.go`、`model/fork_migration.go`、`router/fork_routes.go`、`web/src/features/xnewapi/` | `main.go`、`model/main.go`、`router/api-router.go`、default sidebar 的单点扩展 | 中 |
+| 6 | 渠道成功率高级配置 | `setting/operation_setting/fork_channel_success_rate_setting.go` | — | 低 |
+| 7 | 渠道权重管理 | `service/fork_channel_score_override.go` | (复用 #5 的 controller/router) | 低 |
+| 9 | 模型供应商管理 | `model/fork_upstream_provider.go`、`model/fork_upstream_provider_migration.go`、`model/fork_sqlite_ddl.go`、`service/fork_upstream_provider*.go`、`controller/fork_upstream_provider.go`、`web/src/features/xnewapi/provider-management/` | `model/main.go`、`router/fork_routes.go`、`forkcustom/bootstrap.go`、default 侧栏入口 | 中 |
 
 **2026-10-18 更新**:已删除 #1(OpenAI↔Claude 转换器)、#2(Codex↔Claude 转换器)、#3(第三方 Codex 供应商支持),恢复到上游 `v1.0.0-rc.24` 实现。`v1.0.0-rc.24` 新增的 relaykit 与 Advanced Custom 已覆盖通用协议转换需求。
 
@@ -39,15 +39,15 @@
 
 ## 中风险功能(审查接口兼容性)
 基于真实请求结果的运行时渠道择优:Laplace 平滑、半衰期衰减、连续失败惩罚、探索机制、临时熔断/半开、跨优先级切换。
-- **A类核心**:`service/channel_success_rate.go`(+ `channel_success_rate_*_test.go` 多个)、`web/src/features/xnewapi/success-rate-settings-section.tsx`。
+- **A类核心**:`service/fork_channel_success_rate.go`(+ `fork_channel_success_rate_*_test.go` 多个)、`web/src/features/xnewapi/success-rate-settings-section.tsx`。
 - **B类接入点**:`service/channel_select.go` 的两处 selection hook;`controller/relay.go` 通过 `service/fork_retry_policy.go` 的单一循环条件和结果 observe hook 接入，不在 controller 展开 fork 策略。
 - 合并注意:上游重构 `channel_select.go` 或重试主流程时逐文件审查。
 
 ### 5. 渠道监控系统
 渠道健康度监控:成功率/失败数/延迟汇总、可用性趋势、延迟/稳定性排名、临时熔断事件记录、按渠道/10 分钟桶/错误指纹聚合并保留 72 小时的失败详情,前端独立页面。
 - **API 命名空间**:`/api/xnewapi/channel-monitor/*`,避免与上游 `/api/channel/` 集合路由共享前缀并干扰 Gin 尾斜杠重定向。
-- **A类核心**:`controller/channel_monitor.go`(+`_test.go`)、`model/channel_monitor.go`、`model/channel_monitor_db.go`(+`_test.go`)、`model/channel_monitor_error.go`、`model/channel_circuit_event.go`、`web/src/features/xnewapi/channel-monitor.tsx`。
-- **A类组装**:`forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`(内含 `migrateChannelMonitorTables()`,注册 `ChannelMonitorStat`、`ChannelMonitorError` 与 `ChannelCircuitEvent`;索引 DDL 修复共用 `model/fork_sqlite_ddl.go`)、`model/fork_migration.go`、`router/fork_routes.go`、default `features/xnewapi/` 与 `routes/_authenticated/channel-monitor/`。
+- **A类核心**:`controller/fork_channel_monitor.go`(+`_test.go`)、`model/fork_channel_monitor.go`、`model/fork_channel_monitor_db.go`(+`_test.go`)、`model/fork_channel_monitor_error.go`、`model/fork_channel_circuit_event.go`、`web/src/features/xnewapi/channel-monitor.tsx`。
+- **A类组装**:`forkcustom/bootstrap.go`、`model/fork_channel_circuit_event_migration.go`(内含 `migrateChannelMonitorTables()`,注册 `ChannelMonitorStat`、`ChannelMonitorError` 与 `ChannelCircuitEvent`;索引 DDL 修复共用 `model/fork_sqlite_ddl.go`)、`model/fork_migration.go`、`router/fork_routes.go`、default `features/xnewapi/` 与 `routes/_authenticated/channel-monitor/`。
 - **B类接入点**:`main.go` 仅调用 `forkcustom.Start()`;`model/main.go` 仅在 `migrateDB()`/`migrateDBFast()` 各插入一行 `migrateForkTables()`,**模型不进上游 `AutoMigrate` 列表、不改上游 SQLite 分支**(该文件对上游只有纯新增、无修改行);`router/api-router.go` 仅调用 `registerForkRoutes`;default sidebar/section registry 只展开 fork extension。
 - 合并注意:DB 聚合查询需保持三库兼容(Rule 2);上游改路由注册或 `model/main.go` 迁移时确认监控注册未被覆盖。
 
@@ -57,9 +57,9 @@
 
 | # | 功能 | 说明与关键文件 |
 |---|------|--------------|
-| 6 | 渠道成功率高级配置 | SuccessRateSelector 细粒度参数(半衰期、探索率、连续失败阈值、熔断/恢复)。`setting/operation_setting/channel_success_rate_setting.go` |
-| 7 | 渠道权重管理 | 后台手动设渠道初始权重/优先级,影响择优。`service/channel_score_override.go`,复用 #5 的 controller/router |
-| 9 | 模型供应商管理 | 建表迁移收敛在 `model/upstream_provider_migration.go`,经 `model/fork_migration.go` 的 `migrateForkTables()` 统一入口调用,**不进上游 `AutoMigrate` 列表**(上游最常改动处,避免冲突)。模型结构为供应商、账户、成本归集单元和 Key；一个归集单元可映射多个 new-api 渠道，一个渠道只能归属一个归集单元。NewAPI 以其上游分组为归集单元，通过 `/api/user/self`、分页 `/api/token/`、`/api/log/self/stat` 采集，并按 Quota 换算基数和充值比例还原金额；Sub2API 支持密码登录与 Access/Refresh Token 两种认证，Token 模式每次同步先调用 `/api/v1/auth/refresh`，以旧 Refresh Token 为条件持久化轮转后的 Token 对，再通过 `/api/v1/auth/me`、分页 `/api/v1/keys`、按 `api_key_id` 查询 `/api/v1/usage/dashboard/snapshot-v2`。每个 Key 独立成归集单元，余额、累计充值和成本均直接使用金额字段，只取 `actual_cost`，不做 Quota 换算。映射变更只重算当天并影响未来，历史日利润冻结。`xnewapi_` 表保存主数据、账户同步密钥、Token、归集单元渠道关系、日利润和同步记录，所有凭据仅返回是否已配置的标记。调度器在 fork bootstrap 注册。`web/` 页面通过 `/api/xnewapi/providers` 真实 API 读写，列表只展示供应商与归集单元两层，多 Key 通过弹出列表查看。领域代码使用 `UpstreamProvider`，不改 relay 渠道执行密钥或选择逻辑。 |
+| 6 | 渠道成功率高级配置 | SuccessRateSelector 细粒度参数(半衰期、探索率、连续失败阈值、熔断/恢复)。`setting/operation_setting/fork_channel_success_rate_setting.go` |
+| 7 | 渠道权重管理 | 后台手动设渠道初始权重/优先级,影响择优。`service/fork_channel_score_override.go`,复用 #5 的 controller/router |
+| 9 | 模型供应商管理 | 建表迁移收敛在 `model/fork_upstream_provider_migration.go`,经 `model/fork_migration.go` 的 `migrateForkTables()` 统一入口调用,**不进上游 `AutoMigrate` 列表**(上游最常改动处,避免冲突)。模型结构为供应商、账户、成本归集单元和 Key；一个归集单元可映射多个 new-api 渠道，一个渠道只能归属一个归集单元。NewAPI 以其上游分组为归集单元，通过 `/api/user/self`、分页 `/api/token/`、`/api/log/self/stat` 采集，并按 Quota 换算基数和充值比例还原金额；Sub2API 支持密码登录与 Access/Refresh Token 两种认证，Token 模式每次同步先调用 `/api/v1/auth/refresh`，以旧 Refresh Token 为条件持久化轮转后的 Token 对，再通过 `/api/v1/auth/me`、分页 `/api/v1/keys`、按 `api_key_id` 查询 `/api/v1/usage/dashboard/snapshot-v2`。每个 Key 独立成归集单元，余额、累计充值和成本均直接使用金额字段，只取 `actual_cost`，不做 Quota 换算。映射变更只重算当天并影响未来，历史日利润冻结。`xnewapi_` 表保存主数据、账户同步密钥、Token、归集单元渠道关系、日利润和同步记录，所有凭据仅返回是否已配置的标记。调度器在 fork bootstrap 注册。`web/` 页面通过 `/api/xnewapi/providers` 真实 API 读写，列表只展示供应商与归集单元两层，多 Key 通过弹出列表查看。领域代码使用 `UpstreamProvider`，不改 relay 渠道执行密钥或选择逻辑。 |
 
 ---
 
