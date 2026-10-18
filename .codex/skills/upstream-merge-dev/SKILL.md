@@ -1,6 +1,6 @@
 ---
 name: upstream-merge-dev
-description: 将官方上游 QuantumNous/new-api 的指定 tag（或无新 tag 时的 upstream/main）安全合并到本地 fork 的 dev 分支，保护 dev 上的 fork 自定义功能（分层计费 billingexpr、渠道监控、SuccessRateSelector、渠道亲和性等）不被上游覆盖或产生语义冲突。适用于：从官方上游拉取新版本、同步上游 tag、上游无新 tag 时同步 main、处理 fork 合并冲突、合并后验证 fork 功能完整性。触发词：upstream merge、同步上游、拉取上游、合并上游 tag、fork 同步、new-api 升级。
+description: 将官方上游 QuantumNous/new-api 的指定 tag（或无新 tag 时的 upstream/main）安全合并到本地 fork 的 dev 分支，保护 dev 上的 fork 自定义功能（渠道监控、SuccessRateSelector、模型供应商管理等）不被上游覆盖或产生语义冲突。适用于：从官方上游拉取新版本、同步上游 tag、上游无新 tag 时同步 main、处理 fork 合并冲突、合并后验证 fork 功能完整性。触发词：upstream merge、同步上游、拉取上游、合并上游 tag、fork 同步、new-api 升级。
 ---
 
 # Upstream Merge Dev

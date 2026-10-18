@@ -247,4 +247,16 @@ go build ./...                       # 编译验证
 - 不 `git push --force`；`git reset --hard` 仅回退本地未推送的失败合并，执行前确认。
 - 不在用户未确认时切换分支。
 - 用户只要求 fetch/查看 tag 时，不触发合并。
-- 转换器（#3/#4）功能更新不走本流程，用 cliproxyapi-translator-sync 技能。
+
+## 上游 API 变化记录
+
+记录已知的上游 API 变化,供后续合并时快速识别需要适配的 fork 调用点。
+
+### v1.0.0-rc.45 (2026-10-18 合并)
+
+**service.GetRandomSatisfiedChannel() 参数变化**:
+- **旧签名**: `GetRandomSatisfiedChannel(c *gin.Context, group string, modelName string, retry int, requestPath string)`
+- **新签名**: `GetRandomSatisfiedChannel(c *gin.Context, group string, modelName string, retry int, filters []dto.ChannelFilter)`
+- **影响范围**: `service/channel_select.go` 中所有调用 `GetRandomSatisfiedChannel()` 的位置
+- **Fork 适配**: `selectChannelWithSuccessRate()` 已更新参数列表,使用 `GetChannelConstraints(c).Filters` 替代原 `requestPath`
+- **验证**: ✅ `service/fork_channel_success_rate.go:155-157` 已适配

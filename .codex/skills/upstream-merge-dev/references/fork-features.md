@@ -10,7 +10,7 @@
 > ```
 > 判断某文件是否 fork 自定义的黄金标准:出现在 `git diff $BASE..dev` 里才算;文件"存在"不代表是 fork 改的(可能是上游功能)。核实归属用 `git log --diff-filter=A -- <file>` 看引入者,官方作者(如 `i@caion.me`、`seefs001`)引入且 dev 无改动的即上游功能。
 >
-> 本清单需随 fork 演进维护:新增 fork 功能时补充,重构时更新路径。上次全量核对:2026-08-09(BASE=`bde9b2f`,目标=`v1.0.0-rc.24`;已审计 relaykit/Advanced Custom 重叠能力并迁移 default 前端到 `web/`)。
+> 本清单需随 fork 演进维护:新增 fork 功能时补充,重构时更新路径。上次全量核对:2026-10-18(BASE=`6cf0d90b5`,目标=`v1.0.0-rc.45`;已验证成功率选择器、渠道监控、供应商管理的 B 类接入点,已删除 OpenAI/Codex↔Claude 转换器)。
 
 ## 风险等级说明
 
