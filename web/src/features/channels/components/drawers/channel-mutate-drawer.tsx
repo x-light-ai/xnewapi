@@ -111,8 +111,6 @@ import {
   SecureVerificationDialog,
   useSecureVerification,
 } from '@/features/auth/secure-verification'
-// FORK-CUSTOM: Keep the third-party Codex field behind a fork-owned component.
-import { ChannelUpstreamProtocolField } from '@/features/xnewapi/channel-upstream-protocol-field'
 import { useCopyToClipboard } from '@/hooks/use-copy-to-clipboard'
 import { useHiddenClickUnlock } from '@/hooks/use-hidden-click-unlock'
 import {
@@ -346,7 +344,6 @@ function hasAdvancedSettingsValues(values: ChannelFormValues): boolean {
     (values.http2_connection_shards != null &&
       values.http2_connection_shards > 1) ||
     values.claude_beta_query ||
-    values.upstream_protocol === 'codex' ||
     values.upstream_model_update_check_enabled ||
     values.upstream_model_update_auto_sync_enabled ||
     values.upstream_model_update_ignored_models?.trim()
@@ -762,7 +759,6 @@ export function ChannelMutateDrawer({
   const currentAllowInferenceGeo = form.watch('allow_inference_geo')
   const currentAllowSpeed = form.watch('allow_speed')
   const currentClaudeBetaQuery = form.watch('claude_beta_query')
-  const currentUpstreamProtocol = form.watch('upstream_protocol')
   const currentUpstreamModelUpdateAutoSyncEnabled = form.watch(
     'upstream_model_update_auto_sync_enabled'
   )
@@ -1041,8 +1037,7 @@ export function ChannelMutateDrawer({
       currentAllowServiceTier ||
       currentAllowInferenceGeo ||
       currentAllowSpeed ||
-      currentClaudeBetaQuery ||
-      currentUpstreamProtocol === 'codex'
+      currentClaudeBetaQuery
     )
   }
   const upstreamModelDetectionConfigured = Boolean(
@@ -4390,12 +4385,6 @@ export function ChannelMutateDrawer({
                               disabled={sensitiveLocked}
                               className='disabled:opacity-60'
                             >
-                              <div className='mb-4'>
-                                <ChannelUpstreamProtocolField
-                                  channelType={currentType}
-                                  control={form.control}
-                                />
-                              </div>
                               <div className='divide-border space-y-0 divide-y border-y'>
                                 <FormField
                                   control={form.control}

@@ -266,8 +266,6 @@ export const channelFormSchema = z
     vertex_key_type: z.enum(['json', 'api_key']).optional(), // Vertex AI specific
     aws_key_type: z.enum(['ak_sk', 'api_key']).optional(), // AWS specific
     azure_responses_version: z.string().optional(), // Azure specific
-    // FORK-CUSTOM: Select Anthropic or third-party Codex dispatch for Claude channels.
-    upstream_protocol: z.enum(['anthropic', 'codex']).optional(),
     // Field passthrough controls (stored in settings JSON)
     allow_service_tier: z.boolean().optional(), // OpenAI/Anthropic
     disable_store: z.boolean().optional(), // OpenAI only
@@ -440,7 +438,6 @@ export const CHANNEL_FORM_DEFAULT_VALUES: ChannelFormValues = {
   vertex_key_type: 'json',
   aws_key_type: 'ak_sk',
   azure_responses_version: '',
-  upstream_protocol: 'anthropic',
   // Field passthrough controls
   allow_service_tier: false,
   disable_store: false,
@@ -518,8 +515,6 @@ export function transformChannelToFormDefaults(
   let upstreamModelUpdateAutoSyncEnabled = false
   let upstreamModelUpdateIgnoredModels = ''
   let advancedCustom = ''
-  // FORK-CUSTOM: Restore third-party Codex policy from persisted channel settings.
-  let upstreamProtocol: 'anthropic' | 'codex' = 'anthropic'
 
   if (channel.settings) {
     try {
@@ -548,8 +543,6 @@ export function transformChannelToFormDefaults(
       if (parsed.advanced_custom) {
         advancedCustom = stringifyAdvancedCustomConfig(parsed.advanced_custom)
       }
-      upstreamProtocol =
-        parsed.upstream_protocol === 'codex' ? 'codex' : 'anthropic'
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error('Failed to parse channel settings:', error)
@@ -601,8 +594,6 @@ export function transformChannelToFormDefaults(
     upstream_model_update_auto_sync_enabled: upstreamModelUpdateAutoSyncEnabled,
     upstream_model_update_ignored_models: upstreamModelUpdateIgnoredModels,
     advanced_custom: advancedCustom,
-    // FORK-CUSTOM: Feed the restored policy into the fork-owned form field.
-    upstream_protocol: upstreamProtocol,
   }
 }
 
@@ -712,15 +703,10 @@ function buildSettingsJSON(formData: ChannelFormValues): string {
 
   // Anthropic (type 14): claude_beta_query, allow_inference_geo, allow_speed
   if (formData.type === 14) {
-    // FORK-CUSTOM: Preserve third-party Codex upstream dispatch policy.
-    settingsObj.upstream_protocol = formData.upstream_protocol || 'anthropic'
     settingsObj.allow_inference_geo = formData.allow_inference_geo === true
     settingsObj.allow_speed = formData.allow_speed === true
     settingsObj.claude_beta_query = formData.claude_beta_query === true
   } else {
-    if ('upstream_protocol' in settingsObj) {
-      delete settingsObj.upstream_protocol
-    }
     if ('allow_speed' in settingsObj) {
       delete settingsObj.allow_speed
     }

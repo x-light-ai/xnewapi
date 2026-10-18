@@ -14,9 +14,6 @@ var startOnce sync.Once
 
 func Start() {
 	startOnce.Do(func() {
-		if err := registerClaudeTranslator(); err != nil {
-			common.FatalLog(fmt.Sprintf("failed to register fork Claude translator: %v", err))
-		}
 		// FORK-CUSTOM: Register provider collectors at the fork composition boundary.
 		if err := service.RegisterUpstreamProviderSyncAdapters(); err != nil {
 			common.FatalLog(fmt.Sprintf("failed to register provider sync adapters: %v", err))

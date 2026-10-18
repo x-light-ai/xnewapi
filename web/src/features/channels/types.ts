@@ -91,8 +91,6 @@ export interface ChannelSettings {
 }
 
 export interface ChannelOtherSettings {
-  // FORK-CUSTOM: Persist the actual protocol behind a Claude-compatible channel.
-  upstream_protocol?: 'anthropic' | 'codex'
   azure_responses_version?: string
   vertex_key_type?: 'json' | 'api_key'
   openrouter_enterprise?: boolean

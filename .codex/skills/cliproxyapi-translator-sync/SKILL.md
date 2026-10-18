@@ -1,9 +1,15 @@
 ---
 name: cliproxyapi-translator-sync
-description: 从参考仓库 CLIProxyAPI(CPA)选择性手工移植 Claude↔OpenAI/Codex 协议转换器的更新到 newapi 的 relay/channel/openai 与 relay/channel/codex。适用于：同步 cpaopenai 转 claude、codex 转 claude 的最新转换逻辑，移植 CPA 上游对 request/response translator 的更新，对齐 CPA 转换器 bug 修复与新特性。触发词：同步 CLIProxyAPI、CPA 转换器同步、移植 cpaopenai、codex 转 claude 同步、更新转换器上游、cpa translator sync。注意与 upstream-merge-dev 区分：那是官方 QuantumNous/new-api 的 git tag 合并，本技能是异构参考仓库的定向代码移植（非 git merge）。
+description: **已弃用** (2026-10-18) — OpenAI↔Claude 和 Codex↔Claude 转换器已删除，项目改用官方 relaykit 通用协议转换。此技能不再需要。保留文件仅供历史参考。
 ---
 
-# CLIProxyAPI 转换器同步
+# CLIProxyAPI 转换器同步 (已弃用)
+
+> **⚠️ 此技能已于 2026-10-18 弃用**
+>
+> newapi fork 的 OpenAI↔Claude 和 Codex↔Claude 转换器已删除，改用官方上游 `v1.0.0-rc.24` 引入的 relaykit 与 Advanced Custom 通用协议转换能力。
+>
+> 以下内容仅供历史参考。
 
 把参考仓库 CLIProxyAPI(CPA)的 Claude↔OpenAI/Codex 协议转换器更新，定向手工移植到 newapi 对应 channel。**这不是 git merge，而是异构仓库的选择性代码移植**：CPA 与 newapi 包结构、helper 命名、import 路径都不同，newapi 的转换器是 CPA 的适配镜像。
 

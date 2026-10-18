@@ -1,6 +1,6 @@
 ---
 name: newapi-fork-custom
-description: 维护 x-light-ai/xnewapi 相对官方 QuantumNous/new-api 的 fork 定制并持续缩小上游冲突面。适用于新增或重构 fork 功能、隔离渠道监控与 SuccessRateSelector、收敛 Claude/OpenAI/Codex 转换器接入、补充 FORK-CUSTOM 标记、审计 A/M 差异与上游重叠文件、删除已被上游覆盖的重复实现。触发词：newapi fork custom、最小化自定义修改、缩小 fork 冲突面、FORK-CUSTOM 标记、审计 fork 差异、fork 功能重构。官方上游合并由 upstream-merge-dev 处理，CPA 转换器更新由 cliproxyapi-translator-sync 处理。
+description: 维护 x-light-ai/xnewapi 相对官方 QuantumNous/new-api 的 fork 定制并持续缩小上游冲突面。适用于新增或重构 fork 功能、隔离渠道监控与 SuccessRateSelector、补充 FORK-CUSTOM 标记、审计 A/M 差异与上游重叠文件、删除已被上游覆盖的重复实现。触发词：newapi fork custom、最小化自定义修改、缩小 fork 冲突面、FORK-CUSTOM 标记、审计 fork 差异、fork 功能重构。官方上游合并由 upstream-merge-dev 处理。
 ---
 
 # Newapi Fork Custom
@@ -10,7 +10,6 @@ description: 维护 x-light-ai/xnewapi 相对官方 QuantumNous/new-api 的 fork
 ## 边界
 
 - 不执行上游 fetch、tag 选择或 merge；这些操作交给 `upstream-merge-dev`。
-- 不从 CLIProxyAPI 搬运转换器更新；这些操作交给 `cliproxyapi-translator-sync`。
 - 不修改、删除或替换项目规则保护的 new-api、QuantumNous 相关名称、路径、许可证、品牌或元数据。
 - 不改变 `go.mod` 的官方模块路径。
 - 不把 fork 缩面提交与上游 merge 混在同一提交。

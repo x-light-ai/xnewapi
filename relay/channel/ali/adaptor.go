@@ -75,13 +75,16 @@ func (a *Adaptor) ConvertClaudeRequest(c *gin.Context, info *relaycommon.RelayIn
 		return req, nil
 	}
 
-	// FORK-CUSTOM: Use the registered Claude translator through the upstream service facade.
-	oaiReq, err := service.TranslateClaudeRequest(*req, info)
+	result, err := service.ConvertRequest(c, info, types.RelayFormatOpenAI, req)
 	if err != nil {
 		return nil, err
 	}
+	oaiReq, ok := result.Value.(*dto.GeneralOpenAIRequest)
+	if !ok {
+		return nil, fmt.Errorf("expected OpenAI chat completions request, got %T", result.Value)
+	}
 	if info.SupportStreamOptions && info.IsStream {
-		oaiReq.StreamOptions = &dto.StreamOptions{IncludeUsage: common.GetPointer(true)}
+		oaiReq.StreamOptions = &dto.StreamOptions{IncludeUsage: true}
 	}
 	return a.ConvertOpenAIRequest(c, info, oaiReq)
 }

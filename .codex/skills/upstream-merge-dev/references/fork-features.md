@@ -23,48 +23,21 @@
 - **A 类(fork 新增文件)**:上游没有的文件,merge 时 git 原样保留,**不会冲突**。确认未被误删即可。
 - **B 类(fork 修改的上游文件)**:双方都可能改,**冲突真正发生处**,合并时必须逐一审查。这是清单的重点。
 
-## 功能概览(活动 fork 自定义共 8 项;保留历史编号)
+## 功能概览(活动 fork 自定义共 5 项;保留历史编号)
 
 | # | 功能 | A类新增文件 | B类改上游文件 | 风险 |
 |---|------|-----------|-------------|------|
-| 1 | OpenAI↔Claude 转换器(cpaopenai) | `relay/channel/openai/claude_*.go`、`service/fork_claude_translator.go`、`forkcustom/translator.go` | 各 request/response 边界的一行 service facade hook、`relay/common/relay_info.go`、`relaykit/dto/openai_request.go` | 高 |
-| 2 | Codex↔Claude 转换器(codex2claude) | `relay/channel/codex/claude_*.go` | `relay/channel/codex/adaptor.go` | 高 |
-| 3 | 第三方 Codex 供应商支持 | `relay/fork_claude_upstream.go`、`relay/channel/codex/fork_upstream_policy.go`、`web/src/features/xnewapi/channel-upstream-protocol-field.tsx` | `relaykit/dto/channel_settings.go`、`relay/claude_handler.go`、default 渠道表单的单点 hook | 中 |
 | 4 | 渠道成功率选择器(SuccessRateSelector) | `service/channel_success_rate*.go`、`service/fork_retry_policy.go`、`web/src/features/xnewapi/success-rate-settings-section.tsx` | `service/channel_select.go`、`controller/relay.go` 的单点 policy/observe hook、default 模型设置 section registry | 中 |
 | 5 | 渠道监控系统 | 原有监控文件 + `forkcustom/bootstrap.go`、`model/channel_circuit_event_migration.go`、`model/fork_migration.go`、`router/fork_routes.go`、`web/src/features/xnewapi/` | `main.go`、`model/main.go`、`router/api-router.go`、default sidebar 的单点扩展 | 中 |
 | 6 | 渠道成功率高级配置 | `setting/operation_setting/channel_success_rate_setting.go` | — | 低 |
 | 7 | 渠道权重管理 | `service/channel_score_override.go` | (复用 #5 的 controller/router) | 低 |
 | 9 | 模型供应商管理 | `model/upstream_provider.go`、`model/upstream_provider_migration.go`、`model/fork_sqlite_ddl.go`、`service/upstream_provider*.go`、`controller/upstream_provider.go`、`web/src/features/xnewapi/provider-management/` | `model/main.go`、`router/fork_routes.go`、`forkcustom/bootstrap.go`、default 侧栏入口 | 中 |
 
-`v1.0.0-rc.24` 新增 relaykit 与 Advanced Custom,已覆盖通用 Claude/OpenAI/Responses 转换和可配置路由鉴权,但尚未覆盖 CPA translator 的工具名恢复、精细 SSE 状态、Codex web search/签名/pending tool call 语义,也不兼容存量 `upstream_protocol=codex` 配置。因此 #1-#3 仍保留,后续只在定向 parity tests 证明等价后缩面。
-
----
-
-## 高风险功能(必须逐文件审查保护)
-
-### 1. OpenAI↔Claude 转换器(cpaopenai)
-Claude 请求→OpenAI、OpenAI 响应→Claude SSE 的协议转换(Claude 客户端对接 OpenAI Chat 上游)。
-- **A类核心**:`relay/channel/openai/claude_request_translator.go`、`claude_response_translator.go`、`claude_translator_utils.go`、`claude_sse_bytes.go`;`service/fork_claude_translator.go` 提供显式 registry;`forkcustom/translator.go` 在应用组装边界注册 CPA 实现。
-- **B类接入点**(合并重点审查):请求和响应边界统一调用 `service.TranslateClaudeRequest` / `OpenAIResponseToClaude` / `OpenAIStreamResponseToClaude`;`relay/common/relay_info.go` 在宿主 `RelayInfo` 上增加一个独立 `ForkTranslator` 状态字段,不修改 relaykit 的 `convmeta.ClaudeConvertInfo`;`relaykit/dto/openai_request.go` 保留 StreamOptions 指针化(Rule 6)。不得恢复跨 channel 直接调用或隐藏 `init()` 注册。
-- **上游来源特殊**:此转换器同步自参考仓库 **CLIProxyAPI**(非官方 new-api),用 [[cliproxyapi-translator-sync]] 技能维护,不随官方 merge 更新。官方 merge 时只需保证这些文件不被误删/误改。
-
-### 2. Codex↔Claude 转换器(codex2claude)
-Claude 请求→Codex Responses、Codex 响应→Claude SSE 的协议转换,含 web_search、defer function call、pending resolve 等。
-- **A类核心**:`relay/channel/codex/claude_request_translator.go`、`claude_response_translator.go`、`claude_response_web_search.go`、`claude_helper.go`、`claude_translator_utils.go`。
-- **B类接入点**:`relay/channel/codex/adaptor.go` 只保留 URL/header policy hook;实现位于 `fork_upstream_policy.go`。
-- **上游来源同 #1**:同步自 CLIProxyAPI,用 cliproxyapi-translator-sync 技能维护。
+**2026-10-18 更新**:已删除 #1(OpenAI↔Claude 转换器)、#2(Codex↔Claude 转换器)、#3(第三方 Codex 供应商支持),恢复到上游 `v1.0.0-rc.24` 实现。`v1.0.0-rc.24` 新增的 relaykit 与 Advanced Custom 已覆盖通用协议转换需求。
 
 ---
 
 ## 中风险功能(审查接口兼容性)
-
-### 3. 第三方 Codex 供应商支持
-Anthropic Claude 渠道新增 `upstream_protocol` 字段(`anthropic`/`codex`),按 key 形态自动分流 URL 与鉴权,使主渠道可指向第三方兼容 Codex 上游。
-- **A类实现**:`relay/fork_claude_upstream.go`、`relay/channel/codex/fork_upstream_policy.go`、`web/src/features/xnewapi/channel-upstream-protocol-field.tsx`。
-- **B类接入点**:`relaykit/dto/channel_settings.go`、`relay/claude_handler.go` 的单点 dispatch hook,以及 default `channel-form.ts` / `channel-mutate-drawer.tsx` 的窄字段 hook。
-- 合并注意:上游改 `claude_handler.go` 分支或渠道设置 DTO 时验证分流逻辑。
-
-### 4. 渠道成功率选择器(SuccessRateSelector)
 基于真实请求结果的运行时渠道择优:Laplace 平滑、半衰期衰减、连续失败惩罚、探索机制、临时熔断/半开、跨优先级切换。
 - **A类核心**:`service/channel_success_rate.go`(+ `channel_success_rate_*_test.go` 多个)、`web/src/features/xnewapi/success-rate-settings-section.tsx`。
 - **B类接入点**:`service/channel_select.go` 的两处 selection hook;`controller/relay.go` 通过 `service/fork_retry_policy.go` 的单一循环条件和结果 observe hook 接入，不在 controller 展开 fork 策略。
@@ -108,7 +81,6 @@ Anthropic Claude 渠道新增 `upstream_protocol` 字段(`anthropic`/`codex`),�
 
 ## 通用修复反哺状态
 
-- StreamOptions 指针化:`rc.24` 已将外层 `StreamOptions` 指针化,但内部 `include_usage` / `include_obfuscation` 仍是非指针并会丢失显式 `false`;fork 在 `relaykit/dto/openai_request.go` 继续保留 `*bool` 与定向测试。
 - JSONEditor key description:`rc.24` 删除 classic 前端,旧 `web/classic` 补丁随目录删除;default 的结构化编辑器由上游维护。
 - Semi Windows path:`rc.24` 删除 classic 前端及其 Rsbuild wrapper,不再保留 fork 补丁;历史结论见 `docs/upstream-review-semi-windows-path.md`。
 
@@ -116,8 +88,7 @@ Anthropic Claude 渠道新增 `upstream_protocol` 字段(`anthropic`/`codex`),�
 
 ## 合并策略速查
 
-- **高风险 #1-#2(转换器)**:逐文件审查(workflow.md 第 9 节)。上游是 CLIProxyAPI,官方 merge 时只保证 A 类文件不被误删/误改;其功能更新走 cliproxyapi-translator-sync 技能。**重点看 B 类接入点**(各渠道 adaptor、`relay_info.go`、`compatible_handler.go`)是否被上游 relay 主流程改动波及。
-- **中风险 #3-#5**:Git 自动合并后必做语义冲突审查(workflow.md 第 6.5 节),重点 B 类接入点:`channel_select.go`/`controller/relay.go`(#4)、`claude_handler.go`/`channel_settings.go`(#3)、`router/api-router.go`/`main.go`/`model/main.go`(#5)。
+- **中风险 #4-#5**:Git 自动合并后必做语义冲突审查(workflow.md 第 6.5 节),重点 B 类接入点:`channel_select.go`/`controller/relay.go`(#4)、`router/api-router.go`/`main.go`/`model/main.go`(#5)。
 - **低风险 #6-#7、#9**:确认独立文件未被覆盖,通常 Git 自动合并即可。
 - **上游功能区(⚠️ 节)**:不做任何保护,直接跟随上游。
 

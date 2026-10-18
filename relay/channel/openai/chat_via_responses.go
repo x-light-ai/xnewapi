@@ -61,16 +61,7 @@ func OaiResponsesToChatHandler(c *gin.Context, info *relaycommon.RelayInfo, resp
 	}
 
 	responseValue := any(chatResp)
-	switch info.RelayFormat {
-	case types.RelayFormatClaude:
-		// FORK-CUSTOM: Preserve translator semantics while retaining upstream generic conversion.
-		claudeResp, err := service.OpenAIResponseToClaude(chatResp, info)
-		if err != nil {
-			return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
-		}
-		responseValue = claudeResp
-	case types.RelayFormatOpenAI:
-	default:
+	if info.RelayFormat != types.RelayFormatOpenAI {
 		targetResult, err := relayconvert.ConvertResponse(c, info, info.RelayFormat, chatResp)
 		if err != nil {
 			return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
@@ -178,16 +169,7 @@ func OaiResponsesToChatBufferedStreamHandler(c *gin.Context, info *relaycommon.R
 	}
 
 	responseValue := any(chatResp)
-	switch info.RelayFormat {
-	case types.RelayFormatClaude:
-		// FORK-CUSTOM: Apply the registered translator to upstream's new buffered path.
-		claudeResp, err := service.OpenAIResponseToClaude(chatResp, info)
-		if err != nil {
-			return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
-		}
-		responseValue = claudeResp
-	case types.RelayFormatOpenAI:
-	default:
+	if info.RelayFormat != types.RelayFormatOpenAI {
 		targetResult, err := relayconvert.ConvertResponse(c, info, info.RelayFormat, chatResp)
 		if err != nil {
 			return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponseBody, http.StatusInternalServerError)
@@ -221,10 +203,6 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)
 	}
 	streamErr := (*types.NewAPIError)(nil)
-
-	if info.RelayFormat == types.RelayFormatClaude && info.ClaudeConvertInfo == nil {
-		info.ClaudeConvertInfo = &relaycommon.ClaudeConvertInfo{LastMessagesType: relaycommon.LastMessageTypeNone}
-	}
 
 	sendGeminiResponse := func(geminiResponse *dto.GeminiChatResponse) bool {
 		if geminiResponse == nil {
@@ -335,9 +313,6 @@ func OaiResponsesToChatStreamHandler(c *gin.Context, info *relaycommon.RelayInfo
 		state.SetUsage(usage)
 	}
 
-	if info.RelayFormat == types.RelayFormatClaude && info.ClaudeConvertInfo != nil {
-		info.ClaudeConvertInfo.Usage = usage
-	}
 	finalResults, err := relayconvert.FinalizeStreamResponse(c, info, state)
 	if err != nil {
 		return nil, types.NewOpenAIError(err, types.ErrorCodeBadResponse, http.StatusInternalServerError)

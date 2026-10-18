@@ -1,6 +1,6 @@
 ---
 name: upstream-merge-dev
-description: 将官方上游 QuantumNous/new-api 的指定 tag（或无新 tag 时的 upstream/main）安全合并到本地 fork 的 dev 分支，保护 dev 上的 fork 自定义功能（分层计费 billingexpr、渠道监控、SuccessRateSelector、codex/cpaopenai 转 claude 转换器、渠道亲和性等）不被上游覆盖或产生语义冲突。适用于：从官方上游拉取新版本、同步上游 tag、上游无新 tag 时同步 main、处理 fork 合并冲突、合并后验证 fork 功能完整性。触发词：upstream merge、同步上游、拉取上游、合并上游 tag、fork 同步、new-api 升级。注意与 cliproxyapi-translator-sync 区分：那是从参考仓库 CLIProxyAPI 手工移植转换器（非 git merge）。
+description: 将官方上游 QuantumNous/new-api 的指定 tag（或无新 tag 时的 upstream/main）安全合并到本地 fork 的 dev 分支，保护 dev 上的 fork 自定义功能（分层计费 billingexpr、渠道监控、SuccessRateSelector、渠道亲和性等）不被上游覆盖或产生语义冲突。适用于：从官方上游拉取新版本、同步上游 tag、上游无新 tag 时同步 main、处理 fork 合并冲突、合并后验证 fork 功能完整性。触发词：upstream merge、同步上游、拉取上游、合并上游 tag、fork 同步、new-api 升级。
 ---
 
 # Upstream Merge Dev
@@ -51,7 +51,6 @@ description: 将官方上游 QuantumNous/new-api 的指定 tag（或无新 tag �
 - 合并前用 `git log $BASE..dev --oneline` 确认 dev 领先共同祖先的自定义提交。
 - 对 fork 改动的文件优先手动三方对比（`git diff $BASE..dev -- <file>` vs `git diff $BASE..<目标> -- <file>`）。
 - `--no-ff` 保留 merge commit；出问题且未推送时可 `git merge --abort`（合并中）或 `git reset --hard ORIG_HEAD`（合并已完成）安全回退。
-- **注意**：#3 cpaopenai / #4 codex 转换器的真正上游是参考仓库 CLIProxyAPI，官方 merge 时只需保证这些文件不被误删/误改，其功能更新走 cliproxyapi-translator-sync 技能。
 
 ### 合并策略选择
 
@@ -69,7 +68,7 @@ Git 只检测文本冲突。自动合并后必须检查：
 5. **DB 兼容**：改动是否保持 SQLite/MySQL/PostgreSQL 三库兼容（项目 Rule 2）。
 6. **测试同步**：断言、mock 数据是否需更新。
 
-newapi 高发语义冲突点：`service/channel_select.go`（SuccessRateSelector/亲和性集成）、`relay/` 计费与 usage 主流程、`relay/claude_handler.go`（第三方 codex 分流）、渠道设置 DTO。详见 [workflow.md 第 6.5 节](references/workflow.md#65-语义冲突审查必须执行)。
+newapi 高发语义冲突点：`service/channel_select.go`（SuccessRateSelector/亲和性集成）、`relay/` 计费与 usage 主流程、渠道设置 DTO。详见 [workflow.md 第 6.5 节](references/workflow.md#65-语义冲突审查必须执行)。
 
 ## 必须先征求用户确认
 

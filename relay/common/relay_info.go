@@ -40,11 +40,6 @@ const (
 // host code and adaptors compiling unchanged.
 type ClaudeConvertInfo = convmeta.ClaudeConvertInfo
 
-type ClaudeTranslatorState struct {
-	OriginalRequestRawJSON []byte
-	StreamState            any
-}
-
 type RerankerInfo struct {
 	Documents       []any
 	ReturnDocuments bool
@@ -184,8 +179,6 @@ type RelayInfo struct {
 	ThinkingContentInfo
 	TokenCountMeta
 	*ClaudeConvertInfo
-	// FORK-CUSTOM: Keep CPA translator state outside relaykit-owned conversion metadata.
-	ForkTranslator ClaudeTranslatorState
 	*RerankerInfo
 	*ResponsesUsageInfo
 	*ChannelMeta

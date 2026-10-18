@@ -43,10 +43,13 @@ func handleClaudeFormat(c *gin.Context, data string, info *relaycommon.RelayInfo
 	if streamResponse.Usage != nil {
 		info.ClaudeConvertInfo.Usage = streamResponse.Usage
 	}
-	// FORK-CUSTOM: Preserve translator error semantics through the service boundary.
-	claudeResponses, err := service.OpenAIStreamResponseToClaude(&streamResponse, info)
+	result, err := relayconvert.ConvertStreamResponse(c, info, types.RelayFormatClaude, &streamResponse)
 	if err != nil {
 		return err
+	}
+	claudeResponses, ok := result.Value.([]*dto.ClaudeResponse)
+	if !ok {
+		return fmt.Errorf("expected Claude stream responses, got %T", result.Value)
 	}
 	for _, resp := range claudeResponses {
 		helper.ClaudeData(c, *resp)
@@ -178,10 +181,14 @@ func HandleFinalResponse(c *gin.Context, info *relaycommon.RelayInfo, lastStream
 
 		info.ClaudeConvertInfo.Usage = usage
 
-		// FORK-CUSTOM: Preserve translator error semantics through the service boundary.
-		claudeResponses, err := service.OpenAIStreamResponseToClaude(&streamResponse, info)
+		result, err := relayconvert.ConvertStreamResponse(c, info, types.RelayFormatClaude, &streamResponse)
 		if err != nil {
-			common.SysLog("error converting stream response to claude: " + err.Error())
+			common.SysLog("error converting Claude stream response: " + err.Error())
+			return
+		}
+		claudeResponses, ok := result.Value.([]*dto.ClaudeResponse)
+		if !ok {
+			common.SysLog(fmt.Sprintf("expected Claude stream responses, got %T", result.Value))
 			return
 		}
 		for _, resp := range claudeResponses {

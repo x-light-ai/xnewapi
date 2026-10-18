@@ -133,22 +133,16 @@ func ClaudeHelper(c *gin.Context, info *relaycommon.RelayInfo) (newAPIError *typ
 	}
 
 	passThroughRequest := model_setting.GetGlobalSettings().PassThroughRequestEnabled || info.ChannelSetting.PassThroughBodyEnabled
-	// FORK-CUSTOM: Dispatch third-party Codex upstreams through one fork-owned hook.
-	if handled, newAPIError := handleForkClaudeUpstream(c, info, request, passThroughRequest); handled {
-		return newAPIError
-	}
 
 	if !passThroughRequest &&
 		service.ShouldChatCompletionsUseResponsesGlobal(info.ChannelId, info.ChannelType, info.OriginModelName) {
-		// FORK-CUSTOM: Use the registered Claude translator through the service boundary.
-		openAIRequest, convErr := service.TranslateClaudeRequest(*request, info)
+		result, convErr := service.ConvertRequest(c, info, types.RelayFormatOpenAI, request)
 		if convErr != nil {
 			return types.NewError(convErr, types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
-		if info.SupportStreamOptions && info.IsStream {
-			openAIRequest.StreamOptions = &dto.StreamOptions{
-				IncludeUsage: common.GetPointer(true),
-			}
+		openAIRequest, ok := result.Value.(*dto.GeneralOpenAIRequest)
+		if !ok {
+			return types.NewError(fmt.Errorf("expected OpenAI chat completions request, got %T", result.Value), types.ErrorCodeConvertRequestFailed, types.ErrOptionWithSkipRetry())
 		}
 
 		usage, newApiErr := chatCompletionsViaResponses(c, info, adaptor, openAIRequest)
