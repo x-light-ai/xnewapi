@@ -12,11 +12,16 @@ License, or (at your option) any later version.
 import assert from 'node:assert/strict'
 import { describe, test } from 'node:test'
 
+import dayjs from 'dayjs'
+
 import {
   buildChannelMonitorRows,
   compressTimelinePoints,
   formatBeijingDateTime,
+  getChannelMonitorPeriodDateRange,
+  getChannelMonitorPeriodDays,
   getTrendPointSize,
+  matchesChannelMonitorKeyword,
   sortChannelMonitorItems,
 } from './channel-monitor-utils'
 import type { ChannelMonitorItem, ChannelTimelinePoint } from './types'
@@ -48,6 +53,41 @@ function channel(
 }
 
 describe('channel monitor table helpers', () => {
+  test('uses the calendar month start for the month period', () => {
+    const now = new Date('2026-10-19T12:00:00+08:00')
+    const periodNow = dayjs(now)
+
+    assert.equal(getChannelMonitorPeriodDays('month', periodNow), 19)
+    assert.deepEqual(getChannelMonitorPeriodDateRange('month', periodNow), {
+      startDate: '2026-10-01',
+      endDate: '2026-10-19',
+    })
+  })
+
+  test('uses yesterday as a one-day date range', () => {
+    const periodNow = dayjs('2026-10-19T12:00:00+08:00')
+
+    assert.deepEqual(getChannelMonitorPeriodDateRange(2, periodNow), {
+      startDate: '2026-10-18',
+      endDate: '2026-10-18',
+    })
+  })
+
+  test('matches channel, type, group, and provider search fields', () => {
+    const item = channel({
+      id: 1,
+      name: 'primary-openai',
+      type: 25,
+      group_name: 'production',
+      provider_name: 'OpenAI account',
+    })
+
+    assert.equal(matchesChannelMonitorKeyword(item, 'openai'), true)
+    assert.equal(matchesChannelMonitorKeyword(item, 'production'), true)
+    assert.equal(matchesChannelMonitorKeyword(item, '25'), true)
+    assert.equal(matchesChannelMonitorKeyword(item, 'missing'), false)
+  })
+
   test('sorts higher-priority channels first by default', () => {
     const items = [
       channel({ id: 1, name: 'fallback', priority: 0 }),

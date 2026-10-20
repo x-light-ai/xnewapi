@@ -36,7 +36,7 @@ func setupChannelMonitorTestDB(t *testing.T) *gorm.DB {
 	DB = db
 	LOG_DB = db
 
-	if err = db.AutoMigrate(&Channel{}, &ChannelMonitorStat{}, &ChannelMonitorError{}, &Log{}); err != nil {
+	if err = db.AutoMigrate(&Channel{}, &ChannelMonitorStat{}, &ChannelMonitorError{}, &ChannelMonitorCacheStat{}, &ChannelMonitorCacheAggregationState{}, &Log{}); err != nil {
 		t.Fatalf("failed to migrate channel monitor tables: %v", err)
 	}
 
@@ -152,6 +152,7 @@ func TestMigrateChannelMonitorTablesIsIdempotentWithErrorData(t *testing.T) {
 	assert.Equal(t, int64(1), count)
 	assert.True(t, db.Migrator().HasIndex(&ChannelMonitorError{}, "idx_xnewapi_monitor_error_bucket"))
 	assert.True(t, db.Migrator().HasIndex(&ChannelMonitorError{}, "idx_xnewapi_monitor_error_channel_time"))
+	assert.True(t, db.Migrator().HasTable(&ChannelMonitorCacheStat{}))
 }
 
 func resetChannelMonitorTestState() {
@@ -704,6 +705,68 @@ func TestCleanupExpiredChannelMonitorStatsUsesTieredRetention(t *testing.T) {
 	if dayCount != 1 {
 		t.Fatalf("expected only one day stat kept, got %d", dayCount)
 	}
+}
+
+func TestAggregateChannelMonitorCacheStatsFromConsumeLogs(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	now := time.Now().In(channelMonitorLocation)
+	bucket := channelMonitorCacheBucket(now.Add(-10*time.Minute), ChannelMonitorCacheGranularityFiveMinute)
+	channel := seedChannelMonitorTestChannel(t, db, "cache-aggregation", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+
+	openAIOther, err := common.Marshal(map[string]any{
+		"cache_tokens":   20,
+		"usage_semantic": "openai",
+	})
+	require.NoError(t, err)
+	claudeOther, err := common.Marshal(map[string]any{
+		"cache_tokens":          30,
+		"cache_creation_tokens": 10,
+		"usage_semantic":        "anthropic",
+	})
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&Log{
+		Type: LogTypeConsume, ChannelId: channel.Id, Group: "default", ModelName: "gpt-4o",
+		PromptTokens: 100, CreatedAt: bucket.Add(time.Minute).Unix(), Other: string(openAIOther),
+	}).Error)
+	require.NoError(t, db.Create(&Log{
+		Type: LogTypeConsume, ChannelId: channel.Id, Group: "default", ModelName: "claude-3",
+		PromptTokens: 80, CreatedAt: bucket.Add(2 * time.Minute).Unix(), Other: string(claudeOther),
+	}).Error)
+
+	require.NoError(t, AggregateChannelMonitorCacheStats(bucket, bucket.Add(channelMonitorCacheBucketDuration)))
+	stats, err := GetChannelMonitorCacheModelStats(channel.Id, bucket.UTC(), bucket.Add(channelMonitorCacheBucketDuration).UTC(), "default")
+	require.NoError(t, err)
+	require.Len(t, stats, 2)
+	assert.Equal(t, "claude-3", stats[0].ModelName)
+	assert.Equal(t, int64(120), stats[0].InputTokens)
+	assert.Equal(t, int64(30), stats[0].CachedTokens)
+	assert.InDelta(t, 30.0/120.0, *stats[0].CacheRate, 0.0001)
+	assert.Equal(t, "gpt-4o", stats[1].ModelName)
+	assert.Equal(t, int64(100), stats[1].InputTokens)
+	assert.Equal(t, int64(20), stats[1].CachedTokens)
+}
+
+func TestPersistChannelMonitorCacheStatsAdvancesCursor(t *testing.T) {
+	db := setupChannelMonitorTestDB(t)
+	now := time.Now().In(channelMonitorLocation)
+	end := channelMonitorCacheBucket(now.Add(-channelMonitorCacheAggregationTick), ChannelMonitorCacheGranularityFiveMinute)
+	start := end.Add(-channelMonitorCacheBucketDuration)
+	channel := seedChannelMonitorTestChannel(t, db, "cache-cursor", constant.ChannelTypeOpenAI, common.ChannelStatusEnabled)
+	other, err := common.Marshal(map[string]any{"cache_tokens": 8, "usage_semantic": "openai"})
+	require.NoError(t, err)
+	require.NoError(t, db.Create(&ChannelMonitorCacheAggregationState{Id: 1, CursorAt: start.Unix(), UpdatedAt: start.Unix()}).Error)
+	require.NoError(t, db.Create(&Log{
+		Type: LogTypeConsume, ChannelId: channel.Id, Group: "default", ModelName: "gpt-4o",
+		PromptTokens: 40, CreatedAt: start.Add(time.Minute).Unix(), Other: string(other),
+	}).Error)
+
+	require.NoError(t, PersistChannelMonitorCacheStats())
+	var state ChannelMonitorCacheAggregationState
+	require.NoError(t, db.First(&state, 1).Error)
+	assert.Equal(t, end.Unix(), state.CursorAt)
+	var stat ChannelMonitorCacheStat
+	require.NoError(t, db.Where("channel_id = ? AND granularity = ?", channel.Id, ChannelMonitorCacheGranularityFiveMinute).First(&stat).Error)
+	assert.Equal(t, int64(8), stat.CachedTokens)
 }
 
 func TestComputeChannelMonitorRuntimeDeltasCalculatesCorrectly(t *testing.T) {

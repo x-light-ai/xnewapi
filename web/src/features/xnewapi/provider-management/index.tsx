@@ -10,16 +10,9 @@ License, or (at your option) any later version.
 // FORK-CUSTOM: Host provider management over fork-owned APIs in an isolated feature module.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from '@tanstack/react-router'
 import dayjs from 'dayjs'
-import {
-  Building2,
-  ChartNoAxesCombined,
-  Plus,
-  RefreshCw,
-  Search,
-} from 'lucide-react'
-import { useCallback, useMemo, useState, type ReactElement } from 'react'
+import { Building2, Plus, RefreshCw, Search } from 'lucide-react'
+import { useMemo, useState, type ReactElement } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -38,17 +31,13 @@ import {
   deleteProviderAccount,
   deleteProviderGroup,
   getProviderWorkspace,
-  getProviderProfitTrend,
   saveProvider,
   syncProvider,
   syncProviderAccount,
 } from './api'
-import { ChannelMarginRanking } from './channel-margin-ranking'
 import { createProviderAmountFormatter } from './provider-amount'
 import { ProviderDateRangePicker } from './provider-date-range'
 import { ProviderDetailSheet } from './provider-detail-sheet'
-import { ProviderMetrics } from './provider-metrics'
-import { ProviderProfitTrend } from './provider-profit-trend'
 import { ProviderTable } from './provider-table'
 import type {
   ProviderProfitDateRange,
@@ -58,50 +47,21 @@ import type {
 
 type StatusFilter = UpstreamProviderStatus | 'all'
 const EMPTY_PROVIDERS: UpstreamProvider[] = []
-const MINIMUM_TREND_DAYS = 7
 
-function getProfitTrendDateRange(
-  selectedRange: ProviderProfitDateRange
-): ProviderProfitDateRange {
-  const selectedDays =
-    dayjs(selectedRange.endDate).diff(selectedRange.startDate, 'day') + 1
-  if (selectedDays >= MINIMUM_TREND_DAYS) return selectedRange
-
-  return {
-    startDate: dayjs(selectedRange.endDate)
-      .subtract(MINIMUM_TREND_DAYS - 1, 'day')
-      .format('YYYY-MM-DD'),
-    endDate: selectedRange.endDate,
-  }
-}
-
-function formatProfitDateRange(range: ProviderProfitDateRange): string {
-  if (range.startDate === range.endDate) return range.startDate
-  return `${range.startDate} — ${range.endDate}`
-}
-
-export function ProviderManagement(): ReactElement {
+export function ProviderManagement({
+  embedded = false,
+}: {
+  embedded?: boolean
+}): ReactElement {
   const { t, i18n } = useTranslation('xnewapi')
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [dateRange, setDateRange] = useState<ProviderProfitDateRange>(() => {
     const today = dayjs().format('YYYY-MM-DD')
     return { startDate: today, endDate: today }
   })
-  const trendDateRange = getProfitTrendDateRange(dateRange)
-  const dateRangeLabel = formatProfitDateRange(dateRange)
-  const trendDateRangeLabel = formatProfitDateRange(trendDateRange)
   const workspaceQuery = useQuery({
     queryKey: ['upstream-providers', dateRange.startDate, dateRange.endDate],
     queryFn: () => getProviderWorkspace(dateRange),
-  })
-  const trendQuery = useQuery({
-    queryKey: [
-      'upstream-provider-profit-trend',
-      trendDateRange.startDate,
-      trendDateRange.endDate,
-    ],
-    queryFn: () => getProviderProfitTrend(trendDateRange),
   })
   const providers = workspaceQuery.data?.providers ?? EMPTY_PROVIDERS
   const [query, setQuery] = useState('')
@@ -138,14 +98,12 @@ export function ProviderManagement(): ReactElement {
     })
   }, [providers, query, statusFilter])
 
+  const locale = i18n.resolvedLanguage || i18n.language
   const amountFormatter = useMemo(
-    () => createProviderAmountFormatter(i18n.resolvedLanguage || i18n.language),
-    [i18n.language, i18n.resolvedLanguage]
+    () => createProviderAmountFormatter(locale),
+    [locale]
   )
-  const formatAmount = useCallback(
-    (value: number) => amountFormatter.format(value),
-    [amountFormatter]
-  )
+  const formatAmount = amountFormatter.format.bind(amountFormatter)
 
   const openCreateSheet = () => {
     setSelectedProvider(null)
@@ -238,132 +196,94 @@ export function ProviderManagement(): ReactElement {
     })
   }
 
+  const content = (
+    <div className='flex flex-col gap-4'>
+      {workspaceQuery.error && (
+        <div className='border-destructive/40 bg-destructive/5 text-destructive rounded-lg border px-4 py-3 text-sm'>
+          {workspaceQuery.error.message}
+        </div>
+      )}
+      <ProviderDateRangePicker value={dateRange} onChange={setDateRange} />
+      <div className='flex flex-col gap-3 sm:flex-row sm:items-center'>
+        <InputGroup className='w-full sm:max-w-md'>
+          <InputGroupAddon>
+            <Search aria-hidden />
+          </InputGroupAddon>
+          <InputGroupInput
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder={t(
+              'Search model providers, accounts, keys, or channels...'
+            )}
+            aria-label={t('Search model providers')}
+          />
+        </InputGroup>
+        <NativeSelect
+          className='w-full sm:w-44'
+          value={statusFilter}
+          onChange={(event) =>
+            setStatusFilter(event.target.value as StatusFilter)
+          }
+          aria-label={t('Model provider status')}
+        >
+          <NativeSelectOption value='healthy'>
+            {t('Healthy')}
+          </NativeSelectOption>
+          <NativeSelectOption value='disabled'>
+            {t('Disabled')}
+          </NativeSelectOption>
+          <NativeSelectOption value='all'>
+            {t('All statuses')}
+          </NativeSelectOption>
+        </NativeSelect>
+      </div>
+
+      <ProviderTable
+        providers={visibleProviders}
+        expandedIds={expandedIds}
+        formatAmount={formatAmount}
+        onToggle={toggleProvider}
+        onEdit={openEditSheet}
+      />
+    </div>
+  )
+
   return (
     <>
-      <SectionPageLayout>
-        <SectionPageLayout.Title>
-          <span className='flex min-w-0 items-center gap-2'>
-            <Building2 className='text-primary size-5 shrink-0' />
-            <span className='truncate'>{t('Model Provider Management')}</span>
-          </span>
-        </SectionPageLayout.Title>
-        <SectionPageLayout.Actions>
-          <div className='flex items-center gap-2'>
-            <Button
-              variant='outline'
-              size='icon'
-              onClick={() => {
-                void Promise.all([
-                  workspaceQuery.refetch(),
-                  trendQuery.refetch(),
-                ])
-              }}
-              aria-label={t('Refresh')}
-              title={t('Refresh')}
-            >
-              <RefreshCw
-                className={workspaceQuery.isFetching ? 'animate-spin' : ''}
-              />
-            </Button>
-            <Button
-              variant='outline'
-              onClick={() =>
-                navigate({
-                  to: '/providers/profit-details',
-                  search: {
-                    startDate: dateRange.startDate,
-                    endDate: dateRange.endDate,
-                  },
-                })
-              }
-            >
-              <ChartNoAxesCombined data-icon='inline-start' />
-              {t('Profit details')}
-            </Button>
-            <Button onClick={openCreateSheet}>
-              <Plus data-icon='inline-start' />
-              {t('Add model provider')}
-            </Button>
-          </div>
-        </SectionPageLayout.Actions>
-        <SectionPageLayout.Content>
-          <div className='flex flex-col gap-4'>
-            {workspaceQuery.error && (
-              <div className='border-destructive/40 bg-destructive/5 text-destructive rounded-lg border px-4 py-3 text-sm'>
-                {workspaceQuery.error.message}
-              </div>
-            )}
-            <ProviderDateRangePicker
-              value={dateRange}
-              onChange={setDateRange}
-            />
-            <ProviderMetrics
-              providers={providers}
-              formatAmount={formatAmount}
-              dateRangeLabel={dateRangeLabel}
-            />
-            <ChannelMarginRanking
-              profits={workspaceQuery.data?.profits ?? []}
-              formatAmount={formatAmount}
-              onViewProfitDetails={(filter) =>
-                navigate({
-                  to: '/providers/profit-details',
-                  search: filter,
-                })
-              }
-            />
-
-            <ProviderProfitTrend
-              points={trendQuery.data ?? []}
-              isLoading={trendQuery.isLoading}
-              dateRangeLabel={trendDateRangeLabel}
-              formatAmount={formatAmount}
-            />
-
-            <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
-              <InputGroup className='w-full sm:max-w-md'>
-                <InputGroupAddon>
-                  <Search aria-hidden />
-                </InputGroupAddon>
-                <InputGroupInput
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder={t(
-                    'Search model providers, accounts, keys, or channels...'
-                  )}
-                  aria-label={t('Search model providers')}
-                />
-              </InputGroup>
-              <NativeSelect
-                className='w-full sm:w-44'
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(event.target.value as StatusFilter)
-                }
-                aria-label={t('Model provider status')}
+      {embedded ? (
+        content
+      ) : (
+        <SectionPageLayout>
+          <SectionPageLayout.Title>
+            <span className='flex min-w-0 items-center gap-2'>
+              <Building2 className='text-primary size-5 shrink-0' />
+              <span className='truncate'>{t('Model Provider Management')}</span>
+            </span>
+          </SectionPageLayout.Title>
+          <SectionPageLayout.Actions>
+            <div className='flex items-center gap-2'>
+              <Button
+                variant='outline'
+                size='icon'
+                onClick={() => {
+                  void workspaceQuery.refetch()
+                }}
+                aria-label={t('Refresh')}
+                title={t('Refresh')}
               >
-                <NativeSelectOption value='healthy'>
-                  {t('Healthy')}
-                </NativeSelectOption>
-                <NativeSelectOption value='disabled'>
-                  {t('Disabled')}
-                </NativeSelectOption>
-                <NativeSelectOption value='all'>
-                  {t('All statuses')}
-                </NativeSelectOption>
-              </NativeSelect>
+                <RefreshCw
+                  className={workspaceQuery.isFetching ? 'animate-spin' : ''}
+                />
+              </Button>
+              <Button onClick={openCreateSheet}>
+                <Plus data-icon='inline-start' />
+                {t('Add model provider')}
+              </Button>
             </div>
-
-            <ProviderTable
-              providers={visibleProviders}
-              expandedIds={expandedIds}
-              formatAmount={formatAmount}
-              onToggle={toggleProvider}
-              onEdit={openEditSheet}
-            />
-          </div>
-        </SectionPageLayout.Content>
-      </SectionPageLayout>
+          </SectionPageLayout.Actions>
+          <SectionPageLayout.Content>{content}</SectionPageLayout.Content>
+        </SectionPageLayout>
+      )}
 
       {sheetOpen && (
         <ProviderDetailSheet

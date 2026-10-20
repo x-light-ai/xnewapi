@@ -19,6 +19,7 @@ func Start() {
 			common.FatalLog(fmt.Sprintf("failed to register provider sync adapters: %v", err))
 		}
 		model.StartChannelMonitorPersistenceTask()
+		model.StartChannelMonitorCacheAggregationTask()
 		model.StartChannelMonitorCleanupTask()
 		service.StartChannelSuccessRateHealthManager()
 		service.StartUpstreamProviderSyncScheduler()

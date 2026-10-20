@@ -10,7 +10,7 @@
 > ```
 > 判断某文件是否 fork 自定义的黄金标准:出现在 `git diff $BASE..dev` 里才算;文件"存在"不代表是 fork 改的(可能是上游功能)。核实归属用 `git log --diff-filter=A -- <file>` 看引入者,官方作者(如 `i@caion.me`、`seefs001`)引入且 dev 无改动的即上游功能。
 >
-> 本清单需随 fork 演进维护:新增 fork 功能时补充,重构时更新路径。上次全量核对:2026-10-18(BASE=`6cf0d90b5`,目标=`v1.0.0-rc.45`;已验证成功率选择器、渠道监控、供应商管理的 B 类接入点,已删除 OpenAI/Codex↔Claude 转换器)。
+> 本清单需随 fork 演进维护:新增 fork 功能时补充,重构时更新路径。上次全量核对:2026-10-18(BASE=`6cf0d90b5`,目标=`v1.0.0-rc.45`;已验证成功率选择器、渠道监控、供应商管理的 B 类接入点,已删除 OpenAI/Codex↔Claude 转换器;已新增渠道运营中心 #10,删除旧的独立"模型供应商管理"和"渠道监控"菜单项)。
 
 ## 风险等级说明
 
@@ -23,7 +23,7 @@
 - **A 类(fork 新增文件)**:上游没有的文件,merge 时 git 原样保留,**不会冲突**。确认未被误删即可。
 - **B 类(fork 修改的上游文件)**:双方都可能改,**冲突真正发生处**,合并时必须逐一审查。这是清单的重点。
 
-## 功能概览(活动 fork 自定义共 5 项;保留历史编号)
+## 功能概览(活动 fork 自定义共 6 项;保留历史编号)
 
 | # | 功能 | A类新增文件 | B类改上游文件 | 风险 |
 |---|------|-----------|-------------|------|
@@ -32,6 +32,7 @@
 | 6 | 渠道成功率高级配置 | `setting/operation_setting/fork_channel_success_rate_setting.go` | — | 低 |
 | 7 | 渠道权重管理 | `service/fork_channel_score_override.go` | (复用 #5 的 controller/router) | 低 |
 | 9 | 模型供应商管理 | `model/fork_upstream_provider.go`、`model/fork_upstream_provider_migration.go`、`model/fork_sqlite_ddl.go`、`service/fork_upstream_provider*.go`、`controller/fork_upstream_provider.go`、`web/src/features/xnewapi/provider-management/` | `model/main.go`、`router/fork_routes.go`、`forkcustom/bootstrap.go`、default 侧栏入口 | 中 |
+| 10 | 渠道运营中心 | `web/src/features/xnewapi/channel-operations/`、`web/src/routes/_authenticated/channel-operations/` | `web/src/hooks/use-sidebar-data.ts` 的单点菜单入口 | 低 |
 
 **2026-10-18 更新**:已删除 #1(OpenAI↔Claude 转换器)、#2(Codex↔Claude 转换器)、#3(第三方 Codex 供应商支持),恢复到上游 `v1.0.0-rc.24` 实现。`v1.0.0-rc.24` 新增的 relaykit 与 Advanced Custom 已覆盖通用协议转换需求。
 
@@ -60,6 +61,7 @@
 | 6 | 渠道成功率高级配置 | SuccessRateSelector 细粒度参数(半衰期、探索率、连续失败阈值、熔断/恢复)。`setting/operation_setting/fork_channel_success_rate_setting.go` |
 | 7 | 渠道权重管理 | 后台手动设渠道初始权重/优先级,影响择优。`service/fork_channel_score_override.go`,复用 #5 的 controller/router |
 | 9 | 模型供应商管理 | 建表迁移收敛在 `model/fork_upstream_provider_migration.go`,经 `model/fork_migration.go` 的 `migrateForkTables()` 统一入口调用,**不进上游 `AutoMigrate` 列表**(上游最常改动处,避免冲突)。模型结构为供应商、账户、成本归集单元和 Key；一个归集单元可映射多个 new-api 渠道，一个渠道只能归属一个归集单元。NewAPI 以其上游分组为归集单元，通过 `/api/user/self`、分页 `/api/token/`、`/api/log/self/stat` 采集，并按 Quota 换算基数和充值比例还原金额；Sub2API 支持密码登录与 Access/Refresh Token 两种认证，Token 模式每次同步先调用 `/api/v1/auth/refresh`，以旧 Refresh Token 为条件持久化轮转后的 Token 对，再通过 `/api/v1/auth/me`、分页 `/api/v1/keys`、按 `api_key_id` 查询 `/api/v1/usage/dashboard/snapshot-v2`。每个 Key 独立成归集单元，余额、累计充值和成本均直接使用金额字段，只取 `actual_cost`，不做 Quota 换算。映射变更只重算当天并影响未来，历史日利润冻结。`xnewapi_` 表保存主数据、账户同步密钥、Token、归集单元渠道关系、日利润和同步记录，所有凭据仅返回是否已配置的标记。调度器在 fork bootstrap 注册。`web/` 页面通过 `/api/xnewapi/providers` 真实 API 读写，列表只展示供应商与归集单元两层，多 Key 通过弹出列表查看。领域代码使用 `UpstreamProvider`，不改 relay 渠道执行密钥或选择逻辑。 |
+| 10 | 渠道运营中心 | 统一入口整合渠道监控(#5)、成本分析(#9)、利润分析等运营功能的前端综合页面。使用 TanStack Router 子路由,Tab 视图切换监控、成本、利润三个维度。复用 `channel-monitor-table.tsx` 组件和 `provider-management/` 模块,不重复实现后端 API。**B类接入点**:`web/src/hooks/use-sidebar-data.ts` 在 Admin 菜单组添加"渠道运营中心"条目,标题直接使用中文字面量(fork 专属 UI 可免 i18n)。删除了旧的独立"模型供应商管理"和"渠道监控"菜单项及其对应的顶层路由 `/providers` 和 `/channel-monitor`。关键文件:`web/src/features/xnewapi/channel-operations/`(页面组件)、`web/src/routes/_authenticated/channel-operations/`(路由定义)、`web/src/hooks/use-sidebar-data.ts`(菜单注册,带 `FORK-CUSTOM` 标记)。 |
 
 ---
 
@@ -89,7 +91,7 @@
 ## 合并策略速查
 
 - **中风险 #4-#5**:Git 自动合并后必做语义冲突审查(workflow.md 第 6.5 节),重点 B 类接入点:`channel_select.go`/`controller/relay.go`(#4)、`router/api-router.go`/`main.go`/`model/main.go`(#5)。
-- **低风险 #6-#7、#9**:确认独立文件未被覆盖,通常 Git 自动合并即可。
+- **低风险 #6-#7、#9-#10**:确认独立文件未被覆盖,通常 Git 自动合并即可。#10 需确认侧边栏菜单标记未被移除。
 - **上游功能区(⚠️ 节)**:不做任何保护,直接跟随上游。
 
 ## 清单核对方式

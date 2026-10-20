@@ -24,6 +24,7 @@ var channelMonitorRequestIDRegexp = regexp.MustCompile(`(?i)(request[ _-]?id\s*[
 type ChannelMonitorError struct {
 	Id              int       `json:"id"`
 	ChannelID       int       `json:"channel_id" gorm:"uniqueIndex:idx_xnewapi_monitor_error_bucket,priority:1;index:idx_xnewapi_monitor_error_channel_time,priority:1;not null"`
+	ModelName       string    `json:"model_name" gorm:"size:128;index:idx_xnewapi_monitor_error_channel_time,priority:3;not null;default:''"`
 	TimeBucket      time.Time `json:"time_bucket" gorm:"uniqueIndex:idx_xnewapi_monitor_error_bucket,priority:2;index:idx_xnewapi_monitor_error_channel_time,priority:2;not null"`
 	Fingerprint     string    `json:"fingerprint" gorm:"type:char(64);uniqueIndex:idx_xnewapi_monitor_error_bucket,priority:3;not null"`
 	ErrorCode       string    `json:"error_code" gorm:"type:varchar(128);not null;default:''"`
@@ -42,7 +43,7 @@ func (ChannelMonitorError) TableName() string {
 	return "xnewapi_channel_monitor_errors"
 }
 
-func RecordChannelMonitorError(channelID int, errorCode string, errorType string, statusCode int, message string, requestID string, occurredAt time.Time) error {
+func RecordChannelMonitorError(channelID int, errorCode string, errorType string, statusCode int, message string, requestID string, occurredAt time.Time, modelNames ...string) error {
 	if DB == nil || channelID <= 0 {
 		return nil
 	}
@@ -52,18 +53,25 @@ func RecordChannelMonitorError(channelID int, errorCode string, errorType string
 	errorCode = strings.TrimSpace(errorCode)
 	errorType = strings.TrimSpace(errorType)
 	message = strings.TrimSpace(message)
+	modelName := ""
+	if len(modelNames) > 0 {
+		modelName = strings.TrimSpace(modelNames[0])
+	}
 	messageRunes := []rune(message)
 	if len(messageRunes) > channelMonitorErrorMessageLimit {
 		message = string(messageRunes[:channelMonitorErrorMessageLimit])
 	}
 	fingerprintSource := errorCode + "\x00" + errorType + "\x00" + strconv.Itoa(statusCode)
+	if modelName != "" {
+		fingerprintSource = modelName + "\x00" + fingerprintSource
+	}
 	if errorCode == "" && errorType == "" {
 		fingerprintSource += "\x00" + channelMonitorRequestIDRegexp.ReplaceAllString(message, "${1}<request-id>")
 	}
 	fingerprintBytes := sha256.Sum256([]byte(fingerprintSource))
 	nowUnix := occurredAt.Unix()
 	errorRecord := &ChannelMonitorError{
-		ChannelID: channelID, TimeBucket: occurredAt.Truncate(channelMonitorErrorBucketDuration),
+		ChannelID: channelID, ModelName: modelName, TimeBucket: occurredAt.Truncate(channelMonitorErrorBucketDuration),
 		Fingerprint: hex.EncodeToString(fingerprintBytes[:]), ErrorCode: errorCode,
 		ErrorType: errorType, StatusCode: statusCode, SampleMessage: message,
 		SampleRequestID: strings.TrimSpace(requestID), FirstOccurredAt: nowUnix,

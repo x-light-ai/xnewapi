@@ -258,7 +258,7 @@ func ObserveChannelRequestResult(c *gin.Context, success bool, err *types.NewAPI
 		requestID := c.GetString(common.RequestIdKey)
 		occurredAt := time.Now()
 		gopool.Go(func() {
-			if recordErr := model.RecordChannelMonitorError(channelID, errorCode, errorType, statusCode, message, requestID, occurredAt); recordErr != nil {
+			if recordErr := model.RecordChannelMonitorError(channelID, errorCode, errorType, statusCode, message, requestID, occurredAt, modelName); recordErr != nil {
 				common.SysError(fmt.Sprintf("record channel monitor error failed: channel_id=%d err=%v", channelID, recordErr))
 			}
 		})

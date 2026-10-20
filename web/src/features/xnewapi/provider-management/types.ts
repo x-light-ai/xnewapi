@@ -17,6 +17,7 @@ export type ProviderSyncStatus =
   | 'partial_success'
   | 'syncing'
   | 'error'
+  | 'stale'
   | 'never'
 export type ProviderAuthenticationMethod = 'api-key' | 'password' | 'token'
 export type ProviderAdapterType = 'newapi' | 'sub2api'
@@ -132,6 +133,7 @@ export type ProviderAccount = {
   totalRecharge: number
   syncStatus?: ProviderSyncStatus
   lastSyncError?: string
+  lastSyncedAtTimestamp?: number | null
   lastSyncedAt: string
   groups: ProviderGroup[]
 }
@@ -143,6 +145,7 @@ export type UpstreamProvider = {
   status: UpstreamProviderStatus
   syncStatus: ProviderSyncStatus
   lastSyncedAt: string | null
+  lastSyncedAtTimestamp: number | null
   lastSyncError?: string
   authenticationMethod: ProviderAuthenticationMethod
   adapterType: ProviderAdapterType

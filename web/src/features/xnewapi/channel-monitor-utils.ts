@@ -9,6 +9,8 @@ License, or (at your option) any later version.
 
 // FORK-CUSTOM: Preserve the classic channel-monitor table behavior in the default frontend.
 
+import dayjs, { type Dayjs } from 'dayjs'
+
 import type {
   ChannelMonitorItem,
   ChannelTimelineFailureReason,
@@ -30,6 +32,54 @@ export type ChannelMonitorSortKey =
   | 'group_success_rate'
 
 export type ChannelMonitorSortOrder = 'asc' | 'desc'
+
+export type ChannelMonitorPeriod = 1 | 2 | 7 | 30 | 'month'
+
+export type ChannelMonitorDateRange = {
+  startDate: string
+  endDate: string
+}
+
+export function getChannelMonitorPeriodDays(
+  period: ChannelMonitorPeriod,
+  now: Dayjs = dayjs()
+): number {
+  if (period === 'month') {
+    return now.diff(now.startOf('month'), 'day') + 1
+  }
+  return period
+}
+
+export function getChannelMonitorPeriodDateRange(
+  period: ChannelMonitorPeriod,
+  now: Dayjs = dayjs()
+): ChannelMonitorDateRange {
+  const end = period === 2 ? now.subtract(1, 'day') : now
+  const days = period === 2 ? 1 : getChannelMonitorPeriodDays(period, now)
+  const start =
+    period === 'month' ? now.startOf('month') : end.subtract(days - 1, 'day')
+  return {
+    startDate: start.format('YYYY-MM-DD'),
+    endDate: end.format('YYYY-MM-DD'),
+  }
+}
+
+export function matchesChannelMonitorKeyword(
+  item: Pick<
+    ChannelMonitorItem,
+    'name' | 'type' | 'group_name' | 'provider_name'
+  >,
+  keyword: string
+): boolean {
+  const normalizedKeyword = keyword.trim().toLowerCase()
+  if (!normalizedKeyword) return true
+  return [
+    item.name,
+    String(item.type),
+    item.group_name,
+    item.provider_name,
+  ].some((value) => value?.toLowerCase().includes(normalizedKeyword) ?? false)
+}
 
 export type ChannelMonitorGroupRow = {
   kind: 'group'
@@ -145,7 +195,7 @@ function mergeTimelinePointGroup(
     successCount += point.success_count
     failureCount += point.failure_count
     for (const reason of point.failure_reasons ?? []) {
-      const key = `${reason.reason}\u0000${reason.error_code}\u0000${reason.error_type}\u0000${reason.status_code}`
+      const key = `${reason.model_name ?? ''}\u0000${reason.reason}\u0000${reason.error_code}\u0000${reason.error_type}\u0000${reason.status_code}`
       const existing = reasons.get(key)
       if (existing) {
         existing.count += reason.count

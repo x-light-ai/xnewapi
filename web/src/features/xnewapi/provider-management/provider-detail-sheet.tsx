@@ -152,6 +152,7 @@ export function ProviderDetailSheet(props: ProviderDetailSheetProps) {
       status,
       syncStatus: props.provider?.syncStatus ?? 'never',
       lastSyncedAt: props.provider?.lastSyncedAt ?? null,
+      lastSyncedAtTimestamp: props.provider?.lastSyncedAtTimestamp ?? null,
       lastSyncError: props.provider?.lastSyncError,
       authenticationMethod,
       adapterType,
@@ -267,6 +268,12 @@ export function ProviderDetailSheet(props: ProviderDetailSheetProps) {
                     <ProviderSyncStatusBadge
                       status={props.provider?.syncStatus ?? 'never'}
                       error={props.provider?.lastSyncError}
+                      lastSyncedAtTimestamp={
+                        props.provider?.lastSyncedAtTimestamp
+                      }
+                      syncIntervalMinutes={
+                        props.provider?.syncIntervalMinutes ?? 0
+                      }
                     />
                     <span className='text-muted-foreground truncate text-xs'>
                       {props.provider?.lastSyncedAt

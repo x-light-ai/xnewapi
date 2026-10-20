@@ -4,6 +4,7 @@ package controller
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
@@ -59,6 +60,30 @@ func GetChannelMonitorTimeline(c *gin.Context) {
 		return
 	}
 	common.ApiSuccess(c, items)
+}
+
+func GetChannelMonitorCacheModelStats(c *gin.Context) {
+	channelID, err := strconv.Atoi(strings.TrimSpace(c.Query("channel_id")))
+	if err != nil || channelID <= 0 {
+		common.ApiError(c, strconv.ErrSyntax)
+		return
+	}
+	start, err := time.Parse(time.RFC3339, strings.TrimSpace(c.Query("start")))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	end, err := time.Parse(time.RFC3339, strings.TrimSpace(c.Query("end")))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	stats, err := model.GetChannelMonitorCacheModelStats(channelID, start, end, strings.TrimSpace(c.Query("group")))
+	if err != nil {
+		common.ApiError(c, err)
+		return
+	}
+	common.ApiSuccess(c, stats)
 }
 
 func GetChannelMonitorRankings(c *gin.Context) {

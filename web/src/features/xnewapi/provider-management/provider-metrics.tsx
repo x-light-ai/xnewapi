@@ -10,9 +10,8 @@ License, or (at your option) any later version.
 // FORK-CUSTOM: Present profitability totals derived from provider API data.
 
 import { ChartNoAxesCombined, ReceiptText, TrendingUp } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 
 import { getProviderTotals } from './provider-totals'
 import type { UpstreamProvider } from './types'
@@ -21,6 +20,8 @@ type ProviderMetricsProps = {
   providers: UpstreamProvider[]
   formatAmount: (value: number) => string
   dateRangeLabel: string
+  // 渲染在利润卡片之前、同一网格内的额外卡片
+  leading?: ReactNode
 }
 
 export function ProviderMetrics(props: ProviderMetricsProps) {
@@ -59,24 +60,26 @@ export function ProviderMetrics(props: ProviderMetricsProps) {
   ]
 
   return (
-    <div className='grid gap-3 md:grid-cols-2 xl:grid-cols-3'>
+    <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
+      {props.leading}
       {metrics.map((metric) => (
-        <Card key={metric.label} className='gap-3 py-4 shadow-none'>
-          <CardHeader className='flex-row items-center justify-between px-4'>
-            <CardTitle className='text-muted-foreground text-sm font-medium'>
-              {metric.label}
-            </CardTitle>
+        <div
+          key={metric.label}
+          className='bg-card flex min-h-24 items-center gap-3 rounded-lg border px-4 py-3'
+        >
+          <span className='bg-muted flex size-9 shrink-0 items-center justify-center rounded-md'>
             <metric.icon className='text-muted-foreground size-4' aria-hidden />
-          </CardHeader>
-          <CardContent className='px-4'>
-            <div className='text-xl font-semibold tabular-nums'>
+          </span>
+          <div className='min-w-0'>
+            <div className='text-muted-foreground text-xs'>{metric.label}</div>
+            <div className='mt-1 text-xl font-semibold tabular-nums'>
               {metric.value}
             </div>
-            <div className='text-muted-foreground mt-1 text-xs'>
+            <div className='text-muted-foreground mt-0.5 truncate text-xs'>
               {metric.detail}
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       ))}
     </div>
   )

@@ -31,7 +31,7 @@ import type { ProviderGroupProfit } from './types'
 type ChannelMarginRankingProps = {
   profits: ProviderGroupProfit[]
   formatAmount: (value: number) => string
-  onViewProfitDetails: (filter: { providerId: string }) => void
+  onViewProfitDetails?: (filter: { providerId: string }) => void
 }
 
 export function ChannelMarginRanking(props: ChannelMarginRankingProps) {
@@ -85,20 +85,25 @@ export function ChannelMarginRanking(props: ChannelMarginRankingProps) {
                           <div className='truncate font-medium'>
                             {item.providerName || '-'}
                           </div>
-                          <Button
-                            variant='ghost'
-                            size='icon-sm'
-                            className='shrink-0'
-                            onClick={() =>
-                              props.onViewProfitDetails({
-                                providerId: item.providerId,
-                              })
-                            }
-                            aria-label={t('View profit details')}
-                            title={t('View profit details')}
-                          >
-                            <ArrowUpRight />
-                          </Button>
+                          {props.onViewProfitDetails && (
+                            <Button
+                              variant='ghost'
+                              size='icon-sm'
+                              className='shrink-0'
+                              onClick={() => {
+                                const handler = props.onViewProfitDetails
+                                if (handler) {
+                                  handler({
+                                    providerId: item.providerId,
+                                  })
+                                }
+                              }}
+                              aria-label={t('View profit details')}
+                              title={t('View profit details')}
+                            >
+                              <ArrowUpRight />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell className='text-right font-medium tabular-nums'>

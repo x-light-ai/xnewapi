@@ -33,6 +33,7 @@ func registerForkRoutes(apiRouter *gin.RouterGroup) {
 		channelMonitorRoute.GET("/summary", controller.GetChannelMonitorSummary)
 		channelMonitorRoute.GET("/health", controller.GetChannelMonitorHealth)
 		channelMonitorRoute.GET("/timeline", controller.GetChannelMonitorTimeline)
+		channelMonitorRoute.GET("/timeline/cache-models", controller.GetChannelMonitorCacheModelStats)
 		channelMonitorRoute.GET("/channels", controller.GetChannelMonitorChannels)
 		channelMonitorRoute.GET("/rankings", controller.GetChannelMonitorRankings)
 		channelMonitorRoute.POST("/channels/:id/score_override", controller.SetChannelScoreOverride)

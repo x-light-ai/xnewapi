@@ -21,6 +21,7 @@ export const providerSyncStatusVariant: Record<
   partial_success: 'outline',
   syncing: 'outline',
   error: 'destructive',
+  stale: 'outline',
   never: 'secondary',
 }
 
@@ -32,5 +33,25 @@ export function getProviderSyncStatusLabel(
   if (status === 'partial_success') return t('Partially synced')
   if (status === 'syncing') return t('Syncing...')
   if (status === 'error') return t('Sync failed')
+  if (status === 'stale') return t('Sync overdue')
   return t('Not synced')
+}
+
+export function getEffectiveProviderSyncStatus(
+  status: ProviderSyncStatus,
+  lastSyncedAtTimestamp: number | null,
+  syncIntervalMinutes: number,
+  nowTimestamp = Date.now()
+): ProviderSyncStatus {
+  if (
+    (status !== 'success' && status !== 'partial_success') ||
+    !lastSyncedAtTimestamp ||
+    syncIntervalMinutes < 1
+  ) {
+    return status
+  }
+
+  const expiresAt =
+    lastSyncedAtTimestamp * 1000 + syncIntervalMinutes * 60 * 1000
+  return nowTimestamp >= expiresAt ? 'stale' : status
 }

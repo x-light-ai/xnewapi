@@ -9,13 +9,7 @@ License, or (at your option) any later version.
 
 // FORK-CUSTOM: Render the full channel health workspace with default-theme components.
 
-import {
-  Activity01Icon,
-  ArrowDown01Icon,
-  ArrowUp01Icon,
-  RotateIcon,
-  UnfoldMoreIcon,
-} from '@hugeicons/core-free-icons'
+import { Activity01Icon, RotateIcon } from '@hugeicons/core-free-icons'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
@@ -43,21 +37,12 @@ import {
 } from '@/components/ui/empty'
 import { Input } from '@/components/ui/input'
 import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
   Sheet,
   SheetContent,
   SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet'
-import { Switch } from '@/components/ui/switch'
 import {
   Table,
   TableBody,
@@ -66,7 +51,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   Tooltip,
   TooltipContent,
@@ -74,89 +58,31 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { getChannelTypeIcon } from '@/features/channels/lib'
+import { formatNumber } from '@/lib/format'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
 import {
   clearChannelCircuit,
+  getChannelMonitorCacheModelStats,
   setChannelScore,
   updateChannelPriority,
 } from './api'
 import {
-  buildChannelMonitorRows,
   compressTimelinePoints,
   formatBeijingDateTime,
   formatLatency,
   formatRate,
   formatTimelinePointTime,
-  getTrendPointSize,
-  MAX_TREND_DOT_SIZE,
   normalizeGroupName,
-  type ChannelMonitorSortKey,
-  type ChannelMonitorSortOrder,
+  type ChannelMonitorDisplayRow,
 } from './channel-monitor-utils'
-import { getProviderWorkspace } from './provider-management/api'
+import type { ProviderProfitDateRange } from './provider-management/types'
 import type {
   ChannelMonitorItem,
   ChannelTimeline,
   ChannelTimelinePoint,
 } from './types'
-
-const ALL_GROUPS = '__all__'
-
-const SORT_OPTIONS: Array<{ labelKey: string; value: ChannelMonitorSortKey }> =
-  [
-    { labelKey: 'Priority', value: 'priority' },
-    { labelKey: 'Routing score', value: 'routing_score' },
-    { labelKey: 'Gross margin', value: 'gross_margin' },
-    { labelKey: 'Stability', value: 'success_rate' },
-    { labelKey: 'Average latency', value: 'avg_latency' },
-    { labelKey: 'P95 latency', value: 'p95_latency' },
-    { labelKey: 'Failure count', value: 'failure_count' },
-    { labelKey: 'Last active', value: 'last_active' },
-    { labelKey: 'Name', value: 'name' },
-    { labelKey: 'Request count', value: 'request_count' },
-    { labelKey: 'Channel group', value: 'group_name' },
-    { labelKey: 'Group success rate', value: 'group_success_rate' },
-  ]
-
-const STATUS_OPTIONS = [
-  { labelKey: 'All Status', value: 'all' },
-  { labelKey: 'Enabled', value: '1' },
-  { labelKey: 'Disabled', value: '2' },
-  { labelKey: 'Automatically disabled', value: '3' },
-] as const
-
-function SortableTableHead(props: {
-  label: string
-  sortKey: ChannelMonitorSortKey
-  activeSortKey: ChannelMonitorSortKey
-  sortOrder: ChannelMonitorSortOrder
-  className?: string
-  onSort: (sortKey: ChannelMonitorSortKey) => void
-}) {
-  const active = props.sortKey === props.activeSortKey
-  let ariaSort: 'ascending' | 'descending' | 'none' = 'none'
-  if (active) ariaSort = props.sortOrder === 'asc' ? 'ascending' : 'descending'
-  let sortIcon = UnfoldMoreIcon
-  if (active) {
-    sortIcon = props.sortOrder === 'asc' ? ArrowUp01Icon : ArrowDown01Icon
-  }
-
-  return (
-    <TableHead className={props.className} aria-sort={ariaSort}>
-      <Button
-        variant='ghost'
-        size='sm'
-        className='-ml-3 h-8 px-3'
-        onClick={() => props.onSort(props.sortKey)}
-      >
-        {props.label}
-        <HugeiconsIcon icon={sortIcon} strokeWidth={2} data-icon='inline-end' />
-      </Button>
-    </TableHead>
-  )
-}
 
 function ChannelStatus(props: { status: number }) {
   const { t } = useTranslation('xnewapi')
@@ -189,12 +115,6 @@ function ScoreBadge(props: { score: number }) {
       copyable={false}
     />
   )
-}
-
-function getTrendPointClassName(point: ChannelTimelinePoint): string {
-  if (point.request_count <= 0) return 'bg-muted-foreground/30'
-  const stateClass = point.failure_count > 0 ? 'bg-destructive' : 'bg-success'
-  return cn('shrink-0 rounded-full', stateClass)
 }
 
 function AvailabilityTrend(props: {
@@ -230,78 +150,150 @@ function AvailabilityTrend(props: {
   const hasData = maxRequests > 0
   const lastActive = formatBeijingDateTime(props.item.last_active)
 
+  // 计算时间范围
+  const oldestPoint = points[0]
+  const midPoint = points[Math.floor(points.length / 2)]
+  const oldestTime = oldestPoint
+    ? formatTimelinePointTime(oldestPoint).split(' - ')[0]
+    : ''
+  const midTime = midPoint
+    ? formatTimelinePointTime(midPoint).split(' - ')[0]
+    : ''
+
   return (
-    <div className='flex w-full min-w-0 flex-col gap-2'>
+    <div className='flex w-full min-w-0 flex-col gap-4'>
+      {/* 上方指标卡片 */}
+      <div className='grid grid-cols-3 gap-2'>
+        <div className='flex flex-col gap-1'>
+          <span className='text-muted-foreground text-xs font-medium'>
+            成功率
+          </span>
+          <span className='text-lg font-bold tabular-nums'>
+            {formatRate(props.item.success_rate)}
+          </span>
+        </div>
+        <div className='flex flex-col gap-1'>
+          <span className='text-muted-foreground text-xs font-medium'>
+            请求数
+          </span>
+          <span className='text-lg font-bold tabular-nums'>
+            {props.item.request_count.toLocaleString()}
+          </span>
+        </div>
+        <div className='flex flex-col gap-1'>
+          <span className='text-muted-foreground text-xs font-medium'>
+            P95延迟
+          </span>
+          <span className='text-lg font-bold tabular-nums'>
+            {formatLatency(props.item.p95_latency)}
+          </span>
+        </div>
+      </div>
+
+      {/* 中间彩色时间轴 */}
       <TooltipProvider>
-        <div ref={trendRef} className='flex min-h-2 w-full items-center gap-px'>
+        <div
+          ref={trendRef}
+          className='bg-muted/30 flex h-12 w-full items-stretch gap-px overflow-hidden rounded-md border'
+        >
           {hasData ? (
-            points.map((point) => (
-              <Tooltip key={point.time_bucket}>
-                <TooltipTrigger
-                  render={
-                    <button
-                      type='button'
-                      className='flex min-w-0 flex-1 items-center justify-center py-1'
-                      onClick={() => props.onSelectPoint(point)}
-                      aria-label={`${formatTimelinePointTime(point)} ${t('Failure details')}`}
-                    >
-                      <span
-                        className={getTrendPointClassName(point)}
-                        style={{
-                          width: Math.min(
-                            getTrendPointSize(point.request_count),
-                            MAX_TREND_DOT_SIZE
-                          ),
-                          height: Math.min(
-                            getTrendPointSize(point.request_count),
-                            MAX_TREND_DOT_SIZE
-                          ),
-                        }}
-                      />
-                    </button>
-                  }
-                />
-                <TooltipContent>
-                  <div className='flex flex-col gap-1 tabular-nums'>
-                    <span>{formatTimelinePointTime(point)}</span>
-                    <span>
-                      {t('Success rate')}:{' '}
-                      {formatRate(
-                        point.request_count > 0
-                          ? point.success_count / point.request_count
-                          : 0
-                      )}
-                    </span>
-                    <span>
-                      {t('Requests')}: {point.request_count.toLocaleString()}
-                    </span>
-                    <span>
-                      {t('Failure count')}:{' '}
-                      {point.failure_count.toLocaleString()}
-                    </span>
-                    {(point.failure_reasons ?? []).slice(0, 3).map((reason) => (
-                      <span key={`${reason.reason}-${reason.status_code}`}>
-                        {reason.reason}: {reason.count.toLocaleString()}
+            points.map((point) => {
+              const successRate =
+                point.request_count > 0
+                  ? point.success_count / point.request_count
+                  : 0
+              let bgColor = 'bg-muted-foreground' // 无数据
+              if (point.request_count > 0) {
+                if (successRate >= 0.95) bgColor = 'bg-green-500'
+                else if (successRate >= 0.85) bgColor = 'bg-emerald-400'
+                else if (successRate >= 0.7) bgColor = 'bg-yellow-400'
+                else if (successRate >= 0.5) bgColor = 'bg-orange-400'
+                else bgColor = 'bg-red-500'
+              }
+
+              // 根据请求数计算高度（0% - 100%）
+              const heightPercent = Math.max(
+                10,
+                (point.request_count / maxRequests) * 100
+              )
+
+              return (
+                <Tooltip key={point.time_bucket}>
+                  <TooltipTrigger
+                    render={
+                      <button
+                        type='button'
+                        className='flex flex-1 items-end justify-center pb-1 transition-opacity hover:opacity-80'
+                        onClick={() => props.onSelectPoint(point)}
+                        aria-label={`${formatTimelinePointTime(point)} ${t('Failure details')}`}
+                      >
+                        <div
+                          className={cn(
+                            'w-full rounded-t transition-all',
+                            bgColor
+                          )}
+                          style={{
+                            height: `${heightPercent}%`,
+                            opacity: point.request_count <= 0 ? 0.3 : 1,
+                          }}
+                        />
+                      </button>
+                    }
+                  />
+                  <TooltipContent>
+                    <div className='flex flex-col gap-1 text-sm tabular-nums'>
+                      <span className='font-medium'>
+                        {formatTimelinePointTime(point)}
                       </span>
-                    ))}
-                  </div>
-                </TooltipContent>
-              </Tooltip>
-            ))
+                      <span>成功率: {formatRate(successRate)}</span>
+                      <span>
+                        请求数: {point.request_count.toLocaleString()}
+                      </span>
+                      <span>
+                        失败数: {point.failure_count.toLocaleString()}
+                      </span>
+                      {(point.failure_reasons ?? [])
+                        .slice(0, 2)
+                        .map((reason) => (
+                          <span
+                            key={`${reason.reason}-${reason.status_code}`}
+                            className='text-muted-foreground text-xs'
+                          >
+                            {reason.reason}: {reason.count}
+                          </span>
+                        ))}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              )
+            })
           ) : (
-            <span className='text-muted-foreground'>-</span>
+            <div className='text-muted-foreground flex flex-1 items-center justify-center text-sm'>
+              -
+            </div>
           )}
         </div>
       </TooltipProvider>
-      <div className='text-muted-foreground flex flex-wrap gap-x-2 gap-y-1 text-xs tabular-nums'>
-        <span>{formatRate(props.item.success_rate)}</span>
-        <span>P95 {formatLatency(props.item.p95_latency)}</span>
-        <span>
-          {t('Requests {{requests}} / failures {{failures}}', {
-            requests: props.item.request_count.toLocaleString(),
-            failures: props.item.failure_count.toLocaleString(),
-          })}
-        </span>
+
+      {/* 下方时间标注 */}
+      {hasData && points.length > 0 && (
+        <div className='text-muted-foreground relative text-xs tabular-nums'>
+          <div className='flex justify-between px-0.5'>
+            <span>{oldestTime}</span>
+            {points.length > 2 && (
+              <span className='absolute left-1/2 -translate-x-1/2'>
+                {midTime}
+              </span>
+            )}
+            <span>现在</span>
+          </div>
+        </div>
+      )}
+
+      {/* 底部补充信息 */}
+      <div className='text-muted-foreground flex flex-wrap gap-x-3 gap-y-1 text-xs'>
+        <span>失败 {props.item.failure_count.toLocaleString()}</span>
+        <span>·</span>
         <span>{lastActive}</span>
       </div>
     </div>
@@ -309,38 +301,18 @@ function AvailabilityTrend(props: {
 }
 
 type ChannelMonitorTableProps = {
-  items: ChannelMonitorItem[]
+  rows: ChannelMonitorDisplayRow[]
   timeline: ChannelTimeline[]
   loading: boolean
   onEditChannel: (channelId: number) => void
+  profitDateRange: ProviderProfitDateRange
+  highlightChannelId: number | null
+  onHighlighted: () => void
 }
 
 export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
   const { t } = useTranslation('xnewapi')
   const queryClient = useQueryClient()
-  const providerWorkspaceQuery = useQuery({
-    queryKey: ['upstream-providers'],
-    queryFn: () => getProviderWorkspace(),
-  })
-  const grossMarginByChannel = useMemo(() => {
-    const margins = new Map<number, number | null>()
-    for (const provider of providerWorkspaceQuery.data?.providers ?? []) {
-      for (const account of provider.accounts) {
-        for (const group of account.groups) {
-          for (const channel of group.channels) {
-            margins.set(channel.id, group.profit?.grossMargin ?? null)
-          }
-        }
-      }
-    }
-    return margins
-  }, [providerWorkspaceQuery.data])
-  const [keyword, setKeyword] = useState('')
-  const [statusFilter, setStatusFilter] = useState('1')
-  const [groupFilter, setGroupFilter] = useState(ALL_GROUPS)
-  const [sortKey, setSortKey] = useState<ChannelMonitorSortKey>('priority')
-  const [sortOrder, setSortOrder] = useState<ChannelMonitorSortOrder>('desc')
-  const [grouped, setGrouped] = useState(false)
   const [scoreItem, setScoreItem] = useState<ChannelMonitorItem | null>(null)
   const [scoreDraft, setScoreDraft] = useState('')
   const [circuitItem, setCircuitItem] = useState<ChannelMonitorItem | null>(
@@ -350,6 +322,32 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
     item: ChannelMonitorItem
     point: ChannelTimelinePoint
   } | null>(null)
+
+  const cacheModelQuery = useQuery({
+    queryKey: [
+      'channel-monitor',
+      'cache-models',
+      trendDetail?.item.id,
+      trendDetail?.item.group_name,
+      trendDetail?.point.time_bucket,
+      trendDetail?.point.time_bucket_end,
+    ],
+    queryFn: () => {
+      if (!trendDetail) return Promise.resolve([])
+      const start = new Date(trendDetail.point.time_bucket)
+      const end = trendDetail.point.time_bucket_end
+        ? new Date(trendDetail.point.time_bucket_end)
+        : new Date(start.getTime() + 10 * 60 * 1000)
+      return getChannelMonitorCacheModelStats(
+        trendDetail.item.id,
+        start.toISOString(),
+        end.toISOString(),
+        trendDetail.item.group_name
+      )
+    },
+    enabled: trendDetail !== null,
+    staleTime: 30_000,
+  })
 
   const refreshMonitor = () =>
     queryClient.invalidateQueries({ queryKey: ['channel-monitor'] })
@@ -391,58 +389,15 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
     return map
   }, [props.timeline])
 
-  const groupCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const item of props.items) {
-      const groupName = normalizeGroupName(item.group_name)
-      counts.set(groupName, (counts.get(groupName) ?? 0) + 1)
-    }
-    return counts
-  }, [props.items])
-  const availableGroups = [...groupCounts.keys()].sort((left, right) =>
-    left.localeCompare(right)
-  )
-  const effectiveGroupFilter = groupCounts.has(groupFilter)
-    ? groupFilter
-    : ALL_GROUPS
-
-  const displayRows = useMemo(() => {
-    const normalizedKeyword = keyword.trim().toLowerCase()
-    const filteredItems: ChannelMonitorItem[] = []
-    for (const item of props.items) {
-      if (
-        effectiveGroupFilter !== ALL_GROUPS &&
-        normalizeGroupName(item.group_name) !== effectiveGroupFilter
-      ) {
-        continue
-      }
-      if (statusFilter !== 'all' && String(item.status) !== statusFilter) {
-        continue
-      }
-      if (
-        normalizedKeyword &&
-        !item.name.toLowerCase().includes(normalizedKeyword)
-      ) {
-        continue
-      }
-      filteredItems.push({
-        ...item,
-        gross_margin: grossMarginByChannel.get(item.id) ?? item.gross_margin,
-      })
-    }
-    const groupRows =
-      grouped || sortKey === 'group_name' || sortKey === 'group_success_rate'
-    return buildChannelMonitorRows(filteredItems, sortKey, sortOrder, groupRows)
-  }, [
-    effectiveGroupFilter,
-    grossMarginByChannel,
-    grouped,
-    keyword,
-    props.items,
-    sortKey,
-    sortOrder,
-    statusFilter,
-  ])
+  useEffect(() => {
+    if (props.highlightChannelId === null) return
+    const row = document.querySelector(
+      `[data-channel-id="${props.highlightChannelId}"]`
+    )
+    if (!row) return
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    props.onHighlighted()
+  }, [props, props.rows])
 
   const commitPriority = (item: ChannelMonitorItem, rawValue: string) => {
     if (rawValue.trim() === '') return
@@ -453,15 +408,6 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
     }
     if (priority === item.priority) return
     priorityMutation.mutate({ channelId: item.id, priority })
-  }
-
-  const sortByColumn = (nextSortKey: ChannelMonitorSortKey) => {
-    if (sortKey === nextSortKey) {
-      setSortOrder((current) => (current === 'asc' ? 'desc' : 'asc'))
-      return
-    }
-    setSortKey(nextSortKey)
-    setSortOrder('desc')
   }
 
   const openScoreDialog = (item: ChannelMonitorItem) => {
@@ -481,160 +427,32 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
 
   return (
     <section className='bg-card overflow-hidden rounded-lg border'>
-      <header className='flex flex-col gap-3 border-b px-4 py-3'>
-        <div>
-          <h2 className='font-semibold'>{t('Channel health')}</h2>
-          <p className='text-muted-foreground mt-0.5 text-xs'>
-            {t('Inspect routing health and adjust channel selection')}
-          </p>
-        </div>
-        <div className='flex flex-wrap items-center gap-2'>
-          <Input
-            value={keyword}
-            onChange={(event) => setKeyword(event.target.value)}
-            placeholder={t('Search channels')}
-            className='w-full sm:w-52'
-          />
-          <Select
-            items={STATUS_OPTIONS.map((option) => ({
-              value: option.value,
-              label: t(option.labelKey),
-            }))}
-            value={statusFilter}
-            onValueChange={(value) => value && setStatusFilter(value)}
-          >
-            <SelectTrigger aria-label={t('Status')} className='w-40'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {STATUS_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {t(option.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <Select
-            items={SORT_OPTIONS.map((option) => ({
-              value: option.value,
-              label: t(option.labelKey),
-            }))}
-            value={sortKey}
-            onValueChange={(value) => {
-              if (!value) return
-              const nextSortKey = value as ChannelMonitorSortKey
-              setSortKey(nextSortKey)
-              if (
-                nextSortKey === 'group_name' ||
-                nextSortKey === 'group_success_rate'
-              ) {
-                setGrouped(true)
-              }
-            }}
-          >
-            <SelectTrigger aria-label={t('Sort')} className='w-44'>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {SORT_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {t(option.labelKey)}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-          <Button
-            variant='outline'
-            onClick={() =>
-              setSortOrder((current) => (current === 'asc' ? 'desc' : 'asc'))
-            }
-            aria-label={t(sortOrder === 'asc' ? 'Ascending' : 'Descending')}
-          >
-            <HugeiconsIcon
-              icon={sortOrder === 'asc' ? ArrowUp01Icon : ArrowDown01Icon}
-              strokeWidth={2}
-              data-icon='inline-start'
-            />
-            {t(sortOrder === 'asc' ? 'Ascending' : 'Descending')}
-          </Button>
-          <label className='text-muted-foreground flex items-center gap-2 text-sm'>
-            <Switch checked={grouped} onCheckedChange={setGrouped} />
-            {t('Group channels')}
-          </label>
-        </div>
-        <div className='overflow-x-auto pb-1'>
-          <Tabs
-            value={effectiveGroupFilter}
-            onValueChange={(value) => setGroupFilter(value)}
-          >
-            <TabsList>
-              <TabsTrigger value={ALL_GROUPS}>
-                {t('All groups')}
-                <StatusBadge
-                  label={String(props.items.length)}
-                  variant='neutral'
-                  copyable={false}
-                />
-              </TabsTrigger>
-              {availableGroups.map((groupName) => (
-                <TabsTrigger key={groupName} value={groupName}>
-                  {groupName}
-                  <StatusBadge
-                    label={String(groupCounts.get(groupName) ?? 0)}
-                    autoColor={groupName}
-                    copyable={false}
-                  />
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
-        </div>
+      <header className='border-b px-4 py-3'>
+        <h2 className='font-semibold'>{t('Channel health')}</h2>
+        <p className='text-muted-foreground mt-0.5 text-xs'>
+          {t('Inspect routing health and adjust channel selection')}
+        </p>
       </header>
 
       <div>
         <Table className='w-full table-fixed'>
           <TableHeader>
             <TableRow>
-              <TableHead className='w-56'>{t('Channel')}</TableHead>
-              <SortableTableHead
-                label={t('Priority')}
-                sortKey='priority'
-                activeSortKey={sortKey}
-                sortOrder={sortOrder}
-                className='hidden w-28 md:table-cell'
-                onSort={sortByColumn}
-              />
-              <SortableTableHead
-                label={t('Routing score')}
-                sortKey='routing_score'
-                activeSortKey={sortKey}
-                sortOrder={sortOrder}
-                className='hidden w-32 text-left lg:table-cell'
-                onSort={sortByColumn}
-              />
-              <SortableTableHead
-                label={t('Gross margin')}
-                sortKey='gross_margin'
-                activeSortKey={sortKey}
-                sortOrder={sortOrder}
-                className='hidden w-28 xl:table-cell'
-                onSort={sortByColumn}
-              />
-              <SortableTableHead
-                label={t('Availability trend')}
-                sortKey='success_rate'
-                activeSortKey={sortKey}
-                sortOrder={sortOrder}
-                onSort={sortByColumn}
-              />
+              <TableHead className='w-72'>{t('Channel')}</TableHead>
+              <TableHead className='hidden w-24 md:table-cell'>
+                {t('Priority')}
+              </TableHead>
+              <TableHead className='hidden w-28 text-left lg:table-cell'>
+                {t('Routing score')}
+              </TableHead>
+              <TableHead className='hidden w-24 xl:table-cell'>
+                {t('Gross margin')}
+              </TableHead>
+              <TableHead>{t('Availability trend')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {displayRows.map((row) => {
+            {props.rows.map((row) => {
               if (row.kind === 'group') {
                 return (
                   <TableRow
@@ -679,27 +497,27 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
               const item = row.item
               const grossMargin = item.gross_margin
               return (
-                <TableRow key={item.id}>
+                <TableRow key={item.id} data-channel-id={item.id}>
                   <TableCell>
                     <div className='flex flex-col gap-2'>
-                      <div className='flex items-center gap-2'>
+                      <div className='flex min-w-0 items-center gap-2'>
                         <span className='flex size-5 shrink-0 items-center justify-center'>
                           {getLobeIcon(getChannelTypeIcon(item.type), 18)}
                         </span>
                         <Button
                           variant='link'
-                          className='h-auto min-w-0 justify-start p-0 font-medium'
+                          className='h-auto max-w-[calc(100%-1.75rem)] min-w-0 flex-none justify-start p-0 text-left font-medium whitespace-normal'
                           onClick={() => props.onEditChannel(item.id)}
                         >
-                          <span className='truncate'>{item.name}</span>
+                          <span className='block min-w-0 break-words'>
+                            {item.name}
+                          </span>
                         </Button>
                       </div>
                       <div className='flex flex-wrap items-center gap-1.5'>
-                        {effectiveGroupFilter === ALL_GROUPS && (
-                          <GroupBadge
-                            group={normalizeGroupName(item.group_name)}
-                          />
-                        )}
+                        <GroupBadge
+                          group={normalizeGroupName(item.group_name)}
+                        />
                         <ChannelStatus status={item.status} />
                         {item.temporary_circuit_open && (
                           <>
@@ -784,7 +602,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                 </TableRow>
               )
             })}
-            {!props.loading && displayRows.length === 0 && (
+            {!props.loading && props.rows.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className='h-72'>
                   <Empty>
@@ -859,7 +677,7 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
       >
         <SheetContent className='w-full sm:max-w-xl'>
           <SheetHeader className='border-b pr-12'>
-            <SheetTitle>{t('Failure details')}</SheetTitle>
+            <SheetTitle>详情</SheetTitle>
             <SheetDescription>
               {trendDetail
                 ? `${trendDetail.item.name} · ${formatTimelinePointTime(trendDetail.point)}`
@@ -899,6 +717,80 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                   </div>
                 </div>
               </div>
+              <section className='border-b px-4 py-4'>
+                <div className='mb-3 flex items-center justify-between gap-3'>
+                  <h3 className='font-medium'>模型缓存</h3>
+                  <span className='text-muted-foreground text-xs'>
+                    上游 Usage
+                  </span>
+                </div>
+                {cacheModelQuery.isLoading && (
+                  <p className='text-muted-foreground text-sm'>
+                    正在加载缓存统计...
+                  </p>
+                )}
+                {!cacheModelQuery.isLoading && cacheModelQuery.isError && (
+                  <p className='text-destructive text-sm'>缓存统计加载失败</p>
+                )}
+                {!cacheModelQuery.isLoading &&
+                  !cacheModelQuery.isError &&
+                  (cacheModelQuery.data ?? []).length === 0 && (
+                    <p className='text-muted-foreground text-sm'>
+                      暂无模型缓存数据
+                    </p>
+                  )}
+                {!cacheModelQuery.isLoading &&
+                  !cacheModelQuery.isError &&
+                  (cacheModelQuery.data ?? []).length > 0 && (
+                    <div className='overflow-x-auto'>
+                      <table className='w-full min-w-[520px] text-sm'>
+                        <thead className='text-muted-foreground text-left text-xs'>
+                          <tr>
+                            <th className='pr-3 pb-2 font-medium'>模型</th>
+                            <th className='pr-3 pb-2 text-right font-medium'>
+                              请求
+                            </th>
+                            <th className='pr-3 pb-2 text-right font-medium'>
+                              输入 Token
+                            </th>
+                            <th className='pr-3 pb-2 text-right font-medium'>
+                              缓存 Token
+                            </th>
+                            <th className='pb-2 text-right font-medium'>
+                              缓存率
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(cacheModelQuery.data ?? []).map((stat) => (
+                            <tr key={stat.model_name} className='border-t'>
+                              <td
+                                className='max-w-[220px] truncate py-2 pr-3 font-medium'
+                                title={stat.model_name}
+                              >
+                                {stat.model_name}
+                              </td>
+                              <td className='py-2 pr-3 text-right tabular-nums'>
+                                {formatNumber(stat.request_count)}
+                              </td>
+                              <td className='py-2 pr-3 text-right tabular-nums'>
+                                {formatNumber(stat.input_tokens)}
+                              </td>
+                              <td className='py-2 pr-3 text-right tabular-nums'>
+                                {formatNumber(stat.cached_tokens)}
+                              </td>
+                              <td className='py-2 text-right tabular-nums'>
+                                {stat.cache_rate == null
+                                  ? '-'
+                                  : formatRate(stat.cache_rate)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+              </section>
               {(trendDetail.point.failure_reasons ?? []).length === 0 ? (
                 <div className='px-4 py-10 text-center text-sm'>
                   <p className='text-muted-foreground'>
@@ -913,11 +805,14 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
               ) : (
                 (trendDetail.point.failure_reasons ?? []).map((reason) => (
                   <section
-                    key={`${reason.reason}-${reason.status_code}`}
+                    key={`${reason.model_name ?? ''}-${reason.reason}-${reason.status_code}`}
                     className='border-b px-4 py-4 last:border-b-0'
                   >
                     <div className='flex items-start justify-between gap-3'>
                       <div className='min-w-0'>
+                        <p className='text-muted-foreground mb-1 text-xs'>
+                          {reason.model_name || '未知模型'}
+                        </p>
                         <h3 className='truncate font-medium'>
                           {reason.reason}
                         </h3>

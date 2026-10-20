@@ -45,6 +45,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { cn } from '@/lib/utils'
 
 import { ProviderSyncStatusBadge } from './provider-sync-status-badge'
@@ -313,6 +314,8 @@ export function ProviderTable(props: ProviderTableProps) {
                     <ProviderSyncStatusBadge
                       status={provider.syncStatus}
                       error={provider.lastSyncError}
+                      lastSyncedAtTimestamp={provider.lastSyncedAtTimestamp}
+                      syncIntervalMinutes={provider.syncIntervalMinutes}
                     />
                     <div className='text-muted-foreground mt-1 text-xs tabular-nums'>
                       {provider.lastSyncedAt ?? '-'}
@@ -344,85 +347,124 @@ export function ProviderTable(props: ProviderTableProps) {
                   </TableCell>
                 </TableRow>
 
-                {expanded &&
-                  provider.accounts.flatMap((account) =>
-                    account.groups.map((group) => {
-                      const profit = group.profit
-                      return (
-                        <TableRow
-                          key={group.groupKey}
-                          className='bg-muted/10 hover:bg-muted/20'
-                        >
-                          <TableCell className='pl-8'>
-                            <div className='flex min-w-0 items-center gap-2'>
-                              <span className='bg-background flex size-7 shrink-0 items-center justify-center rounded-md border'>
-                                <Layers className='text-muted-foreground size-3.5' />
-                              </span>
-                              <div className='min-w-0'>
-                                <CopyButton
-                                  value={group.name}
-                                  size='sm'
-                                  tooltip={t('Copy to clipboard')}
-                                  className='h-auto max-w-full min-w-0 justify-start gap-1 px-0 py-0 font-medium hover:bg-transparent hover:underline'
-                                >
-                                  <span className='truncate'>
-                                    {group.name || '-'}
-                                  </span>
-                                </CopyButton>
-                                <div className='text-muted-foreground mt-1 truncate text-xs'>
-                                  {account.name} / {account.externalId || '-'}
-                                </div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <ProviderKeySummary keys={group.keys} />
-                          </TableCell>
-                          <TableCell>
-                            <div className='flex flex-wrap gap-1.5'>
-                              {group.channels.length > 0 ? (
-                                group.channels.map((channel) => (
-                                  <Badge
-                                    key={channel.id}
-                                    variant={
-                                      channel.status === 'available'
-                                        ? 'outline'
-                                        : 'secondary'
-                                    }
-                                  >
-                                    #{channel.id} {channel.name}
-                                  </Badge>
-                                ))
-                              ) : (
-                                <Badge variant='secondary'>
-                                  {t('Unmapped')}
-                                </Badge>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell />
-                          <TableCell className='pr-8 text-right'>
-                            <div className='font-medium tabular-nums'>
-                              {props.formatAmount(profit?.revenue ?? 0)} /{' '}
-                              {profit?.cost == null
-                                ? '-'
-                                : props.formatAmount(profit.cost)}
-                            </div>
-                            <div className='text-muted-foreground mt-1 text-xs tabular-nums'>
-                              {t('Gross margin')}:{' '}
-                              {profit?.grossMargin == null
-                                ? '-'
-                                : `${profit.grossMargin.toFixed(1)}%`}
-                            </div>
-                          </TableCell>
-                          <TableCell className='text-muted-foreground pl-4 text-xs tabular-nums'>
-                            {account.lastSyncedAt || '-'}
-                          </TableCell>
-                          <TableCell />
-                        </TableRow>
-                      )
-                    })
-                  )}
+                {expanded && (
+                  <TableRow>
+                    <TableCell colSpan={7} className='p-0'>
+                      <Tabs
+                        defaultValue={provider.accounts[0]?.id}
+                        className='gap-0'
+                      >
+                        {provider.accounts.length > 1 && (
+                          <TabsList variant='line' className='mx-4 mt-2'>
+                            {provider.accounts.map((account) => (
+                              <TabsTrigger key={account.id} value={account.id}>
+                                {account.name}
+                                <ProviderSyncStatusBadge
+                                  status={account.syncStatus ?? 'never'}
+                                  error={account.lastSyncError}
+                                  lastSyncedAtTimestamp={
+                                    account.lastSyncedAtTimestamp
+                                  }
+                                  syncIntervalMinutes={
+                                    provider.syncIntervalMinutes
+                                  }
+                                />
+                              </TabsTrigger>
+                            ))}
+                          </TabsList>
+                        )}
+                        {provider.accounts.map((account) => (
+                          <TabsContent key={account.id} value={account.id}>
+                            <Table className='min-w-[1120px] table-fixed'>
+                              <TableBody>
+                                {account.groups.map((group) => {
+                                  const profit = group.profit
+                                  return (
+                                    <TableRow
+                                      key={`${account.id}:${group.groupKey}`}
+                                      className='bg-muted/10 hover:bg-muted/20'
+                                    >
+                                      <TableCell className='pl-8'>
+                                        <div className='flex min-w-0 items-center gap-2'>
+                                          <span className='bg-background flex size-7 shrink-0 items-center justify-center rounded-md border'>
+                                            <Layers className='text-muted-foreground size-3.5' />
+                                          </span>
+                                          <div className='min-w-0'>
+                                            <CopyButton
+                                              value={group.name}
+                                              size='sm'
+                                              tooltip={t('Copy to clipboard')}
+                                              className='h-auto max-w-full min-w-0 justify-start gap-1 px-0 py-0 font-medium hover:bg-transparent hover:underline'
+                                            >
+                                              <span className='truncate'>
+                                                {group.name || '-'}
+                                              </span>
+                                            </CopyButton>
+                                            <div className='text-muted-foreground mt-1 truncate text-xs'>
+                                              {account.name} /{' '}
+                                              {account.externalId || '-'}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        <ProviderKeySummary keys={group.keys} />
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className='flex flex-wrap gap-1.5'>
+                                          {group.channels.length > 0 ? (
+                                            group.channels.map((channel) => (
+                                              <Badge
+                                                key={channel.id}
+                                                variant={
+                                                  channel.status === 'available'
+                                                    ? 'outline'
+                                                    : 'secondary'
+                                                }
+                                              >
+                                                #{channel.id} {channel.name}
+                                              </Badge>
+                                            ))
+                                          ) : (
+                                            <Badge variant='secondary'>
+                                              {t('Unmapped')}
+                                            </Badge>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell />
+                                      <TableCell className='pr-8 text-right'>
+                                        <div className='font-medium tabular-nums'>
+                                          {props.formatAmount(
+                                            profit?.revenue ?? 0
+                                          )}{' '}
+                                          /{' '}
+                                          {profit?.cost == null
+                                            ? '-'
+                                            : props.formatAmount(profit.cost)}
+                                        </div>
+                                        <div className='text-muted-foreground mt-1 text-xs tabular-nums'>
+                                          {t('Gross margin')}:{' '}
+                                          {profit?.grossMargin == null
+                                            ? '-'
+                                            : `${profit.grossMargin.toFixed(1)}%`}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell className='text-muted-foreground pl-4 text-xs tabular-nums'>
+                                        {account.lastSyncedAt || '-'}
+                                      </TableCell>
+                                      <TableCell />
+                                    </TableRow>
+                                  )
+                                })}
+                              </TableBody>
+                            </Table>
+                          </TabsContent>
+                        ))}
+                      </Tabs>
+                    </TableCell>
+                  </TableRow>
+                )}
               </Fragment>
             )
           })}

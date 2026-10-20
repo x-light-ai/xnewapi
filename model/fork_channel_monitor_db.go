@@ -122,6 +122,7 @@ type ChannelTimelinePoint struct {
 }
 
 type ChannelTimelineFailureReason struct {
+	ModelName  string                         `json:"model_name"`
 	Reason     string                         `json:"reason"`
 	ErrorCode  string                         `json:"error_code"`
 	ErrorType  string                         `json:"error_type"`
@@ -488,6 +489,9 @@ func CleanupExpiredChannelMonitorStats() error {
 	if err := DB.Where("granularity = ? AND time_bucket < ?", ChannelMonitorGranularityDay, now.Add(-channelMonitorDayRetention)).Delete(&ChannelMonitorStat{}).Error; err != nil {
 		return err
 	}
+	if err := CleanupExpiredChannelMonitorCacheStats(now); err != nil {
+		return err
+	}
 	return CleanupExpiredChannelMonitorErrors(now)
 }
 
@@ -505,8 +509,8 @@ func normalizeChannelMonitorDays(days int) int {
 	if days <= 0 {
 		return 7
 	}
-	if days > 30 {
-		return 30
+	if days > 31 {
+		return 31
 	}
 	return days
 }
@@ -858,6 +862,7 @@ func loadChannelTimelineFailureReasons(start time.Time, end time.Time, bucketDur
 		return nil, err
 	}
 	type failureReasonKey struct {
+		ModelName  string
 		Reason     string
 		ErrorCode  string
 		ErrorType  string
@@ -880,7 +885,7 @@ func loadChannelTimelineFailureReasons(start time.Time, end time.Time, bucketDur
 		if reason == "" {
 			reason = "Unknown error"
 		}
-		reasonKey := failureReasonKey{Reason: reason, ErrorCode: errorCode, ErrorType: errorType, StatusCode: statusCode}
+		reasonKey := failureReasonKey{ModelName: monitorError.ModelName, Reason: reason, ErrorCode: errorCode, ErrorType: errorType, StatusCode: statusCode}
 		bucketReasons := aggregates[bucketKey]
 		if bucketReasons == nil {
 			bucketReasons = make(map[failureReasonKey]*ChannelTimelineFailureReason)
@@ -889,7 +894,7 @@ func loadChannelTimelineFailureReasons(start time.Time, end time.Time, bucketDur
 		aggregate := bucketReasons[reasonKey]
 		if aggregate == nil {
 			aggregate = &ChannelTimelineFailureReason{
-				Reason: reason, ErrorCode: errorCode, ErrorType: errorType, StatusCode: statusCode,
+				ModelName: monitorError.ModelName, Reason: reason, ErrorCode: errorCode, ErrorType: errorType, StatusCode: statusCode,
 				Details: make([]ChannelTimelineFailureDetail, 0),
 			}
 			bucketReasons[reasonKey] = aggregate

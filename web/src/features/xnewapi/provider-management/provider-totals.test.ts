@@ -30,6 +30,7 @@ describe('provider profitability totals', () => {
       status: 'healthy',
       syncStatus: 'success',
       lastSyncedAt: '2026-07-29 12:00',
+      lastSyncedAtTimestamp: 1785326400,
       authenticationMethod: 'api-key',
       adapterType: 'newapi',
       syncIntervalMinutes: 60,

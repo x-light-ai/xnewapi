@@ -25,6 +25,7 @@ func TestRegisterForkRoutes(t *testing.T) {
 		"GET /api/xnewapi/channel-monitor/summary",
 		"GET /api/xnewapi/channel-monitor/health",
 		"GET /api/xnewapi/channel-monitor/timeline",
+		"GET /api/xnewapi/channel-monitor/timeline/cache-models",
 		"GET /api/xnewapi/channel-monitor/channels",
 		"GET /api/xnewapi/channel-monitor/rankings",
 		"POST /api/xnewapi/channel-monitor/channels/:id/score_override",

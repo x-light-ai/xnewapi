@@ -53,6 +53,7 @@ export type ChannelMonitorItem = {
   temporary_circuit_reason: string
   current_weighted_score: number
   gross_margin?: number | null
+  provider_name?: string
 }
 
 export type ChannelTimelinePoint = {
@@ -68,7 +69,17 @@ export type ChannelTimelinePoint = {
   failure_reasons: ChannelTimelineFailureReason[]
 }
 
+export type ChannelMonitorCacheModelStat = {
+  model_name: string
+  request_count: number
+  input_tokens: number
+  cached_tokens: number
+  cache_creation_tokens: number
+  cache_rate: number | null
+}
+
 export type ChannelTimelineFailureReason = {
+  model_name?: string
   reason: string
   error_code: string
   error_type: string

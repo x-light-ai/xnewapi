@@ -171,7 +171,6 @@ export async function getProviderWorkspace(
       }
     )
     .then((response) => unwrap(response.data))
-    .catch(() => [])
   const [providersResponse, rawChannelOptions, profits] = await Promise.all([
     api.get<ApiResponse<Page<RawProvider>>>('/api/xnewapi/providers', {
       params: { p: 1, page_size: 100 },
@@ -226,6 +225,7 @@ export async function getProviderWorkspace(
       lastSyncedAt: provider.last_synced_at
         ? timestampLabel(provider.last_synced_at)
         : null,
+      lastSyncedAtTimestamp: provider.last_synced_at || null,
       lastSyncError: provider.last_sync_error,
       authenticationMethod,
       adapterType: provider.adapter_type === 'sub2api' ? 'sub2api' : 'newapi',
@@ -250,6 +250,7 @@ export async function getProviderWorkspace(
         totalRecharge: Number(account.total_recharge),
         syncStatus: account.sync_status,
         lastSyncError: account.last_sync_error,
+        lastSyncedAtTimestamp: account.last_synced_at || null,
         lastSyncedAt: timestampLabel(account.last_synced_at),
         groups: (account.groups ?? []).map((group) => {
           const groupKey = `${provider.id}:${account.id}:${group.id}`

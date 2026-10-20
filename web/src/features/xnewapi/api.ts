@@ -15,6 +15,7 @@ import type {
   ApiResponse,
   ChannelHealthPoint,
   ChannelMonitorPageData,
+  ChannelMonitorCacheModelStat,
   ChannelMonitorSummary,
   ChannelRankings,
   ChannelTimeline,
@@ -57,6 +58,21 @@ export async function getChannelMonitorTimeline(days: number, group: string) {
   const response = await api.get<ApiResponse<ChannelTimeline[]>>(
     `${channelMonitorBasePath}/timeline`,
     { params: { days, bucket_minutes: 10, group } }
+  )
+  return unwrap(response.data)
+}
+
+export async function getChannelMonitorCacheModelStats(
+  channelId: number,
+  start: string,
+  end: string,
+  group: string
+) {
+  const response = await api.get<ApiResponse<ChannelMonitorCacheModelStat[]>>(
+    `${channelMonitorBasePath}/timeline/cache-models`,
+    {
+      params: { channel_id: channelId, start, end, group },
+    }
   )
   return unwrap(response.data)
 }

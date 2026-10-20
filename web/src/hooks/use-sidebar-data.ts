@@ -18,8 +18,8 @@ For commercial licensing, please contact support@quantumnous.com
 */
 import {
   Activity,
+  BarChart3, // FORK-CUSTOM: Icon for Channel Operations Center
   Box,
-  Building2,
   ClipboardList,
   CreditCard,
   FileText,
@@ -37,7 +37,6 @@ import {
   User,
   Users,
   Wallet,
-  HeartPulse,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
@@ -139,17 +138,11 @@ export function useSidebarData(): SidebarData {
             url: '/channels',
             icon: Radio,
           },
-          // FORK-CUSTOM: Expose the fork-owned model provider prototype from one sidebar hook.
+          // FORK-CUSTOM: Channel Operations Center menu item
           {
-            title: t('Model Provider Management', { ns: 'xnewapi' }),
-            url: '/providers',
-            icon: Building2,
-          },
-          // FORK-CUSTOM: Expose channel monitoring from one default sidebar hook.
-          {
-            title: t('Channel Monitor', { ns: 'xnewapi' }),
-            url: '/channel-monitor',
-            icon: HeartPulse,
+            title: '渠道运营中心',
+            url: '/channel-operations',
+            icon: BarChart3,
           },
           {
             title: t('Models'),
