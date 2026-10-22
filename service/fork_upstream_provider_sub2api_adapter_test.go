@@ -96,6 +96,41 @@ func TestSub2APIProviderSyncAdapterCollectsBalanceKeysAndActualCost(t *testing.T
 	assert.Empty(t, snapshot.MissingFields)
 }
 
+func TestSub2APIProviderSyncAdapterDividesAmountsByRechargeRatio(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		var data any
+		switch request.URL.Path {
+		case "/api/v1/auth/login":
+			data = map[string]any{"access_token": "access-token"}
+		case "/api/v1/auth/me":
+			data = map[string]any{"id": 4841, "balance": 52.29, "total_recharged": 1410}
+		case "/api/v1/keys":
+			data = map[string]any{"items": []any{
+				map[string]any{"id": 7, "name": "key", "status": "active"},
+			}, "pages": 1}
+		case "/api/v1/usage/dashboard/snapshot-v2":
+			data = map[string]any{"trend": []any{map[string]any{"actual_cost": 1}}}
+		default:
+			http.NotFound(writer, request)
+			return
+		}
+		payload, err := common.Marshal(map[string]any{"code": 0, "message": "success", "data": data})
+		require.NoError(t, err)
+		_, err = writer.Write(payload)
+		require.NoError(t, err)
+	}))
+	t.Cleanup(server.Close)
+
+	adapter := &sub2APIProviderSyncAdapter{client: &http.Client{Timeout: time.Second}}
+	provider := &model.UpstreamProvider{Endpoint: server.URL, RechargeRatio: decimal.NewFromInt(10)}
+	snapshot, err := adapter.SyncAccountSnapshot(context.Background(), provider, &model.UpstreamProviderAccount{}, ProviderSyncCredentials{Username: "user@example.com", SyncAPIKey: "password"})
+	require.NoError(t, err)
+	assert.True(t, snapshot.Balance.Equal(decimal.RequireFromString("5.229")))
+	assert.True(t, snapshot.TotalRecharge.Equal(decimal.NewFromInt(141)))
+	require.Len(t, snapshot.Groups, 1)
+	assert.True(t, snapshot.Groups[0].ProviderCost.Equal(decimal.RequireFromString("0.1")))
+}
+
 func TestSub2APIProviderSyncAdapterRefreshesTokenCredentials(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		require.Equal(t, "/api/v1/auth/refresh", request.URL.Path)

@@ -17,7 +17,7 @@
 
 ### 供应商与账户
 
-`xnewapi_upstream_providers` 保存供应商地址、同步周期、适配器所需的换算参数和同步状态。NewAPI 使用 Quota 换算基数和充值比例还原金额；Sub2API 返回的余额、累计充值和 `actual_cost` 已是金额，不使用 Quota 换算基数。
+`xnewapi_upstream_providers` 保存供应商地址、同步周期、适配器所需的换算参数和同步状态。NewAPI 使用 Quota 换算基数和充值比例还原金额；Sub2API 返回的余额、累计充值和 `actual_cost` 已是金额，不使用 Quota 换算基数，但同样按充值比例换算（本地金额 = 上游金额 ÷ 充值比例），用于上游货币与本地货币汇率不一致的场景。
 
 `xnewapi_upstream_provider_accounts` 保存上游账户标识、适配器所需的登录用户名/同步密钥或 Access/Refresh Token、余额、累计充值及账户同步状态。密码、同步密钥和 Token 均不会通过 API 返回，只返回是否已配置的布尔标记。
 
@@ -86,7 +86,7 @@ Sub2API 支持两种认证方式：
 2. `GET /api/v1/auth/me?timezone=Asia%2FShanghai` 获取上游账户 ID、余额和累计充值；返回的账户 ID 写入 `external_id`。
 3. 分页请求 `GET /api/v1/keys` 获取账户下的 API Key。
 4. 对每个 Key 请求 `GET /api/v1/usage/dashboard/snapshot-v2`，使用 `api_key_id` 和当天日期查询。
-5. 只汇总 `trend.actual_cost` 作为实付成本；`cost` 是标准计费金额，不参与利润计算。`balance`、`total_recharged` 和 `actual_cost` 均直接按金额保存，不经过 Quota 换算基数或充值比例换算。
+5. 只汇总 `trend.actual_cost` 作为实付成本；`cost` 是标准计费金额，不参与利润计算。`balance`、`total_recharged` 和 `actual_cost` 均按上游返回值除以充值比例得到本地金额，不经过 Quota 换算基数换算；充值比例未配置或非正数时按 1 处理（即不换算）。
 
 Sub2API 的每个 Key 会生成独立归集单元，名称包含稳定 Key ID（例如 `production (#4050)`），因此同名 Key 不会合并。一个归集单元仍可映射多个本地渠道，一个本地渠道仍只能属于一个归集单元，收入与成本的统一规则不变。
 

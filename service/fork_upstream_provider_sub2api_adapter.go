@@ -154,11 +154,15 @@ func (a *sub2APIProviderSyncAdapter) SyncAccountSnapshot(ctx context.Context, pr
 	if err != nil {
 		return nil, err
 	}
+	rechargeRatio := provider.RechargeRatio
+	if !rechargeRatio.IsPositive() {
+		rechargeRatio = decimal.NewFromInt(1)
+	}
 	now := time.Now().In(sub2APILocation)
 	costDate := now.Format("2006-01-02")
 	snapshot := &ProviderAccountSnapshot{
 		AccountExternalID: strconv.FormatInt(currentUser.ID, 10),
-		Balance:           currentUser.Balance, TotalRecharge: currentUser.TotalRecharged,
+		Balance:           currentUser.Balance.Div(rechargeRatio), TotalRecharge: currentUser.TotalRecharged.Div(rechargeRatio),
 		BalanceAvailable: true, TotalRechargeAvailable: true,
 		ObservedAt: common.GetTimestamp(), RawSource: mePath + ",/api/v1/keys,/api/v1/usage/dashboard/snapshot-v2",
 		Keys: make([]ProviderKeySnapshot, 0, len(keys)), Groups: make([]ProviderGroupSnapshot, 0, len(keys)),
@@ -185,7 +189,7 @@ func (a *sub2APIProviderSyncAdapter) SyncAccountSnapshot(ctx context.Context, pr
 		if costErr != nil {
 			snapshot.MissingFields = append(snapshot.MissingFields, "cost:"+strconv.FormatInt(key.ID, 10))
 		} else {
-			groupSnapshot.ProviderCost = actualCost
+			groupSnapshot.ProviderCost = actualCost.Div(rechargeRatio)
 			groupSnapshot.ProviderUsageQuota = decimal.Zero
 			groupSnapshot.CostStatus = "ready"
 		}
