@@ -236,6 +236,27 @@ export function ProviderManagement({
             {t('All statuses')}
           </NativeSelectOption>
         </NativeSelect>
+        {embedded && (
+          <div className='flex items-center gap-2 sm:ml-auto'>
+            <Button
+              variant='outline'
+              size='icon'
+              onClick={() => {
+                void workspaceQuery.refetch()
+              }}
+              aria-label={t('Refresh')}
+              title={t('Refresh')}
+            >
+              <RefreshCw
+                className={workspaceQuery.isFetching ? 'animate-spin' : ''}
+              />
+            </Button>
+            <Button onClick={openCreateSheet}>
+              <Plus data-icon='inline-start' />
+              {t('Add model provider')}
+            </Button>
+          </div>
+        )}
       </div>
 
       <ProviderTable
