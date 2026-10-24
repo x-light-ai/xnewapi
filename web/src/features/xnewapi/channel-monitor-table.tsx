@@ -62,6 +62,8 @@ import { formatNumber } from '@/lib/format'
 import { getLobeIcon } from '@/lib/lobe-icon'
 import { cn } from '@/lib/utils'
 
+import { updateChannelStatus } from '@/features/channels/api'
+
 import {
   clearChannelCircuit,
   getChannelMonitorCacheModelStats,
@@ -84,15 +86,17 @@ import type {
   ChannelTimelinePoint,
 } from './types'
 
-function ChannelStatus(props: { status: number }) {
+function ChannelStatus(props: { status: number; onClick: () => void }) {
   const { t } = useTranslation('xnewapi')
+  let badge = (
+    <StatusBadge label={t('Disabled')} variant='danger' copyable={false} />
+  )
   if (props.status === 1) {
-    return (
+    badge = (
       <StatusBadge label={t('Enabled')} variant='success' copyable={false} />
     )
-  }
-  if (props.status === 3) {
-    return (
+  } else if (props.status === 3) {
+    badge = (
       <StatusBadge
         label={t('Automatically disabled')}
         variant='warning'
@@ -100,7 +104,15 @@ function ChannelStatus(props: { status: number }) {
       />
     )
   }
-  return <StatusBadge label={t('Disabled')} variant='danger' copyable={false} />
+  return (
+    <button
+      type='button'
+      className='cursor-pointer rounded-full'
+      onClick={props.onClick}
+    >
+      {badge}
+    </button>
+  )
 }
 
 function ScoreBadge(props: { score: number }) {
@@ -318,6 +330,9 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
   const [circuitItem, setCircuitItem] = useState<ChannelMonitorItem | null>(
     null
   )
+  const [statusItem, setStatusItem] = useState<ChannelMonitorItem | null>(
+    null
+  )
   const [trendDetail, setTrendDetail] = useState<{
     item: ChannelMonitorItem
     point: ChannelTimelinePoint
@@ -367,6 +382,18 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
     onSuccess: () => {
       toast.success(t('Channel score updated'))
       setScoreItem(null)
+      refreshMonitor()
+    },
+    onError: (error: Error) => toast.error(error.message),
+  })
+  const statusMutation = useMutation({
+    mutationFn: async (input: { channelId: number; status: number }) => {
+      const res = await updateChannelStatus(input.channelId, input.status)
+      if (!res.success) throw new Error(res.message || '操作失败')
+    },
+    onSuccess: () => {
+      toast.success('渠道状态已更新')
+      setStatusItem(null)
       refreshMonitor()
     },
     onError: (error: Error) => toast.error(error.message),
@@ -518,7 +545,10 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
                         <GroupBadge
                           group={normalizeGroupName(item.group_name)}
                         />
-                        <ChannelStatus status={item.status} />
+                        <ChannelStatus
+                          status={item.status}
+                          onClick={() => setStatusItem(item)}
+                        />
                         {item.temporary_circuit_open && (
                           <>
                             <Tooltip>
@@ -855,6 +885,26 @@ export function ChannelMonitorTable(props: ChannelMonitorTableProps) {
           )}
         </SheetContent>
       </Sheet>
+
+      <ConfirmDialog
+        open={statusItem !== null}
+        onOpenChange={(open) => !open && setStatusItem(null)}
+        title={statusItem?.status === 1 ? '禁用渠道' : '启用渠道'}
+        desc={
+          statusItem?.status === 1
+            ? '禁用后该渠道将不再参与路由。'
+            : '确定要启用该渠道吗？'
+        }
+        destructive={statusItem?.status === 1}
+        isLoading={statusMutation.isPending}
+        handleConfirm={() =>
+          statusItem &&
+          statusMutation.mutate({
+            channelId: statusItem.id,
+            status: statusItem.status === 1 ? 2 : 1,
+          })
+        }
+      />
 
       <ConfirmDialog
         open={circuitItem !== null}
